@@ -1,0 +1,3436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTV Site Analyzer — Tide & Timber Ventures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1a2535;--navy-mid:#243044;--navy-light:#2e3d56;
+  --teal:#2e9c8f;--teal-light:#3ab8a8;--teal-dim:rgba(46,156,143,0.15);
+  --amber:#e8a94d;--amber-dim:rgba(232,169,77,0.12);
+  --red:#e05c5c;--red-dim:rgba(224,92,92,0.12);
+  --green:#4caf82;--green-dim:rgba(76,175,130,0.12);
+  --text:#e8edf4;--text-mid:#8fa3bc;--text-dim:#4d6580;
+  --border:rgba(255,255,255,0.07);--border-bright:rgba(255,255,255,0.13);
+  --card:rgba(255,255,255,0.035);--input-bg:rgba(255,255,255,0.06);
+  --radius:10px;--radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+
+.hdr{border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;background:rgba(26,37,53,0.97);position:sticky;top:0;z-index:200;backdrop-filter:blur(8px)}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-logo{width:30px;height:30px;background:var(--teal);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:15px;color:#fff}
+.hdr-title{font-family:'DM Serif Display',serif;font-size:17px}
+.hdr-sub{font-size:10px;color:var(--text-mid);margin-top:1px}
+.hdr-badge{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);background:var(--teal-dim);border:1px solid rgba(46,156,143,0.3);padding:3px 8px;border-radius:20px}
+
+.step-nav{display:flex;align-items:stretch;background:var(--navy-mid);border-bottom:1px solid var(--border)}
+.step-btn{flex:1;padding:10px 6px;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--text-dim);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:0.03em;transition:all 0.2s;border-bottom:2px solid transparent;position:relative}
+.step-btn:hover{color:var(--text-mid);background:rgba(255,255,255,0.03)}
+.step-btn.active{color:var(--teal-light);border-bottom-color:var(--teal);background:rgba(46,156,143,0.06)}
+.step-btn.done{color:var(--text-mid)}
+.step-btn.done::after{content:'✓';position:absolute;top:6px;right:8px;font-size:9px;color:var(--green)}
+.step-num{display:block;font-family:'DM Mono',monospace;font-size:14px;color:inherit;margin-bottom:1px}
+.step-btn.active .step-num{color:var(--teal-light)}
+
+.page{display:none;max-width:1100px;margin:0 auto;padding:28px 24px 60px}
+.page.active{display:block}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-title{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-mid);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.card-title .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);flex-shrink:0}
+
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:11px;color:var(--text-mid);margin-bottom:5px;font-weight:500}
+.field input,.field select{width:100%;background:var(--input-bg);border:1px solid var(--border-bright);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:8px 10px;outline:none;transition:border-color 0.15s}
+.field input:focus,.field select:focus{border-color:var(--teal);background:rgba(46,156,143,0.08)}
+.field input[readonly]{opacity:0.6;cursor:default}
+.field select option{background:var(--navy-mid)}
+.input-wrap{position:relative;display:flex;align-items:center}
+.input-wrap .pfx{position:absolute;left:10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text-dim);pointer-events:none}
+.input-wrap .sfx{position:absolute;right:10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);pointer-events:none}
+.input-wrap input{padding-left:20px}
+.input-wrap input.sfx-pad{padding-right:32px}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fr4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.note{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.4}
+.warn{font-size:11px;color:var(--amber);padding:8px 10px;background:var(--amber-dim);border-left:2px solid var(--amber);border-radius:4px;margin-top:8px;line-height:1.4}
+.err{font-size:11px;color:var(--red);padding:8px 10px;background:var(--red-dim);border-left:2px solid var(--red);border-radius:4px;margin-top:8px}
+.ok{font-size:11px;color:var(--green);padding:8px 10px;background:var(--green-dim);border-left:2px solid var(--green);border-radius:4px;margin-top:8px}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-lbl{font-size:12px;color:var(--text-mid)}
+.tog{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-track{position:absolute;inset:0;background:var(--border-bright);border-radius:20px;transition:background 0.2s}
+.tog input:checked+.tog-track{background:var(--teal)}
+.tog-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none}
+.tog input:checked~.tog-thumb{transform:translateX(16px)}
+
+.link-card{border:1px solid var(--border-bright);border-radius:var(--radius-sm);padding:12px 14px;margin-top:10px;background:rgba(255,255,255,0.03)}
+.link-card-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px}
+.link-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)}
+.link-row:last-child{border-bottom:none}
+.link-row-label{font-size:11px;color:var(--text-mid)}
+.link-btn{font-size:10px;font-family:'DM Mono',monospace;color:var(--teal);background:var(--teal-dim);border:1px solid rgba(46,156,143,0.25);padding:3px 8px;border-radius:4px;text-decoration:none;white-space:nowrap}
+.link-btn:hover{background:rgba(46,156,143,0.25)}
+
+.area-display{background:linear-gradient(135deg,rgba(46,156,143,0.1),rgba(26,37,53,0.5));border:1px solid rgba(46,156,143,0.25);border-radius:var(--radius);padding:20px;margin-top:16px}
+.area-big{font-family:'DM Serif Display',serif;font-size:42px;color:var(--teal-light);line-height:1}
+.area-unit{font-size:14px;color:var(--text-mid);margin-top:4px}
+.area-dims{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-dim);margin-top:8px}
+.area-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+.area-item{text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:6px}
+.area-item-val{font-family:'DM Mono',monospace;font-size:15px;color:var(--text)}
+.area-item-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
+
+.bua-block{border:1px solid var(--border-bright);border-radius:var(--radius-sm);padding:14px;margin-top:12px;background:rgba(255,255,255,0.02)}
+.bua-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-mid);margin-bottom:10px}
+.bua-meter{height:8px;background:var(--border-bright);border-radius:4px;margin:8px 0;overflow:hidden}
+.bua-fill{height:100%;border-radius:4px;transition:width 0.3s,background 0.3s}
+
+.fit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:12px}
+.fit-group-hdr{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mid);font-weight:600;margin:16px 0 6px}
+.fit-group-hdr:first-child{margin-top:4px}
+.fit-group-hdr span{color:var(--text-dim);font-weight:400}
+.fit-sort-bar{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.fit-sort-bar select{background:var(--navy-mid,#10202e);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit}
+.fit-card{border-radius:var(--radius-sm);padding:12px;border:1px solid var(--border);position:relative}
+.fit-img-btn{position:absolute;top:6px;right:6px;display:flex;align-items:center;justify-content:center;width:24px;height:24px;background:rgba(10,18,26,0.55);border:1px solid var(--border-bright);color:var(--text);border-radius:5px;cursor:pointer;padding:0}
+.fit-img-btn:hover{background:var(--teal);color:#04201c}
+.plan-img-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:transparent;border:1px solid var(--border-bright);color:var(--text-mid);border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit;cursor:pointer}
+.plan-img-btn:hover{color:var(--text);border-color:var(--teal)}
+.fit-card.fit-ok{border-color:rgba(76,175,130,0.35);background:var(--green-dim)}
+.fit-card.fit-warn{border-color:rgba(232,169,77,0.35);background:var(--amber-dim)}
+.fit-card.fit-no{border-color:rgba(224,92,92,0.35);background:var(--red-dim)}
+.fit-name{font-size:12px;font-weight:600;margin-bottom:4px}
+.fit-ok .fit-name{color:var(--green)}.fit-warn .fit-name{color:var(--amber)}.fit-no .fit-name{color:var(--red)}
+.fit-detail{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);line-height:1.6}
+.fit-badge{font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:2px 6px;border-radius:3px;display:inline-block;margin-top:4px}
+.fit-ok .fit-badge{background:rgba(76,175,130,0.2);color:var(--green)}
+.fit-warn .fit-badge{background:rgba(232,169,77,0.15);color:var(--amber)}
+.fit-no .fit-badge{background:rgba(224,92,92,0.15);color:var(--red)}
+.fit-card{cursor:pointer;transition:transform 0.1s,box-shadow 0.1s}
+.fit-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.fit-card.selected{outline:2px solid var(--amber);outline-offset:2px;box-shadow:0 0 0 4px rgba(232,169,77,0.15)}
+.fit-card.fit-no{cursor:default}
+.fit-card.fit-no:hover{transform:none;box-shadow:none}
+.fit-collapse-btn{width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-dim);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;margin-top:10px;display:flex;align-items:center;justify-content:space-between}
+.fit-collapse-btn:hover{background:rgba(255,255,255,0.06);color:var(--text-mid)}
+.fit-collapse-section{display:none;margin-top:6px}
+.fit-collapse-section.open{display:block}
+
+.lf-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.lf-row:last-child{border-bottom:none}
+.lf-lbl{color:var(--text-mid)}.lf-val{font-family:'DM Mono',monospace;color:var(--text)}
+.lf-total{display:flex;justify-content:space-between;padding:10px 0 0;margin-top:4px;border-top:1px solid var(--border-bright)}
+.lf-total-lbl{font-size:12px;font-weight:600;color:var(--text-mid)}
+.lf-total-val{font-family:'DM Mono',monospace;font-size:16px;color:var(--amber)}
+
+.row-tree-block{background:rgba(232,169,77,0.05);border:1px solid rgba(232,169,77,0.2);border-radius:var(--radius-sm);padding:14px;margin-top:10px}
+/* LOT MODE TOGGLE */
+.lot-mode-toggle{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border-bright);border-radius:var(--radius-sm);overflow:hidden}
+/* LOT POINT EDITOR */
+.lot-editor-wrap{position:relative;width:100%;border-radius:var(--radius-sm);border:1px solid var(--border-bright);background:#0d1a26;overflow:hidden;cursor:crosshair;user-select:none}
+.lot-editor-wrap canvas{display:block;width:100%;height:auto}
+.lot-editor-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.lot-editor-toolbar label{font-size:11px;color:var(--text-mid);white-space:nowrap}
+.lot-editor-toolbar input[type=number]{width:80px;background:var(--input-bg);border:1px solid var(--border-bright);border-radius:4px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:5px 8px;outline:none}
+.lot-editor-toolbar input[type=number]:focus{border-color:var(--teal)}
+.lot-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.lot-stat-box{text-align:center;padding:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.lot-stat-val{font-family:'DM Mono',monospace;font-size:16px;color:var(--teal-light)}
+.lot-stat-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
+.hint-text{font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.5}
+.lot-mode-btn{flex:1;padding:9px 12px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;background:transparent;color:var(--text-dim);border:none;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.lot-mode-btn.active{background:var(--teal);color:#fff}
+.lot-mode-btn:hover:not(.active){background:var(--card-hover);color:var(--text-mid)}
+
+/* IRREGULAR LOT SIDE ENTRY */
+.sides-list{margin-top:10px}
+.side-row{display:grid;grid-template-columns:28px 1fr 90px 36px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.side-row:last-child{border-bottom:none}
+.side-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);text-align:center}
+.side-input{background:var(--input-bg);border:1px solid var(--border-bright);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:6px 8px;outline:none;width:100%}
+.side-input:focus{border-color:var(--teal)}
+.angle-wrap{display:flex;align-items:center;gap:4px}
+.angle-badge{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);background:var(--teal-dim);padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid rgba(46,156,143,0.25);white-space:nowrap}
+.angle-badge:hover{background:rgba(46,156,143,0.25)}
+.side-del{width:28px;height:28px;background:transparent;border:1px solid var(--border-bright);border-radius:4px;color:var(--text-dim);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.side-del:hover{border-color:var(--red);color:var(--red)}
+.add-side-btn{width:100%;padding:8px;background:transparent;border:1px dashed var(--border-bright);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;margin-top:8px;transition:all 0.15s}
+.add-side-btn:hover{border-color:var(--teal);color:var(--teal)}
+.lot-poly-preview{width:100%;height:160px;background:rgba(0,0,0,0.2);border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:10px}
+.angle-override-row{display:grid;grid-template-columns:28px 1fr 90px 36px;gap:8px;align-items:center;padding:4px 0 8px;display:none}
+.angle-override-row.open{display:grid}
+.angle-override-row input{background:var(--input-bg);border:1px solid rgba(46,156,143,0.4);border-radius:var(--radius-sm);color:var(--teal);font-family:'DM Mono',monospace;font-size:12px;padding:4px 8px;outline:none;width:100%}
+
+/* PLAN OVERLAY / DRAG TOOL */
+.plan-overlay-section{margin-top:16px;padding:14px;background:rgba(232,169,77,0.05);border:1px solid rgba(232,169,77,0.2);border-radius:var(--radius-sm)}
+.overlay-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+.overlay-canvas-wrap{position:relative;border-radius:var(--radius-sm);overflow:hidden;cursor:grab;background:#0d1a26;border:1px solid var(--border-bright)}
+.overlay-canvas-wrap:active{cursor:grabbing}
+.rotation-controls{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.rot-preset{padding:5px 10px;background:var(--input-bg);border:1px solid var(--border-bright);border-radius:4px;color:var(--text-mid);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer}
+.rot-preset:hover{border-color:var(--teal);color:var(--teal)}
+.rot-slider{flex:1;min-width:120px}
+.rot-val{font-family:'DM Mono',monospace;font-size:12px;color:var(--amber);min-width:40px;text-align:right}
+.overlay-stats{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.overlay-stat{font-size:11px;color:var(--text-dim)}
+.overlay-stat span{color:var(--text);font-family:'DM Mono',monospace}
+.overlay-fit-ok{color:var(--green)}
+.overlay-fit-warn{color:var(--red)}
+
+.rtb-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+.sidebar{position:sticky;top:80px}
+.sb-card{background:var(--navy-mid);border:1px solid var(--border-bright);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.sb-card-title{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px}
+.sb-stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.sb-stat:last-child{border-bottom:none}
+.sb-stat-lbl{color:var(--text-mid)}.sb-stat-val{font-family:'DM Mono',monospace;color:var(--text)}
+.sb-big{font-family:'DM Serif Display',serif;font-size:26px;color:var(--amber);text-align:center;padding:10px 0 3px}
+.sb-big-lbl{font-size:10px;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:0.06em}
+
+/* FINANCING TAB */
+.loan-summary{background:linear-gradient(135deg,rgba(46,156,143,0.08),rgba(26,37,53,0.6));border:1px solid rgba(46,156,143,0.25);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.loan-summary-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--teal-light);margin-bottom:14px}
+.loan-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.loan-stat{text-align:center;padding:12px;background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.loan-stat-val{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);line-height:1}
+.loan-stat-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px}
+.loan-stat.highlight .loan-stat-val{color:var(--amber)}
+.loan-stat.cash .loan-stat-val{color:var(--green)}
+
+.holding-table{width:100%;border-collapse:collapse;margin-top:8px}
+.holding-table tr{border-bottom:1px solid var(--border)}
+.holding-table tr:last-child{border-bottom:none}
+.holding-table td{padding:7px 0;font-size:12px}
+.holding-table td:first-child{color:var(--text-mid)}
+.holding-table td:last-child{font-family:'DM Mono',monospace;color:var(--text);text-align:right}
+.holding-table .total-row td{color:var(--amber);font-weight:600;border-top:1px solid var(--border-bright);padding-top:10px}
+
+.scenario-holding-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+.sh-card{border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border)}
+.sh-card.worst{background:rgba(224,92,92,0.05);border-color:rgba(224,92,92,0.2)}
+.sh-card.base{background:rgba(46,156,143,0.06);border-color:rgba(46,156,143,0.2)}
+.sh-card.best{background:rgba(76,175,130,0.05);border-color:rgba(76,175,130,0.2)}
+.sh-tag{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;display:block}
+.worst .sh-tag{color:var(--red)}.base .sh-tag{color:var(--teal-light)}.best .sh-tag{color:var(--green)}
+.sh-total{font-family:'DM Serif Display',serif;font-size:22px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.worst .sh-total{color:var(--red)}.base .sh-total{color:var(--teal-light)}.best .sh-total{color:var(--green)}
+
+.upg-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.upg-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;transition:all 0.15s;user-select:none}
+.upg-item:hover{background:rgba(255,255,255,0.04)}
+.upg-item.on{border-color:rgba(46,156,143,0.4);background:var(--teal-dim)}
+.upg-chk{width:14px;height:14px;border-radius:3px;border:1px solid var(--border-bright);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.upg-item.on .upg-chk{background:var(--teal);border-color:var(--teal)}
+.upg-chk svg{display:none}.upg-item.on .upg-chk svg{display:block}
+.upg-name{font-size:11px;color:var(--text-mid);flex:1;line-height:1.3}
+.upg-item.on .upg-name{color:var(--text)}
+.upg-cost{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim)}
+.upg-total-bar{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:10px;border-top:1px solid var(--border-bright)}
+
+.topo-btn{font-size:11px;color:var(--teal);background:var(--teal-dim);border:1px solid rgba(46,156,143,0.25);padding:6px 12px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin:3px}
+.topo-btn:hover{background:rgba(46,156,143,0.25)}
+
+/* EXIT & OFFER */
+.land-lever{background:linear-gradient(135deg,rgba(232,169,77,0.08),rgba(26,37,53,0.6));border:1px solid rgba(232,169,77,0.3);border-radius:var(--radius);padding:24px;margin-bottom:20px}
+.land-lever-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--amber);margin-bottom:6px}
+.land-lever-sub{font-size:11px;color:var(--text-dim);margin-bottom:18px}
+.land-input-big{position:relative;display:flex;align-items:center}
+.land-input-big .pfx{position:absolute;left:14px;font-family:'DM Mono',monospace;font-size:22px;color:var(--amber);pointer-events:none}
+.land-input-big input{font-family:'DM Mono',monospace;font-size:28px;color:var(--amber);background:rgba(232,169,77,0.08);border:1px solid rgba(232,169,77,0.3);border-radius:var(--radius-sm);padding:12px 16px 12px 38px;width:100%;outline:none}
+.land-input-big input:focus{border-color:var(--amber)}
+.max-offer-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+.max-offer-card{text-align:center;padding:14px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);border:1px solid var(--border-bright)}
+.max-offer-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.max-offer-val{font-family:'DM Serif Display',serif;font-size:20px;color:var(--teal-light)}
+.max-offer-sub{font-size:10px;color:var(--text-dim);margin-top:2px}
+.max-offer-card.amber .max-offer-val{color:var(--amber)}
+.max-offer-card.green .max-offer-val{color:var(--green)}
+
+.sc-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.sc-card{border-radius:var(--radius);padding:18px;border:1px solid var(--border)}
+.sc-card.worst{background:linear-gradient(145deg,rgba(224,92,92,0.06),rgba(26,37,53,0.8));border-color:rgba(224,92,92,0.2)}
+.sc-card.base{background:linear-gradient(145deg,rgba(46,156,143,0.08),rgba(26,37,53,0.8));border-color:rgba(46,156,143,0.25)}
+.sc-card.best{background:linear-gradient(145deg,rgba(76,175,130,0.07),rgba(26,37,53,0.8));border-color:rgba(76,175,130,0.2)}
+.sc-tag{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:20px;display:inline-block;margin-bottom:12px}
+.worst .sc-tag{background:var(--red-dim);color:var(--red);border:1px solid rgba(224,92,92,0.3)}
+.base .sc-tag{background:var(--teal-dim);color:var(--teal-light);border:1px solid rgba(46,156,143,0.3)}
+.best .sc-tag{background:var(--green-dim);color:var(--green);border:1px solid rgba(76,175,130,0.3)}
+.sc-line{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.sc-line:last-of-type{border-bottom:none}
+.sc-line-lbl{color:var(--text-mid)}.sc-line-val{font-family:'DM Mono',monospace;color:var(--text)}
+.sc-line-val.hi{color:var(--amber);font-size:12px}
+.sc-profit{margin-top:12px;padding:12px;border-radius:var(--radius-sm);text-align:center}
+.worst .sc-profit{background:var(--red-dim)}.base .sc-profit{background:var(--teal-dim)}.best .sc-profit{background:var(--green-dim)}
+.profit-lbl{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin-bottom:3px}
+.profit-val{font-family:'DM Serif Display',serif;font-size:24px}
+.worst .profit-val{color:var(--red)}.base .profit-val{color:var(--teal-light)}.best .profit-val{color:var(--green)}
+.profit-sub{font-size:9px;color:var(--text-dim);margin-top:2px}
+
+.nav-btns{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.btn{padding:9px 20px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+.btn-primary{background:var(--teal);color:#fff}.btn-primary:hover{background:var(--teal-light)}
+.btn-ghost{background:transparent;color:var(--text-mid);border:1px solid var(--border-bright)}.btn-ghost:hover{color:var(--text)}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:3px}
+
+/* ── PRINT / PDF EXPORT ──────────────────────────────────────────────── */
+@media print {
+  body { background: #fff !important; color: #1a2535 !important; font-size: 11pt; }
+  .hdr, .step-nav, .nav-btns, #plan-overlay-controls, .fit-collapse-btn,
+  .lot-editor-wrap, .lot-editor-toolbar, .lot-stats, .hint-text,
+  button, .tog, .btn, .bua-fill { display: none !important; }
+  .page { display: block !important; page-break-after: avoid; }
+  .page:not(#page-7):not(#page-1):not(#page-3):not(#page-5):not(#page-6) { display: none !important; }
+  #page-7 { display: block !important; }
+  .card { border: 1px solid #d0d7e2 !important; background: #fff !important;
+          box-shadow: none !important; break-inside: avoid; }
+  canvas { max-width: 100% !important; }
+  @page { margin: 0.6in; size: letter; }
+}
+
+.print-report-wrap { display: none; }
+.print-report-wrap.visible { display: block; }
+
+
+/* Plan comparison (#3) */
+.cmp-pickers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cmp-pickers select{width:100%;background:var(--navy);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;font-family:inherit}
+.cmp-table{width:100%;border-collapse:collapse;min-width:560px}
+.cmp-table th,.cmp-table td{padding:8px 10px;text-align:right;font-size:12px;border-bottom:1px solid var(--border)}
+.cmp-table th:first-child,.cmp-table td:first-child{text-align:left;color:var(--text-mid);font-family:'DM Sans',sans-serif}
+.cmp-table thead th{font-family:'DM Serif Display',serif;font-size:14px;color:var(--teal-light);text-align:center;vertical-align:top}
+.cmp-table td{font-family:'DM Mono',monospace;color:var(--text)}
+.cmp-sect td{color:var(--amber);font-weight:600;font-family:'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:0.05em;font-size:10px;padding-top:14px;border-bottom:1px solid var(--border-bright);text-align:left}
+.cmp-win-col{background:var(--teal-dim)}
+.cmp-winbadge{display:block;background:var(--teal);color:#04201c;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-top:5px;letter-spacing:0.04em}
+.cmp-arv-input{width:66px;background:var(--input-bg);color:var(--text);border:1px solid var(--border-bright);border-radius:4px;padding:3px 5px;font-size:11px;font-family:'DM Mono',monospace;text-align:right}
+.cmp-neg{color:var(--red)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">T</div>
+    <div>
+      <div class="hdr-title">Site Analyzer + Build Calculator</div>
+      <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
+    </div>
+  </div>
+  <div class="hdr-badge">V6.2 V6.1 &middot; Jun 2026middot; Jun 2026</div>
+</div>
+
+<div class="step-nav">
+  <button class="step-btn active" id="nav-1" onclick="goTo(1)"><span class="step-num">01</span>Address &amp; Zoning</button>
+  <button class="step-btn" id="nav-2" onclick="goTo(2)"><span class="step-num">02</span>Lot Dimensions</button>
+  <button class="step-btn" id="nav-3" onclick="goTo(3)"><span class="step-num">03</span>Buildable Area</button>
+  <button class="step-btn" id="nav-4" onclick="goTo(4)"><span class="step-num">04</span>Lot Factor</button>
+  <button class="step-btn" id="nav-5" onclick="goTo(5)"><span class="step-num">05</span>Plan &amp; Build</button>
+  <button class="step-btn" id="nav-6" onclick="goTo(6)"><span class="step-num">06</span>Financing</button>
+  <button class="step-btn" id="nav-7" onclick="goTo(7)"><span class="step-num">07</span>Exit &amp; Offer</button>
+</div>
+
+<!-- ═══ PAGE 1: ADDRESS & ZONING ═══ -->
+<div class="page active" id="page-1">
+  <div style="max-width:720px">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Property Address</div>
+      <div class="field"><label>Street Address</label><input type="text" id="addr-street" placeholder="e.g. 2723 Dellinger Dr" oninput="onAddrChange()"></div>
+      <div class="fr3">
+        <div class="field"><label>City</label><input type="text" id="addr-city" placeholder="Charlotte" oninput="onAddrChange()"></div>
+        <div class="field"><label>State</label><input type="text" id="addr-state" value="NC" oninput="onAddrChange()"></div>
+        <div class="field"><label>ZIP</label><input type="text" id="addr-zip" placeholder="28205" oninput="onAddrChange()"></div>
+      </div>
+      <div id="addr-validation"></div>
+      <div class="link-card" id="link-card" style="display:none">
+        <div class="link-card-title">🔗 External Resources</div>
+        <div id="link-rows"></div>
+        <p class="note" style="margin-top:8px">Always confirm lot dimensions and zoning in GIS.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>County &amp; Zoning</div>
+      <div class="fr2">
+        <div class="field"><label>County</label>
+          <select id="county-sel" onchange="onCountyChange()">
+            <option value="">— Select County —</option>
+            <option value="Mecklenburg">Mecklenburg (Charlotte UDO)</option>
+            <option value="Gaston">Gaston</option>
+            <option value="Catawba">Catawba</option>
+            <option value="Lincoln">Lincoln</option>
+            <option value="Cabarrus">Cabarrus</option>
+            <option value="Iredell">Iredell</option>
+            <option value="Shelby">Shelby (Cleveland)</option>
+            <option value="Kannapolis">Kannapolis</option>
+            <option value="Monroe">Monroe (Union)</option>
+          </select>
+        </div>
+        <div class="field"><label>Zoning District</label>
+          <select id="zone-sel" onchange="onZoneChange()"><option value="">— Select County First —</option></select>
+        </div>
+      </div>
+      <div id="zone-info" style="display:none">
+        <div class="fr3">
+          <div class="field"><label>Front Setback (ft)</label><div class="input-wrap"><input type="number" id="sb-front" oninput="calcBuildable()"><span class="sfx">ft</span></div></div>
+          <div class="field"><label>Rear Setback (ft)</label><div class="input-wrap"><input type="number" id="sb-rear" oninput="calcBuildable()"><span class="sfx">ft</span></div></div>
+          <div class="field"><label>Side Setback (ft)</label><div class="input-wrap"><input type="number" id="sb-sides" oninput="calcBuildable()"><span class="sfx">ft</span></div></div>
+        </div>
+        <div class="fr3">
+          <div class="field"><label>Corner Side (ft)</label><div class="input-wrap"><input type="number" id="sb-corner" oninput="calcBuildable()"><span class="sfx">ft</span></div></div>
+          <div class="field"><label>Min Lot Width (ft)</label><div class="input-wrap"><input type="number" id="sb-minw" readonly><span class="sfx">ft</span></div></div>
+          <div class="field"><label>Garage Setback</label><input type="text" id="sb-garage" readonly></div>
+        </div>
+        <p class="note">Auto-filled from your setbacks sheet. Always verify against the UDO.</p>
+      </div>
+      <div id="zone-udo-link" style="margin-top:10px;display:none"></div>
+    </div>
+    <div id="meck-context" style="display:none">
+      <div class="card" style="border-color:rgba(46,156,143,0.25);background:rgba(46,156,143,0.04)">
+        <div class="card-title"><span class="dot"></span>Mecklenburg — Cost Inputs to Confirm</div>
+        <div class="sb-stat" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between"><span style="color:var(--text-mid)">Charlotte Water tap fee (per unit)</span><span style="font-family:'DM Mono',monospace">$17,340 <span style="color:var(--text-dim);font-size:10px">(4" sewer $6,132 + ¾" water $5,389 + fees)</span></span></div>
+        <div class="sb-stat" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between"><span style="color:var(--text-mid)">BUA watershed threshold</span><span style="font-family:'DM Mono',monospace">24% of lot or 5,000 sf <span style="color:var(--text-dim);font-size:10px">(whichever is lower)</span></span></div>
+        <div class="sb-stat" style="padding:6px 0;font-size:12px;display:flex;justify-content:space-between"><span style="color:var(--text-mid)">ROW tree city fee</span><span style="font-family:'DM Mono',monospace">$200/inch diameter <span style="color:var(--text-dim);font-size:10px">+ removal labor separate</span></span></div>
+      </div>
+    </div>
+    <div class="nav-btns"><button class="btn btn-primary" onclick="goTo(2)">Next: Lot Dimensions →</button></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2: LOT DIMENSIONS ═══ -->
+<div class="page" id="page-2">
+  <div style="max-width:720px">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Lot Dimensions</div>
+      <div id="gis-link-block" style="margin-bottom:16px"></div>
+
+      <!-- Mode Toggle -->
+      <div class="lot-mode-toggle">
+        <button class="lot-mode-btn active" id="mode-rect-btn" onclick="setLotMode('rect')">Rectangle / Simple (4 corners)</button>
+        <button class="lot-mode-btn" id="mode-poly-btn" onclick="setLotMode('poly')">Irregular Lot (5+ corners)</button>
+      </div>
+
+      <!-- RECTANGLE MODE -->
+      <div id="rect-mode-fields">
+        <div class="fr2">
+          <div class="field"><label>Lot Width (ft)</label><input type="number" id="lot-w" placeholder="e.g. 75" oninput="calcBuildable()"></div>
+          <div class="field"><label>Lot Depth (ft)</label><input type="number" id="lot-d" placeholder="e.g. 180" oninput="calcBuildable()"></div>
+        </div>
+        <div class="field"><label>Lot Area (sq ft) — auto or manual override</label><input type="number" id="lot-sf" placeholder="Auto from W × D" oninput="calcBuildable()"><p class="note">Enter actual sq ft if lot is irregular.</p></div>
+        <div class="toggle-row" style="margin-top:4px">
+          <span class="toggle-lbl">Corner lot (corner side setback applies to one side)</span>
+          <label class="tog"><input type="checkbox" id="corner-lot" onchange="calcBuildable()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <div id="width-warn" style="display:none" class="warn"></div>
+      </div>
+
+      <!-- IRREGULAR MODE -->
+      <div id="poly-mode-fields" style="display:none">
+        <div class="field">
+          <label>How many corners does the lot have?</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <input type="number" id="corner-count" value="6" min="3" max="20"
+              style="width:80px;background:var(--input-bg);border:1px solid var(--border-bright);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Mono',monospace;font-size:16px;padding:8px;outline:none;text-align:center">
+            <button class="btn btn-primary" onclick="initPolyEditor()" style="padding:8px 16px;font-size:12px">Set Corners</button>
+          </div>
+          <p class="note" style="margin-top:4px">Enter corner count, click Set Corners, then drag each dot to match your lot shape from Polaris.</p>
+        </div>
+
+        <!-- LOT EDITOR CANVAS -->
+        <div class="lot-editor-wrap" id="lot-editor-wrap">
+          <canvas id="lot-editor-canvas" width="800" height="600"></canvas>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div class="lot-editor-toolbar">
+          <label>Canvas width =</label>
+          <input type="number" id="canvas-scale-ft" value="200" min="10" oninput="redrawEditor()">
+          <label>ft &nbsp;|&nbsp; Measurements update live as you drag</label>
+          <button class="btn-ghost btn" style="padding:4px 10px;font-size:11px;margin-left:auto" onclick="resetPolyToDefault()">Reset Shape</button>
+        </div>
+
+        <!-- LIVE STATS -->
+        <div class="lot-stats">
+          <div class="lot-stat-box"><div class="lot-stat-val" id="poly-stat-area">—</div><div class="lot-stat-lbl">Lot Area (sq ft)</div></div>
+          <div class="lot-stat-box"><div class="lot-stat-val" id="poly-stat-perimeter">—</div><div class="lot-stat-lbl">Perimeter (ft)</div></div>
+          <div class="lot-stat-box"><div class="lot-stat-val" id="poly-stat-corners">—</div><div class="lot-stat-lbl">Corners</div></div>
+        </div>
+
+        <p class="hint-text">💡 Drag orange dots to match your lot shape. Numbers show side lengths in feet. <strong style="color:var(--teal)">Click any edge line</strong> to cycle: Front (blue) → Rear (red) → Side (gray). Multiple edges can share the same designation. Set canvas width to calibrate scale.</p>
+
+        <div class="field" style="margin-top:10px">
+          <label>Total Lot Area (sq ft) — from GIS / Polaris (overrides calculated)</label>
+          <input type="number" id="lot-sf-poly" placeholder="Optional — read off Polaris for accuracy" oninput="calcBuildable()">
+        </div>
+      </div>
+
+
+    </div>
+    <div class="nav-btns">
+      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(3)">Next: Buildable Area →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 3: BUILDABLE AREA ═══ -->
+<div class="page" id="page-3">
+  <div class="fr2" style="gap:20px;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Buildable Envelope</div>
+        <div id="buildable-result"></div>
+        <div id="rect-override-field" class="field" style="margin-top:16px"><label>Buildable Area Override (sq ft)</label><input type="number" id="buildable-override" placeholder="Leave blank to use calculated value" oninput="calcBuildable()"><p class="note">Use if lot is irregular and you've measured in GIS.</p></div>
+        <div id="bua-section" style="display:none">
+          <div class="bua-block">
+            <div class="bua-title">Mecklenburg BUA / Watershed Check</div>
+            <div class="fr2">
+              <div class="field"><label>Estimated Hardscape (sf)</label><input type="number" id="bua-hardscape" value="500" oninput="calcBUA()"><p class="note">Driveway + walks. Default 500 sf.</p></div>
+              <div style="padding-top:20px" id="bua-result"></div>
+            </div>
+            <div class="bua-meter"><div class="bua-fill" id="bua-fill"></div></div>
+            <div id="bua-msg"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Setback Diagram &amp; Plan Overlay</div>
+        <canvas id="sb-canvas" width="600" height="500" style="width:100%;display:block;border-radius:6px;cursor:default" id="sb-canvas"></canvas>
+
+        <!-- Plan Overlay Controls — shown when a plan is selected -->
+        <div class="plan-overlay-section" id="plan-overlay-controls" style="display:none">
+          <div class="overlay-title">📐 Plan Footprint — Drag to position</div>
+          <div class="rotation-controls">
+            <span style="font-size:11px;color:var(--text-dim)">Rotate:</span>
+            <button class="rot-preset" onclick="setRotation(0)">0°</button>
+            <button class="rot-preset" onclick="setRotation(45)">45°</button>
+            <button class="rot-preset" onclick="setRotation(90)">90°</button>
+            <button class="rot-preset" onclick="setRotation(180)">180°</button>
+            <input type="range" id="rot-slider" class="rot-slider" min="0" max="360" value="0" oninput="setRotation(this.value)">
+            <span class="rot-val" id="rot-val">0°</span>
+          </div>
+          <div class="overlay-stats">
+            <div class="overlay-stat">Plan: <span id="ov-plan-name">—</span></div>
+            <div class="overlay-stat">Footprint: <span id="ov-footprint">—</span></div>
+            <div class="overlay-stat">Fits: <span id="ov-fits">—</span></div>
+          </div>
+          <p class="note" style="margin-top:6px">Drag the plan footprint within the buildable area. Select a different plan on Step 5 to swap it out.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Topography &amp; Flood Resources</div>
+        <p class="note" style="margin-bottom:10px">Assess grade and flood risk before estimating lot factor grading costs.</p>
+        <div>
+          <a class="topo-btn" id="topo-usgs" href="https://apps.nationalmap.gov/viewer/" target="_blank">USGS Topo Viewer</a>
+          <a class="topo-btn" id="topo-flood" href="https://ncfloodmaps.com/" target="_blank">NC Floodplain Map</a>
+          <a class="topo-btn" id="topo-earth" href="https://earth.google.com/web/" target="_blank">Google Earth</a>
+        </div>
+        <p class="warn" style="margin-top:10px">Grading / dirt load estimates on Step 4 are manual — use topo to assess grade first.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Plan Footprint Fit Check</div>
+        <p class="note" style="margin-bottom:12px">Which Slate plans fit the buildable envelope. Footprint is ground floor only.</p>
+        <div class="fit-sort-bar"><label style="font-size:11px;color:var(--text-mid)">Sort</label><select id="fit-sort" onchange="setFitSort(this.value)"><option value="sf-desc">Finished SF — largest first</option><option value="sf-asc">Finished SF — smallest first</option><option value="fp-desc">Footprint — largest first</option><option value="fp-asc">Footprint — smallest first</option><option value="c-asc">Cost — lowest first</option><option value="c-desc">Cost — highest first</option></select></div>
+        <div id="fit-grid"></div>
+        <div id="fit-empty" class="note" style="margin-top:8px">Enter lot dimensions and setbacks to see fit check.</div>
+      </div>
+      <div id="duet-prompt" style="display:none">
+        <div class="card" style="border-color:rgba(46,156,143,0.25);background:rgba(46,156,143,0.04)">
+          <div class="card-title"><span class="dot"></span>Duet Selected — Mecklenburg</div>
+          <p style="font-size:12px;color:var(--text-mid);line-height:1.6">Units can sell as <strong style="color:var(--text)">individual townhomes</strong> (sublotted, MLS individually) or as a <strong style="color:var(--text)">duplex package</strong> (one deed, investor buyer). This affects your comps and exit ARV.</p>
+          <div style="margin-top:10px"><a class="topo-btn" href="https://polaris3g.mecklenburgcountync.gov/" target="_blank">Open Polaris GIS — check for interior lot lines →</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-btns">
+    <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(4)">Next: Lot Factor →</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE 4: LOT FACTOR ═══ -->
+<div class="page" id="page-4">
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Existing Structure</div>
+        <div class="fr2">
+          <div class="field"><label>Structure Size (sq ft)</label><input type="number" id="demo-sqft" value="0" oninput="calcLF()" placeholder="0 = vacant"><p class="note">$8–$10/sf. Enter 0 if vacant.</p></div>
+          <div class="field"><label>Demo Rate ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="demo-rate" value="9" oninput="calcLF()"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Heritage Trees</div>
+        <div class="field"><label>Number of Heritage Trees</label><input type="number" id="her-trees" value="0" min="0" oninput="calcLF()"></div>
+        <p class="note">$750/tree (pre-demo rate).</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>ROW Trees</div>
+        <div class="row-tree-block">
+          <div class="rtb-title">⚠ Right-of-Way Trees</div>
+          <p class="note" style="margin-bottom:10px">Call Urban Forestry to confirm — free site visit, ~2 days. City fee: $200/inch diameter. Removal labor is separate.</p>
+          <div class="fr3">
+            <div class="field"><label># ROW Trees</label><input type="number" id="row-count" value="0" min="0" oninput="calcLF()"></div>
+            <div class="field"><label>Avg Diameter (inches)</label><input type="number" id="row-diam" value="0" oninput="calcLF()"></div>
+            <div class="field"><label>Removal Labor / Tree</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="row-labor" value="3500" oninput="calcLF()"></div></div>
+          </div>
+          <div id="row-tree-msg" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Clearing, Grading &amp; Site Work</div>
+        <div class="field"><label>Clearing Type</label>
+          <select id="clearing" onchange="calcLF()">
+            <option value="0">None / Already Clear ($0)</option>
+            <option value="3000">Light — minimal vegetation ($3,000)</option>
+            <option value="6500" selected>Medium — standard lot ($6,500)</option>
+            <option value="10000">Heavy — overgrown ($10,000)</option>
+            <option value="15000">Extreme — dense / difficult ($15,000)</option>
+          </select>
+        </div>
+        <div class="fr2">
+          <div class="field"><label>Loads of Dirt</label><input type="number" id="dirt-loads" value="0" min="0" oninput="calcLF()"><p class="note">~5 loads = 4 ft grade over 130 ft</p></div>
+          <div class="field"><label>Cost / Load</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="dirt-rate" value="500" oninput="calcLF()"></div></div>
+        </div>
+        <div class="fr2">
+          <div class="field"><label>Grading</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="grading" value="2500" oninput="calcLF()"></div></div>
+          <div class="field"><label>Site Prep / Driveway</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="site-prep" value="750" oninput="calcLF()"></div></div>
+        </div>
+        <div class="fr2">
+          <div class="field"><label>Utilities / Connections</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="utilities" value="1500" oninput="calcLF()"></div></div>
+          <div class="field"><label>Framing Labor Buffer</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="framing" value="600" oninput="calcLF()"></div></div>
+        </div>
+        <div class="fr2">
+          <div class="field"><label>Culverts</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="culverts" value="0" oninput="calcLF()"></div></div>
+          <div class="field"><label>Landscaping</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="landscaping" value="500" oninput="calcLF()"></div></div>
+        </div>
+        <div class="field"><label>GC Management Markup</label><div class="input-wrap"><input type="number" id="gc-markup" value="15" class="sfx-pad" oninput="calcLF()"><span class="sfx">%</span></div></div>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="sb-card">
+        <div class="sb-card-title">Lot Factor Breakdown</div>
+        <div id="lf-breakdown"></div>
+        <div class="lf-total"><span class="lf-total-lbl">Total Lot Factor</span><span class="lf-total-val" id="lf-total-display">$0</span></div>
+      </div>
+      <div class="sb-card">
+        <div class="sb-card-title">Property Summary</div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Address</span><span class="sb-stat-val" id="sum-addr" style="font-family:'DM Sans',sans-serif;font-size:11px;text-align:right;max-width:160px">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">County / Zone</span><span class="sb-stat-val" id="sum-zone">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Lot Size</span><span class="sb-stat-val" id="sum-lotsize">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Buildable Area</span><span class="sb-stat-val" id="sum-buildable">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-btns">
+    <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(5)">Next: Plan &amp; Build →</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE 5: PLAN & BUILD ═══ -->
+<div class="page" id="page-5">
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Slate Plan Selection</div>
+        <div class="field">
+          <select id="plan-sel" onchange="onPlanChange()">
+            <option value="">— Select a Slate plan —</option>
+          </select>
+        </div>
+        <div id="plan-info" style="display:none;margin-top:12px;padding:12px;background:var(--teal-dim);border:1px solid rgba(46,156,143,0.25);border-radius:var(--radius-sm)">
+          <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--teal-light);margin-bottom:6px" id="plan-info-name"></div>
+          <div class="fr3">
+            <div><div style="font-size:10px;color:var(--text-dim)">Cost + 14%</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-cost"></div></div>
+            <div><div style="font-size:10px;color:var(--text-dim)">Sq Ft / Unit</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-sf"></div></div>
+            <div><div style="font-size:10px;color:var(--text-dim)">Footprint</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-fp"></div></div>
+          </div>
+          <div id="plan-fit-msg" style="margin-top:8px"></div>
+          <div id="plan-info-img"></div>
+        </div>
+        <div class="fr2" style="margin-top:14px">
+          <div class="field"><label>Units</label><input type="number" id="units" value="1" min="1" max="20" oninput="calcAll()"></div>
+        </div>
+        <button class="btn btn-ghost" style="margin-top:14px;width:100%" onclick="openCompare()">⚖ Compare Plans Side-by-Side</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Tap Fees</div>
+        <div class="fr2">
+          <div class="field"><label>Municipality</label>
+            <select id="tap-muni" onchange="onTapChange()">
+              <option value="17340">Charlotte / Mecklenburg — $17,340</option>
+              <option value="8003">Gaston County — $8,003</option>
+              <option value="7697">Statesville (Iredell) — $7,697</option>
+              <option value="10126">Lincoln County — $10,126</option>
+              <option value="9850">Kannapolis — $9,850</option>
+              <option value="2400">Mt Holly — $2,400</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="field" id="custom-tap-f" style="display:none"><label>Custom Tap Fee (per unit)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="custom-tap" value="0" oninput="calcAll()"></div></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-lbl">Existing taps on lot (divide total by units)</span>
+          <label class="tog"><input type="checkbox" id="existing-taps" onchange="calcAll()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <div id="tap-msg" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Other Soft Costs</div>
+        <div class="fr3">
+          <div class="field"><label>Survey</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="survey" value="1000" oninput="calcAll()"></div></div>
+          <div class="field"><label>Appraisal</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="appraisal" value="725" oninput="calcAll()"></div></div>
+          <div class="field"><label>Insurance (build period)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="insurance" value="1400" oninput="calcAll()"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Upgrades (per unit)</div>
+        <div class="upg-grid" id="upg-grid"></div>
+        <div class="upg-total-bar"><span style="font-size:11px;color:var(--text-mid)">Selected Upgrades Total</span><span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--amber)" id="upg-total">$0</span></div>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="sb-card">
+        <div class="sb-card-title">Cost Stack (per unit, excl. land &amp; financing)</div>
+        <div id="cost-stack"></div>
+        <div style="border-top:1px solid var(--border-bright);margin-top:8px;padding-top:10px">
+          <div class="sb-big" id="allin-display">—</div>
+          <div class="sb-big-lbl">Pre-Land, Pre-Financing / Unit</div>
+        </div>
+      </div>
+      <p class="note" style="text-align:center;margin-top:4px">Land cost &amp; financing inputs are on Steps 6–7 →</p>
+    </div>
+  </div>
+  <div class="nav-btns">
+    <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(6)">Next: Financing →</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE 6: FINANCING ═══ -->
+<div class="page" id="page-6">
+  <div class="two-col">
+    <div>
+      <!-- Loan Structure -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Loan Structure (LTC)</div>
+        <p class="note" style="margin-bottom:14px">Loan-to-Cost: lender covers LTC% of total project cost. You bring the rest. Purchase closing costs (1% of loan) are included in the cost base automatically.</p>
+        <div class="fr2">
+          <div class="field"><label>LTC %</label><div class="input-wrap"><input type="number" id="ltc-pct" value="93" step="1" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div><p class="note">93% = you bring 7% cash</p></div>
+          <div class="field"><label>Annual Interest Rate</label><div class="input-wrap"><input type="number" id="fin-rate" value="10" step="0.25" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div></div>
+        </div>
+        <div class="fr2">
+          <div class="field"><label>Loan Points</label><div class="input-wrap"><input type="number" id="fin-points" value="1" step="0.25" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div></div>
+          <div class="field"><label>Origination / Doc Fee (flat)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="fin-doc-fee" value="750" oninput="calcFinancing()"></div></div>
+        </div>
+        <div class="field"><label>Annual Property Tax</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="fin-tax" value="0" oninput="calcFinancing()"></div><p class="note">Enter yearly amount. Prorated by loan term per scenario.</p></div>
+      </div>
+
+      <!-- Loan Term per Scenario -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Loan Term by Scenario (months)</div>
+        <div class="fr3">
+          <div class="field"><label>Worst Case</label><input type="number" id="term-w" value="10" min="1" max="36" oninput="calcFinancing()"></div>
+          <div class="field"><label>Base Case</label><input type="number" id="term-b" value="8" min="1" max="36" oninput="calcFinancing()"></div>
+          <div class="field"><label>Best Case</label><input type="number" id="term-best" value="6" min="1" max="36" oninput="calcFinancing()"></div>
+        </div>
+      </div>
+
+      <!-- Exit Costs -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Exit / Sale Costs</div>
+        <div class="field"><label>Sale Costs (% of ARV)</label><div class="input-wrap"><input type="number" id="sale-cost-pct" value="5" step="0.5" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div><p class="note">Covers realtor + sale closing costs. Default 5%.</p></div>
+      </div>
+    </div>
+
+    <!-- Financing Summary Sidebar -->
+    <div class="sidebar">
+      <div class="sb-card">
+        <div class="sb-card-title">Loan Summary</div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Total Cost Base</span><span class="sb-stat-val" id="fin-cost-base">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Loan Amount</span><span class="sb-stat-val" id="fin-loan-amt">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Purchase Closing (1% of loan)</span><span class="sb-stat-val" id="fin-purch-closing">—</span></div>
+        <div class="sb-stat"><span class="sb-stat-lbl">Cash Needed</span><span class="sb-stat-val" id="fin-cash-needed" style="color:var(--green)">—</span></div>
+        <p class="note" style="margin-top:8px">Land cost is set on Step 7. These figures update live as you adjust land cost.</p>
+      </div>
+      <div class="sb-card">
+        <div class="sb-card-title">Holding Costs by Scenario</div>
+        <div class="scenario-holding-grid">
+          <div class="sh-card worst">
+            <span class="sh-tag">Worst</span>
+            <table class="holding-table" id="hold-worst"></table>
+            <div class="sh-total" id="hold-worst-total">—</div>
+          </div>
+          <div class="sh-card base">
+            <span class="sh-tag">Base</span>
+            <table class="holding-table" id="hold-base"></table>
+            <div class="sh-total" id="hold-base-total">—</div>
+          </div>
+          <div class="sh-card best">
+            <span class="sh-tag">Best</span>
+            <table class="holding-table" id="hold-best"></table>
+            <div class="sh-total" id="hold-best-total">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-btns">
+    <button class="btn btn-ghost" onclick="goTo(5)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(7)">Next: Exit &amp; Offer →</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE 7: EXIT & OFFER ═══ -->
+<div class="page" id="page-7">
+  <!-- LAND COST LEVER -->
+  <div class="land-lever">
+    <div class="land-lever-title">Land Cost — Play With This</div>
+    <div class="land-lever-sub">Adjust land cost and watch profit move live across all three scenarios below.</div>
+    <div class="land-input-big">
+      <span class="pfx">$</span>
+      <input type="text" id="land-cost" value="25,000" oninput="calcAll();calcScenarios()">
+    </div>
+    <div class="max-offer-bar">
+      <div class="max-offer-card amber">
+        <div class="max-offer-label">Max Land Cost — $50k Base Profit</div>
+        <div class="max-offer-val" id="max-land-display">—</div>
+        <div class="max-offer-sub">Land ceiling to hit $50k/unit base case</div>
+      </div>
+      <div class="max-offer-card">
+        <div class="max-offer-label">Loan Amount</div>
+        <div class="max-offer-val" id="exit-loan-amt">—</div>
+        <div class="max-offer-sub">Based on current land cost + LTC%</div>
+      </div>
+      <div class="max-offer-card green">
+        <div class="max-offer-label">Cash Needed</div>
+        <div class="max-offer-val" id="exit-cash-needed">—</div>
+        <div class="max-offer-sub">Your equity contribution</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARV INPUTS -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title"><span class="dot"></span>ARV — Sale Price per Sq Ft</div>
+    <p class="note" style="margin-bottom:12px">Enter your comp-derived $/sf. Base case is required. Worst auto-fills at −10%, Best at +10% if left blank.</p>
+    <div class="fr3">
+      <div class="field"><label>Worst Case ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="text" id="arv-w" placeholder="auto −10%" oninput="calcScenarios()"></div></div>
+      <div class="field"><label>Base Case ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="text" id="arv-b" placeholder="your comp $/sf" oninput="calcScenarios()"></div></div>
+      <div class="field"><label>Best Case ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="text" id="arv-best" placeholder="auto +10%" oninput="calcScenarios()"></div></div>
+    </div>
+  </div>
+
+  <!-- SCENARIOS -->
+  <div class="sc-grid">
+    <div class="sc-card worst">
+      <div class="sc-tag">Worst — <span id="term-w-label">10</span>mo</div>
+      <div id="sc-lines-w" style="margin-top:4px"></div>
+      <div class="sc-profit"><div class="profit-lbl">Profit / Unit</div><div class="profit-val" id="profit-w">—</div><div class="profit-sub" id="coc-w"></div></div>
+    </div>
+    <div class="sc-card base">
+      <div class="sc-tag">Base — <span id="term-b-label">8</span>mo</div>
+      <div id="sc-lines-b" style="margin-top:4px"></div>
+      <div class="sc-profit"><div class="profit-lbl">Profit / Unit</div><div class="profit-val" id="profit-b">—</div><div class="profit-sub" id="coc-b"></div></div>
+    </div>
+    <div class="sc-card best">
+      <div class="sc-tag">Best — <span id="term-best-label">6</span>mo</div>
+      <div id="sc-lines-best" style="margin-top:4px"></div>
+      <div class="sc-profit"><div class="profit-lbl">Profit / Unit</div><div class="profit-val" id="profit-best">—</div><div class="profit-sub" id="coc-best"></div></div>
+    </div>
+  </div>
+
+  <!-- PROJECT TOTALS -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title"><span class="dot"></span>Total Project (All Units)</div>
+    <div class="fr3">
+      <div style="text-align:center;padding:16px;background:var(--red-dim);border-radius:var(--radius-sm);border:1px solid rgba(224,92,92,0.2)">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Worst Total</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--red)" id="proj-worst">—</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--teal-dim);border-radius:var(--radius-sm);border:1px solid rgba(46,156,143,0.25)">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Base Total</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--teal-light)" id="proj-base">—</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--green-dim);border-radius:var(--radius-sm);border:1px solid rgba(76,175,130,0.2)">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Best Total</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--green)" id="proj-best">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-btns" style="flex-wrap:wrap;gap:10px">
+      <button class="btn btn-ghost" onclick="goTo(6)">← Back to Financing</button>
+      <button class="btn btn-primary" onclick="generateReportPackage()" style="background:var(--amber);color:#1a2535;font-size:13px;padding:10px 20px">
+        📦 Generate Report Package (PDF + CSV)
+      </button>
+      <button class="btn btn-primary" onclick="generateOfferLetter()" style="background:var(--teal);color:#fff;font-size:13px;padding:10px 20px">&#9993;&#65039; Generate Offer Letter</button>
+    </div>
+</div>
+
+<div style="border-top:1px solid var(--border);padding:14px 28px;display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)">
+  <span>Tide &amp; Timber Ventures, LLC — management@tidetimberventures.com</span>
+  <span>Internal use only — not financial advice</span>
+</div>
+
+<script>
+// ═══════════════════ DATA ═══════════════════
+const SETBACKS={
+  'Mecklenburg|N1-A':{front:27,rear:40,sides:5,corner:13.5,minWidth:70,minSF:10000,garage:'27 ft'},
+  'Mecklenburg|N1-B':{front:27,rear:35,sides:5,corner:13.5,minWidth:60,minSF:8000,garage:'27 ft'},
+  'Mecklenburg|N1-C':{front:17,rear:30,sides:5,corner:10,minWidth:50,minSF:6000,garage:'20 ft'},
+  'Mecklenburg|N1-D':{front:17,rear:25,sides:5,corner:10,minWidth:40,minSF:3500,garage:'20 ft'},
+  'Mecklenburg|N1-E':{front:10,rear:20,sides:5,corner:10,minWidth:30,minSF:3000,garage:'20 ft'},
+  'Mecklenburg|N1-F':{front:17,rear:20,sides:5,corner:10,minWidth:30,minSF:3000,garage:'20 ft'},
+  'Mecklenburg|N2-A':{front:17,rear:25,sides:5,corner:10,minWidth:50,minSF:5000,garage:'20 ft'},
+  'Mecklenburg|N2-B':{front:17,rear:20,sides:5,corner:10,minWidth:40,minSF:3500,garage:'20 ft'},
+  'Mecklenburg|N2-C':{front:10,rear:15,sides:5,corner:10,minWidth:30,minSF:3000,garage:'20 ft'},
+  'Mecklenburg|UR-2':{front:15,rear:20,sides:5,corner:10,minWidth:25,minSF:2500,garage:'20 ft'},
+  'Mecklenburg|UR-3':{front:15,rear:20,sides:5,corner:10,minWidth:25,minSF:2500,garage:'20 ft'},
+  'Mecklenburg|UR-4':{front:10,rear:15,sides:5,corner:10,minWidth:20,minSF:2000,garage:'20 ft'},
+  'Gaston|R-1':{front:30,rear:25,sides:15,corner:25,minWidth:80,minSF:30000,garage:'5 ft'},
+  'Gaston|R-2':{front:30,rear:25,sides:15,corner:25,minWidth:80,minSF:0,garage:'6 ft'},
+  'Gaston|R-3':{front:30,rear:25,sides:15,corner:25,minWidth:80,minSF:0,garage:'7 ft'},
+  'Gaston|RS-8':{front:30,rear:30,sides:8,corner:17,minWidth:60,minSF:8000,garage:'8 ft'},
+  'Gaston|RS-12':{front:30,rear:30,sides:12,corner:18,minWidth:90,minSF:12000,garage:'9 ft'},
+  'Gaston|RS-20':{front:30,rear:30,sides:15,corner:19,minWidth:100,minSF:20000,garage:'10 ft'},
+  'Gaston|RMF-SF':{front:30,rear:30,sides:8,corner:19,minWidth:70,minSF:8000,garage:'11 ft'},
+  'Catawba|R-7':{front:20,rear:20,sides:10,corner:20,minWidth:60,minSF:7000,garage:'10 ft'},
+  'Catawba|R-10':{front:20,rear:20,sides:10,corner:20,minWidth:60,minSF:10000,garage:'10 ft'},
+  'Catawba|R-12':{front:20,rear:20,sides:10,corner:20,minWidth:75,minSF:12000,garage:'10 ft'},
+  'Catawba|R-15':{front:30,rear:30,sides:15,corner:20,minWidth:75,minSF:15000,garage:'10 ft'},
+  'Catawba|R-20':{front:30,rear:30,sides:15,corner:20,minWidth:75,minSF:15000,garage:'10 ft'},
+  'Lincoln|R-SF':{front:30,rear:40,sides:10,corner:40,minWidth:80,minSF:0,garage:'10 ft'},
+  'Lincoln|R-CR':{front:30,rear:40,sides:10,corner:40,minWidth:100,minSF:0,garage:'10 ft'},
+  'Lincoln|R-20':{front:30,rear:30,sides:10,corner:40,minWidth:100,minSF:0,garage:'10 ft'},
+  'Lincoln|R-14':{front:30,rear:30,sides:10,corner:40,minWidth:100,minSF:0,garage:'10 ft'},
+  'Lincoln|R-MR':{front:15,rear:20,sides:6,corner:40,minWidth:100,minSF:0,garage:'10 ft'},
+  'Lincoln|R-MF':{front:40,rear:30,sides:10,corner:40,minWidth:100,minSF:0,garage:'10 ft'},
+  'Cabarrus|AO':{front:75,rear:30,sides:20,corner:20,minWidth:150,minSF:0,garage:'20 ft'},
+  'Cabarrus|CR':{front:75,rear:30,sides:20,corner:20,minWidth:150,minSF:0,garage:'20 ft'},
+  'Cabarrus|LDR':{front:75,rear:30,sides:20,corner:20,minWidth:150,minSF:0,garage:'20 ft'},
+  'Cabarrus|MDR':{front:25,rear:20,sides:5,corner:15,minWidth:60,minSF:0,garage:'5 ft'},
+  'Cabarrus|HDR':{front:15,rear:15,sides:5,corner:10,minWidth:40,minSF:0,garage:'5 ft'},
+  'Iredell|RA':{front:35,rear:35,sides:15,corner:25,minWidth:100,minSF:20000,garage:'10 ft'},
+  'Iredell|RUR':{front:35,rear:35,sides:15,corner:25,minWidth:100,minSF:30000,garage:'10 ft'},
+  'Iredell|RR':{front:35,rear:35,sides:15,corner:25,minWidth:100,minSF:20000,garage:'10 ft'},
+  'Iredell|R-20':{front:35,rear:35,sides:15,corner:25,minWidth:90,minSF:20000,garage:'10 ft'},
+  'Iredell|R-12':{front:35,rear:35,sides:12,corner:22,minWidth:80,minSF:12000,garage:'10 ft'},
+  'Iredell|R-8':{front:35,rear:25,sides:10,corner:20,minWidth:70,minSF:8000,garage:'10 ft'},
+  'Shelby|R20':{front:40,rear:25,sides:15,corner:20,minWidth:90,minSF:20000,garage:'5 ft'},
+  'Shelby|R10':{front:25,rear:15,sides:10,corner:20,minWidth:70,minSF:10000,garage:'5 ft'},
+  'Shelby|R8':{front:20,rear:15,sides:8,corner:18,minWidth:60,minSF:8000,garage:'5 ft'},
+  'Shelby|R6':{front:15,rear:15,sides:5,corner:15,minWidth:50,minSF:6000,garage:'5 ft'},
+  'Kannapolis|R1':{front:45,rear:40,sides:15,corner:33.75,minWidth:150,minSF:0,garage:'5 ft'},
+  'Kannapolis|R2':{front:35,rear:35,sides:12,corner:26.25,minWidth:100,minSF:0,garage:'5 ft'},
+  'Kannapolis|R4':{front:25,rear:30,sides:10,corner:18.75,minWidth:75,minSF:0,garage:'5 ft'},
+  'Kannapolis|R6':{front:15,rear:30,sides:5,corner:11.25,minWidth:50,minSF:0,garage:'5 ft'},
+  'Kannapolis|R7':{front:10,rear:30,sides:5,corner:7.5,minWidth:40,minSF:0,garage:'5 ft'},
+  'Kannapolis|R8':{front:10,rear:20,sides:5,corner:7.5,minWidth:40,minSF:0,garage:'5 ft'},
+  'Kannapolis|R18':{front:10,rear:15,sides:5,corner:7.5,minWidth:30,minSF:0,garage:'5 ft'},
+  'Monroe|RR':{front:50,rear:25,sides:20,corner:40,minWidth:100,minSF:40000,garage:'50 ft'},
+  'Monroe|RLD':{front:25,rear:20,sides:15,corner:20,minWidth:100,minSF:20000,garage:'25 ft'},
+  'Monroe|RMD':{front:20,rear:10,sides:10,corner:15,minWidth:75,minSF:12000,garage:'20 ft'},
+  'Monroe|RHD':{front:20,rear:10,sides:5,corner:15,minWidth:50,minSF:5000,garage:'20 ft'},
+};
+const COUNTY_ZONES={
+  'Mecklenburg':['N1-A','N1-B','N1-C','N1-D','N1-E','N1-F','N2-A','N2-B','N2-C','UR-2','UR-3','UR-4'],
+  'Gaston':['R-1','R-2','R-3','RS-8','RS-12','RS-20','RMF-SF'],
+  'Catawba':['R-7','R-10','R-12','R-15','R-20'],
+  'Lincoln':['R-SF','R-CR','R-20','R-14','R-MR','R-MF'],
+  'Cabarrus':['AO','CR','LDR','MDR','HDR'],
+  'Iredell':['RA','RUR','RR','R-20','R-12','R-8'],
+  'Shelby':['R20','R10','R8','R6'],
+  'Kannapolis':['R1','R2','R4','R6','R7','R8','R18'],
+  'Monroe':['RR','RLD','RMD','RHD'],
+};
+const COUNTY_GIS={
+  // Mecklenburg: Polaris 3G — confirmed working with address pre-fill
+  'Mecklenburg':a=>`https://polaris3g.mecklenburgcountync.gov/?addressQuery=${encodeURIComponent(a)}`,
+  // Gaston: confirmed working GIS map viewer
+  'Gaston':a=>`https://gis.gastoncountync.gov/Map/Index`,
+  // Catawba: regional GIS — confirmed at gis.catawbacountync.gov
+  'Catawba':a=>`https://gis.catawbacountync.gov/`,
+  // Lincoln: confirmed tax parcel viewer URL (note: lincolncounty.org not lincolncountync.gov)
+  'Lincoln':a=>`https://arcgisserver.lincolncountync.gov/taxparcelviewer/`,
+  // Cabarrus: county GIS portal — confirmed working
+  'Cabarrus':a=>`https://www.cabarruscounty.us/Services/GIS-Maps-and-Data`,
+  // Iredell: MapGeo confirmed as primary online GIS tool per county site
+  'Iredell':a=>`https://iredell.mapgeo.io/datasets/parcels?location=${encodeURIComponent(a)}`,
+  // Shelby/Cleveland: county GIS confirmed at clevelandcounty.com
+  'Shelby':a=>`https://www.clevelandcounty.com/main/departments/planning___zoning/gis_services.php`,
+  // Kannapolis: Cabarrus County GIS (Kannapolis is in Cabarrus)
+  'Kannapolis':a=>`https://www.cabarruscounty.us/Services/GIS-Maps-and-Data`,
+  // Monroe/Union: UC Atlas — confirmed new 2025 system replacing GoMAPS
+  'Monroe':a=>`https://ucatlas.unioncountync.gov/`,
+};
+const COUNTY_ZONING_URL={
+  'Mecklenburg':'https://charlotteudo.org/',
+  'Gaston':'https://www.gastongov.com/185/Planning-and-Zoning',
+  'Catawba':'https://gis.catawbacountync.gov/misc/zoning.html',
+  'Lincoln':'https://www.lincolncountync.gov/189/Planning-Zoning',
+  'Cabarrus':'https://www.cabarruscounty.us/Government/Departments/Planning-and-Development',
+  'Iredell':'https://www.iredellcountync.gov/169/Planning-Zoning',
+  'Shelby':'https://www.clevelandcounty.com/main/departments/planning___zoning/planning___zoning.php',
+  'Kannapolis':'https://www.cabarruscounty.us/Government/Departments/Planning-and-Development',
+  'Monroe':'https://www.unioncountync.gov/government/departments-f-p/planning-development',
+};
+const CITY_COUNTY={
+  'charlotte':'Mecklenburg','cornelius':'Mecklenburg','davidson':'Mecklenburg','huntersville':'Mecklenburg',
+  'matthews':'Mecklenburg','mint hill':'Mecklenburg','pineville':'Mecklenburg',
+  'gastonia':'Gaston','belmont':'Gaston','mount holly':'Gaston',
+  'hickory':'Catawba','conover':'Catawba','newton':'Catawba',
+  'lincolnton':'Lincoln','denver':'Lincoln',
+  'concord':'Cabarrus','harrisburg':'Cabarrus','kannapolis':'Kannapolis',
+  'mooresville':'Iredell','statesville':'Iredell','troutman':'Iredell',
+  'shelby':'Shelby','kings mountain':'Shelby',
+  'monroe':'Monroe','indian trail':'Monroe','weddington':'Monroe','stallings':'Monroe',
+};
+// ═══════════════════ MASTER PLAN LIBRARY (single source of truth) ═══════════════════
+// Source: "Slate Cost Plus Pricing" sheet — Cost Plus 14 column.
+// w = footprint WIDTH (ft), d = footprint DEPTH (ft).  Slate publishes footprints as
+// (D' x W'); values here are CORRECTED to W/D.  0/0 = no footprint published by Slate yet.
+// t = type (sfh|duet|th|mf).  g = dropdown group.  The dropdown, fit-check grid, and
+// PLAN_KEY_MAP are all GENERATED from this list so they can never drift apart again.
+const PLANS=[
+  // Source: "Slate Cost Plus Pricing — FINAL One Sheet" (canonical, May 2026), Cost Plus 14 column.
+  // w=WIDTH ft, d=DEPTH ft (Slate lists D' x W'; corrected here). 0/0 = no published footprint.
+  // NOTE: Akron is NOT on the FINAL sheet — carried over from the prior sheet (price may be stale; footprint est.).
+  {n:'Akron',sf:1533,c:188962,u:1,w:15,d:102,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Arlington (Standard)',sf:1315,c:145277,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Arlington (Modern)',sf:1315,c:163876,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Aurora',sf:1156,c:137424,u:1,w:30,d:20,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Bellville',sf:1627,c:180489,u:1,w:28,d:37,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Centerville',sf:1904,c:195754,u:1,w:22.5,d:53,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Columbus',sf:1311,c:148112,u:1,w:46,d:34.5,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Cuyahoga',sf:2005,c:207307,u:1,w:37,d:38,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin (Standard)',sf:1435,c:158865,u:1,w:22,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 1 Car',sf:1435,c:170951,u:1,w:34,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 2 Car',sf:1435,c:181461,u:1,w:46.5,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Grandview',sf:1528,c:161052,u:1,w:30,d:27,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Granville',sf:1848,c:198406,u:1,w:38,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hampton',sf:2519,c:244759,u:1,w:50.5,d:58.1,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hilliard',sf:1573,c:175933,u:1,w:25,d:41.7,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Muirfield',sf:1199,c:145088,u:1,w:30,d:42.3,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Plumwood',sf:1485,c:178876,u:1,w:34,d:58,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Seneca',sf:1985,c:204131,u:1,w:30,d:43,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Westerville',sf:1108,c:134918,u:1,w:25,d:48.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington',sf:1405,c:170379,u:1,w:48,d:46,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington 2.0',sf:1640,c:181893,u:1,w:48,d:51,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Albany',sf:2726,c:327313,u:1,w:40,d:45,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Galloway',sf:3203,c:379179,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Linden',sf:2986,c:372424,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Arcadia (Budget)',sf:1278,c:139130,u:1,w:22,d:30.6,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Hudson (Budget)',sf:1108,c:133065,u:1,w:25,d:48.4,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Laurel (Budget)',sf:1528,c:150552,u:1,w:30,d:27,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell (Budget)',sf:1323,c:140963,u:1,w:20,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell One Car',sf:1323,c:151547,u:1,w:32,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Wildwood (Budget)',sf:1315,c:138901,u:1,w:31,d:50.4,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Arcadia Duet (per side)',sf:1228,c:140636,u:2,w:40,d:34,t:'duet',g:'Duets — Per Side'},
+  {n:'Bexley Duet (per side)',sf:1664,c:172093,u:2,w:40,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Findlay Duet (per side)',sf:1409,c:164462,u:2,w:38,d:45,t:'duet',g:'Duets — Per Side'},
+  {n:'Logan Duet (per side)',sf:1186,c:135976,u:2,w:39.5,d:62,t:'duet',g:'Duets — Per Side'},
+  {n:'Oxford Duet (per side)',sf:1690,c:177284,u:2,w:34,d:60,t:'duet',g:'Duets — Per Side'},
+  {n:'Polaris Duet (Modern, per side)',sf:2227,c:332019,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
+  {n:'Ashland Duet (Modern, per side)',sf:1747,c:295770,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
+  {n:'Whitehall Duet (per side)',sf:1854,c:186398,u:2,w:45,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Winchester Duet (per side)',sf:1480,c:156739,u:2,w:40,d:42.3,t:'duet',g:'Duets — Per Side'},
+  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,u:3,w:66,d:33.7,t:'mf',g:'Multifamily & Mini'},
+  {n:'Dayton Townhomes (1 unit)',sf:1385,c:159359,u:1,w:21.7,d:40,t:'th',g:'Multifamily & Mini'},
+  {n:'Franklin Townhomes (1 unit)',sf:1549,c:162238,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
+  {n:'Dunkirk (mini home)',sf:702,c:104434,u:1,w:27,d:34,t:'sfh',g:'Multifamily & Mini'},
+];
+PLANS.forEach(p=>{p.val=`${p.n}|${p.sf}|${p.c}|${p.u}|${p.w}|${p.d}`;});
+const PLAN_KEY_MAP={};PLANS.forEach(p=>{PLAN_KEY_MAP[p.n]=p.val;});
+// Backward-compat positional array: [name, sf, cost, units, fpW, fpD]
+const PLANS_FP=PLANS.map(p=>[p.n,p.sf,p.c,p.u,p.w,p.d]);
+function buildPlanDropdown(){
+  const sel=$('plan-sel');if(!sel)return;
+  while(sel.options.length>1)sel.remove(1); // keep placeholder
+  const groups=[];PLANS.forEach(p=>{if(!groups.includes(p.g))groups.push(p.g);});
+  groups.forEach(g=>{
+    const og=document.createElement('optgroup');og.label=g;
+    PLANS.filter(p=>p.g===g).forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.val;
+      o.textContent='The '+p.n+(p.sf>0?' — '+p.sf.toLocaleString()+' sf':'')+' — $'+p.c.toLocaleString();
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+}
+const UPGRADES=[
+  {id:'lvp',name:'LVP Throughout',cost:2899},{id:'hw',name:'Engineered Hardwoods',cost:13519},
+  {id:'quartz',name:'Quartz Countertops',cost:688},{id:'wfall-qtz',name:'Waterfall Quartz',cost:1530},
+  {id:'frameless',name:'Frameless Shower Door',cost:800},{id:'tile-shower',name:'Tile Primary Shower/Tub',cost:2800},
+  {id:'front-door',name:'Craftsman Wood Door',cost:1800},{id:'deadbolt',name:'Electronic Deadbolt',cost:250},
+  {id:'corbels',name:'Cedar Corbels',cost:1105},{id:'columns',name:'Cedar Wrapped Columns',cost:500},
+  {id:'hardie',name:'Color Plus Hardie Exterior',cost:5695},{id:'open-rail',name:'Open Rail Staircase',cost:2221},
+  {id:'fireplace',name:'Gas Fireplace',cost:6884},{id:'fans',name:'4 Additional Ceiling Fans',cost:1780},
+  {id:'blinds',name:'Faux Wood Blinds',cost:600},{id:'brushed-ni',name:'Brushed Nickel Hardware',cost:622},
+  {id:'matte-blk',name:'Matte Black Hardware',cost:823},{id:'shiplap',name:'Shiplap Kitchen Island',cost:455},
+];
+
+// ═══════════════════ STATE ═══════════════════
+/* ── Plan drawings (#5): images served statically from /plans ── */
+const PLAN_IMG={
+  'Arlington (Standard)':'arlington','Arlington (Modern)':'modern-arlington','Aurora':'aurora','Bellville':'bellville',
+  'Centerville':'centerville','Columbus':'columbus','Cuyahoga':'cuyahoga','Dublin (Standard)':'dublin','Dublin 1 Car':'dublin','Dublin 2 Car':'dublin',
+  'Grandview':'grandview','Granville':'granville','Hampton':'hampton','Hilliard':'hilliard','Muirfield':'muirfield','Plumwood':'plumwood',
+  'Seneca':'seneca','Westerville':'westerville','Worthington':'worthington','Worthington 2.0':'worthington-2',
+  'Albany':'albany','Galloway':'galloway','Linden':'linden',
+  'Arcadia (Budget)':'arcadia','Hudson (Budget)':'westerville','Laurel (Budget)':'grandview','Powell (Budget)':'powell','Powell One Car':'powell-one-car','Wildwood (Budget)':'arlington',
+  'Bexley Duet (per side)':'bexley','Findlay Duet (per side)':'findlay','Logan Duet (per side)':'logan','Oxford Duet (per side)':'oxford',
+  'Polaris Duet (Modern, per side)':'polaris','Ashland Duet (Modern, per side)':'ashland','Whitehall Duet (per side)':'whitehall','Winchester Duet (per side)':'winchester',
+  'Dayton Townhomes (1 unit)':'dayton','Franklin Townhomes (1 unit)':'franklin','Dunkirk (mini home)':'dunkirk'
+};
+const IMG_ICON='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>';
+function planImg(name){const f=PLAN_IMG[name];return f?('plans/'+f+'.webp'):'';}
+function openPlanImg(name){const src=planImg(name);if(!src)return;const m=$('planimg-modal');if(!m)return;$('planimg-img').src=src;$('planimg-cap').textContent=name;m.style.display='flex';}
+function closePlanImg(){const m=$('planimg-modal');if(m){m.style.display='none';$('planimg-img').src='';}}
+let buildableArea=0, allInExLand=0, sfPerUnit=0, units=1, currentPlanCost=0;
+let lotFactor=0, tapTotal=0;
+const selectedUpgrades=new Set();
+
+// Lot mode state
+let lotMode = 'rect'; // 'rect' or 'poly'
+let FIT_SORT='sf-desc'; // fit-check sort key-dir
+function setFitSort(v){FIT_SORT=v;renderFitCheck();}
+let lotSides = []; // [{length, angleDeg}] for irregular mode
+
+// Lot editor canvas snapshot (carried to Step 3)
+let lotEditorSnapshot = null; // dataURL
+let lotEditorSnapshotImg = null; // pre-loaded Image object for synchronous draw
+
+function snapshotLotEditor(){
+  const src=$('lot-editor-canvas');
+  if(!src||polyPoints.length<3){
+    lotEditorSnapshot=null;
+    lotEditorSnapshotImg=null;
+    return;
+  }
+
+  // Store buildable polygon centroid BEFORE snapshot
+  if(planOverlay.buildPoly&&planOverlay.buildPoly.length>=3){
+    const bp=planOverlay.buildPoly,n=bp.length;
+    planOverlay.snapshotCentroidEditorX=bp.reduce((s,p)=>s+p.x,0)/n;
+    planOverlay.snapshotCentroidEditorY=bp.reduce((s,p)=>s+p.y,0)/n;
+  } else {
+    planOverlay.snapshotCentroidEditorX=null;
+    planOverlay.snapshotCentroidEditorY=null;
+  }
+
+  // *** KEY FIX: hide plan overlay before taking screenshot ***
+  // Without this the overlay gets baked into the snapshot image,
+  // then Step 3 draws it again on top = double overlay
+  const wasActive=planOverlay.active;
+  planOverlay.active=false;
+  redrawEditor();                          // draw clean lot shape only
+  const dataUrl=src.toDataURL('image/png'); // snapshot WITHOUT overlay
+  planOverlay.active=wasActive;
+  redrawEditor();                          // restore overlay on editor canvas
+
+  lotEditorSnapshot=dataUrl;
+
+  const img=new Image();
+  img.onload=function(){
+    lotEditorSnapshotImg=img;
+    planOverlay.snapshotX=null;
+    planOverlay.snapshotY=null;
+    planOverlay.snapshotPositioned=false;
+    drawDiagram();
+  };
+  img.src=dataUrl;
+}
+
+// Plan overlay state
+let planOverlay = {
+  active: false,
+  fpW: 0, fpH: 0, // footprint in feet
+  rotation: 0,    // degrees
+  // canvas position in pixels
+  x: 0, y: 0,
+  // dragging
+  dragging: false,
+  dragOffX: 0, dragOffY: 0,
+  // scale: canvas pixels per foot
+  scale: 1,
+  // buildable rect in canvas coords
+  buildRect: null, // {x,y,w,h} in canvas pixels
+  // irregular buildable polygon
+  buildPoly: null,
+  // lot polygon in canvas pixels
+  lotPoly: null,
+};
+
+// ═══════════════════ HELPERS ═══════════════════
+const $=id=>document.getElementById(id);
+const fmt=n=>(!n&&n!==0)||isNaN(n)?'—':'$'+Math.round(n).toLocaleString();
+const fmtN=n=>isNaN(n)?'—':Math.round(n).toLocaleString();
+const pv=id=>{const e=$(id);if(!e)return 0;const v=parseFloat((e.value||'').replace(/,/g,''));return isNaN(v)?0:v;};
+
+// ═══════════════════ NAVIGATION ═══════════════════
+function goTo(n){
+  for(let i=1;i<=7;i++){
+    $(`page-${i}`).classList.toggle('active',i===n);
+    const nb=$(`nav-${i}`);
+    nb.classList.remove('active','done');
+    if(i===n)nb.classList.add('active');
+    else if(i<n)nb.classList.add('done');
+  }
+  window.scrollTo(0,0);
+  if(n===2)updateGISLink();
+  if(n===3){
+    if(lotMode==='poly'){
+      // snapshotLotEditor pre-loads the image then calls drawDiagram() once
+      snapshotLotEditor();
+      calcBuildable();renderFitCheck();updateTopoLinks();
+    } else {
+      calcBuildable();drawDiagram();renderFitCheck();updateTopoLinks();
+    }
+  }
+  if(n===4)updateSummaryBar();
+  if(n===5)calcAll();
+  if(n===6){calcAll();calcFinancing();}
+  if(n===7){calcAll();calcFinancing();calcScenarios();}
+}
+
+// ═══════════════════ PAGE 1 ═══════════════════
+function onAddrChange(){
+  const city=($('addr-city').value||'').toLowerCase().trim();
+  const det=CITY_COUNTY[city];
+  if(det&&!$('county-sel').value){$('county-sel').value=det;onCountyChange();}
+  updateLinks();
+  validateAddress();
+}
+
+function validateAddress(){
+  const street=($('addr-street').value||'').trim();
+  const city=($('addr-city').value||'').trim();
+  const zip=($('addr-zip').value||'').trim();
+  const el=$('addr-validation');
+  if(!el)return;
+  if(!street&&!city){el.innerHTML='';return;}
+
+  const warnings=[];
+
+  // Check street has a number
+  if(street&&!/^\d/.test(street)){
+    warnings.push('Street address should start with a number (e.g. 2723 Dellinger Dr)');
+  }
+
+  // Check for common street suffix
+  const SUFFIXES=['st','ave','blvd','dr','rd','ln','ct','pl','way','cir','ter','trl',
+    'pkwy','hwy','expy','loop','pass','path','run','sq','walk'];
+  if(street){
+    const parts=street.toLowerCase().split(/\s+/);
+    const hasSuffix=parts.some(p=>SUFFIXES.includes(p.replace(/\.$/,'')));
+    if(!hasSuffix)warnings.push('Check street suffix — is it Dr, St, Ave, Rd, Ln, etc.?');
+  }
+
+  // Check city matches known cities/counties
+  if(city){
+    const cityLower=city.toLowerCase();
+    const known=Object.keys(CITY_COUNTY);
+    if(!known.includes(cityLower)){
+      // Fuzzy match — find closest
+      function editDist(a,b){
+        const m=a.length,n=b.length;
+        const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+        for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+          dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+        return dp[m][n];
+      }
+      const closest=known.reduce((best,k)=>{
+        const d=editDist(cityLower,k);
+        return d<best.d?{k,d}:best;
+      },{k:'',d:Infinity});
+      if(closest.d<=2&&closest.d>0){
+        warnings.push(`Did you mean <strong>${closest.k.charAt(0).toUpperCase()+closest.k.slice(1)}</strong>? City not in known service area.`);
+      } else if(closest.d>2){
+        warnings.push('City not recognized — double-check spelling or confirm it is in the Carolinas service area.');
+      }
+    }
+  }
+
+  // Check zip is 5 digits
+  if(zip&&!/^\d{5}$/.test(zip)){
+    warnings.push('ZIP code should be 5 digits');
+  }
+
+  if(warnings.length){
+    el.innerHTML='<div class="warn" style="margin-top:8px">'+warnings.map(w=>`⚠ ${w}`).join('<br>')+'</div>';
+  } else if(street&&city){
+    el.innerHTML='<div class="ok" style="margin-top:8px">✓ Address format looks good</div>';
+  } else {
+    el.innerHTML='';
+  }
+}
+function updateLinks(){
+  const county=$('county-sel').value, addr=fullAddr();
+  const card=$('link-card');
+  if(!addr&&!county){card.style.display='none';return;}
+  card.style.display='';
+  let html='';
+  if(county&&COUNTY_ZONING_URL[county])
+    html+=`<div class="link-row"><span class="link-row-label">🗺 Zoning lookup (${county})</span><a class="link-btn" href="${COUNTY_ZONING_URL[county]}" target="_blank">Open →</a></div>`;
+  if(county&&addr&&COUNTY_GIS[county])
+    html+=`<div class="link-row"><span class="link-row-label">📐 GIS Parcel Lookup</span><a class="link-btn" href="${COUNTY_GIS[county](addr)}" target="_blank">Open GIS →</a></div>`;
+  if(addr)
+    html+=`<div class="link-row"><span class="link-row-label">🛰 Google Maps</span><a class="link-btn" href="https://maps.google.com/?q=${encodeURIComponent(addr)}" target="_blank">Open →</a></div>`;
+  $('link-rows').innerHTML=html;
+}
+function onCountyChange(){
+  const county=$('county-sel').value;
+  const sel=$('zone-sel');
+  sel.innerHTML='<option value="">— Select Zone —</option>';
+  if(county&&COUNTY_ZONES[county])
+    COUNTY_ZONES[county].forEach(z=>{const o=document.createElement('option');o.value=`${county}|${z}`;o.textContent=z;sel.appendChild(o);});
+  $('meck-context').style.display=county==='Mecklenburg'?'':'none';
+  if(county==='Mecklenburg')$('tap-muni').value='17340';
+  updateLinks();
+  $('zone-info').style.display='none';
+  $('zone-udo-link').style.display='none';
+  calcAll();
+}
+function onZoneChange(){
+  const key=$('zone-sel').value;
+  if(!key){$('zone-info').style.display='none';return;}
+  const sb=SETBACKS[key];
+  if(sb){
+    $('sb-front').value=sb.front;$('sb-rear').value=sb.rear;
+    $('sb-sides').value=sb.sides;$('sb-corner').value=sb.corner;
+    $('sb-minw').value=sb.minWidth||'';$('sb-garage').value=sb.garage||'';
+    $('zone-info').style.display='';
+    const county=$('county-sel').value;
+    if(COUNTY_ZONING_URL[county]){
+      $('zone-udo-link').innerHTML=`<a class="topo-btn" href="${COUNTY_ZONING_URL[county]}" target="_blank">📋 Verify in ${county} UDO →</a>`;
+      $('zone-udo-link').style.display='';
+    }
+    calcBuildable();
+  }
+}
+function fullAddr(){return[$('addr-street').value,$('addr-city').value,$('addr-state').value,$('addr-zip').value].map(s=>(s||'').trim()).filter(Boolean).join(', ');}
+
+// ═══════════════════ PAGE 2 — LOT MODE ═══════════════════
+function setLotMode(mode){
+  lotMode = mode;
+  $('mode-rect-btn').classList.toggle('active', mode==='rect');
+  $('mode-poly-btn').classList.toggle('active', mode==='poly');
+  $('rect-mode-fields').style.display = mode==='rect' ? '' : 'none';
+  $('poly-mode-fields').style.display = mode==='poly' ? '' : 'none';
+  $('rect-override-field').style.display = mode==='rect' ? '' : 'none';
+  if(mode==='poly' && polyPoints.length===0) initPolyEditor();
+  calcBuildable();
+}
+
+// ── LOT POINT EDITOR STATE ────────────────────────────────────────────────
+let polyPoints = [];      // [{x,y}] in canvas pixels
+let polyDragIdx = -1;     // which point is being dragged
+let polyDragOffX = 0, polyDragOffY = 0;
+let edgeDesignations = []; // 'front'|'rear'|'side' per edge i
+
+function getScaleFtPerPx(){
+  const canvas = $('lot-editor-canvas');
+  if(!canvas) return 1;
+  const canvasWidthFt = parseFloat(($('canvas-scale-ft')||{value:'200'}).value) || 200;
+  return canvasWidthFt / canvas.width;
+}
+
+function pxToFt(px){ return px * getScaleFtPerPx(); }
+function ftToPx(ft){ return ft / getScaleFtPerPx(); }
+
+function initPolyEditor(){
+  const n = parseInt(($('corner-count')||{value:'6'}).value) || 6;
+  const canvas = $('lot-editor-canvas');
+  if(!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  const rx = W*0.32, ry = H*0.32;
+  polyPoints = [];
+  for(let i=0;i<n;i++){
+    const angle = (i/n)*Math.PI*2 - Math.PI/2;
+    polyPoints.push({
+      x: Math.round(cx + rx*Math.cos(angle)),
+      y: Math.round(cy + ry*Math.sin(angle))
+    });
+  }
+  initEdgeDesignations();
+  redrawEditor();
+  calcBuildable();
+}
+
+function initEdgeDesignations(){
+  const n = polyPoints.length;
+  // Default: bottom-most edge = front, top-most = rear, rest = side
+  edgeDesignations = Array(n).fill('side');
+  // Find the edge whose midpoint is lowest (most southern = likely front/street)
+  let maxY = -Infinity, frontIdx = 0;
+  for(let i=0;i<n;i++){
+    const a=polyPoints[i],b=polyPoints[(i+1)%n];
+    const my=(a.y+b.y)/2;
+    if(my>maxY){maxY=my;frontIdx=i;}
+  }
+  edgeDesignations[frontIdx]='front';
+  // Auto-assign rear: edge whose midpoint is most geometrically opposite the front midpoint
+  const fa=polyPoints[frontIdx],fb=polyPoints[(frontIdx+1)%n];
+  const fmx=(fa.x+fb.x)/2,fmy=(fa.y+fb.y)/2;
+  const cx2=polyPoints.reduce((s,p)=>s+p.x,0)/n;
+  const cy2=polyPoints.reduce((s,p)=>s+p.y,0)/n;
+  // Opposite = edge whose midpoint is most in the direction away from front midpoint through centroid
+  const fdx=fmx-cx2,fdy=fmy-cy2;
+  let bestDot=-Infinity,rearIdx=-1;
+  for(let i=0;i<n;i++){
+    if(i===frontIdx)continue;
+    const a=polyPoints[i],b=polyPoints[(i+1)%n];
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    const dx=mx-cx2,dy=my-cy2;
+    // dot product with opposite direction
+    const dot=dx*(-fdx)+dy*(-fdy);
+    if(dot>bestDot){bestDot=dot;rearIdx=i;}
+  }
+  if(rearIdx>=0)edgeDesignations[rearIdx]='rear';
+}
+
+function cycleEdgeDesignation(edgeIdx){
+  const cycle=['front','rear','side'];
+  const cur=edgeDesignations[edgeIdx]||'side';
+  const next=cycle[(cycle.indexOf(cur)+1)%cycle.length];
+  // Multiple fronts and rears allowed — no restriction
+  edgeDesignations[edgeIdx]=next;
+  redrawEditor();
+  calcBuildable();
+}
+
+function getSetbackForEdge(i){
+  const des=edgeDesignations[i]||'side';
+  if(des==='front')return pv('sb-front');
+  if(des==='rear')return pv('sb-rear');
+  // side: check if corner lot and this is the corner-side edge
+  return pv('sb-sides');
+}
+
+function resetPolyToDefault(){
+  polyPoints = [];
+  initPolyEditor();
+}
+
+function redrawEditor(){
+  const canvas=$('lot-editor-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle='#0d1a26';ctx.fillRect(0,0,W,H);
+
+  // Grid
+  const gridFt=bestGridInterval(pxToFt(W));
+  const gridPx=ftToPx(gridFt);
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=gridPx){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=gridPx){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.font='9px DM Mono,monospace';ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.textAlign='left';
+  for(let x=gridPx;x<W-10;x+=gridPx)ctx.fillText(Math.round(pxToFt(x))+"'",x+2,10);
+  ctx.textAlign='right';
+  for(let y=gridPx;y<H-10;y+=gridPx)ctx.fillText(Math.round(pxToFt(y))+"'",W-2,y-2);
+
+  if(polyPoints.length<2){updatePolyStats();return;}
+  const pts=polyPoints;
+  const n=pts.length;
+
+  // Edge designation colors
+  const EDGE_COLORS={front:'#4a9eff',rear:'#e05c5c',side:'rgba(255,255,255,0.35)'};
+  const EDGE_LABELS={front:'FRONT',rear:'REAR',side:'SIDE'};
+
+  // Draw lot fill
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<n;i++)ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.closePath();
+  ctx.fillStyle='rgba(46,156,143,0.08)';ctx.fill();
+
+  // Draw each edge with its designation color
+  for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];
+    const des=edgeDesignations[i]||'side';
+    const color=EDGE_COLORS[des];
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle=color;ctx.lineWidth=des==='side'?1.5:2.5;
+    ctx.setLineDash(des==='side'?[4,4]:[]);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  // Draw side length labels + designation badge
+  ctx.font='bold 11px DM Mono,monospace';
+  for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];
+    const dx=b.x-a.x,dy=b.y-a.y;
+    const lenPx=Math.sqrt(dx*dx+dy*dy);
+    if(lenPx<25)continue;
+    const lenFt=pxToFt(lenPx);
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    // Perpendicular offset inward (toward centroid)
+    const cx2=pts.reduce((s,p)=>s+p.x,0)/n,cy2=pts.reduce((s,p)=>s+p.y,0)/n;
+    const toCentX=cx2-mx,toCentY=cy2-my;
+    const toCentLen=Math.sqrt(toCentX*toCentX+toCentY*toCentY)||1;
+    const offX=(toCentX/toCentLen)*18,offY=(toCentY/toCentLen)*18;
+    const lx=mx+offX,ly=my+offY;
+    const des=edgeDesignations[i]||'side';
+    const color=EDGE_COLORS[des];
+    const lbl=lenFt.toFixed(1)+" ft";
+    const m=ctx.measureText(lbl);
+    const badge=EDGE_LABELS[des];
+    const bm=ctx.measureText(badge);
+    const totalW=Math.max(m.width,bm.width)+10;
+    // Background pill
+    ctx.fillStyle='rgba(13,26,38,0.88)';
+    roundRect(ctx,lx-totalW/2,ly-18,totalW,32,4);ctx.fill();
+    ctx.strokeStyle=color;ctx.lineWidth=1;
+    roundRect(ctx,lx-totalW/2,ly-18,totalW,32,4);ctx.stroke();
+    // Distance
+    ctx.fillStyle='rgba(232,169,77,0.95)';ctx.textAlign='center';ctx.font='bold 11px DM Mono,monospace';
+    ctx.fillText(lbl,lx,ly-4);
+    // Designation
+    ctx.fillStyle=color;ctx.font='bold 8px DM Sans,monospace';
+    ctx.fillText(badge,lx,ly+8);
+  }
+
+  // Draw setback inset using per-edge setbacks
+  const insetPts=insetPolygonPerEdge(pts,edgeDesignations);
+  if(insetPts&&insetPts.length>=3){
+    ctx.beginPath();ctx.moveTo(insetPts[0].x,insetPts[0].y);
+    for(let i=1;i<insetPts.length;i++)ctx.lineTo(insetPts[i].x,insetPts[i].y);
+    ctx.closePath();
+    ctx.fillStyle='rgba(232,169,77,0.08)';ctx.fill();
+    ctx.strokeStyle='rgba(232,169,77,0.85)';ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.stroke();ctx.setLineDash([]);
+
+    // Buildable area = full inset polygon
+    // Calculate area using shoelace in feet
+    let insetAreaPx=0;
+    const np=insetPts.length;
+    for(let i=0;i<np;i++){
+      const a=insetPts[i],b=insetPts[(i+1)%np];
+      insetAreaPx+=a.x*b.y-b.x*a.y;
+    }
+    const insetAreaFt=Math.round(Math.abs(insetAreaPx)/2*getScaleFtPerPx()*getScaleFtPerPx());
+    buildableArea=insetAreaFt;
+
+    // Label the buildable area at the centroid of the inset polygon
+    const icx=insetPts.reduce((s,p)=>s+p.x,0)/np;
+    const icy=insetPts.reduce((s,p)=>s+p.y,0)/np;
+    ctx.font='bold 12px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(76,175,130,0.95)';
+    ctx.fillText('Buildable Area',icx,icy-10);
+    ctx.font='bold 11px DM Mono,monospace';
+    ctx.fillText(insetAreaFt.toLocaleString()+' sf',icx,icy+6);
+
+    // Store inset polygon in FEET (canvas-independent)
+    const sc2ft=getScaleFtPerPx();
+    const edCanvas=$('lot-editor-canvas');
+    const edW=edCanvas?edCanvas.width:800,edH=edCanvas?edCanvas.height:600;
+    // Convert pixel coords to feet relative to canvas origin
+    planOverlay.buildPolyFt=insetPts.map(p=>({x:pxToFt(p.x),y:pxToFt(p.y)}));
+    planOverlay.buildPoly=insetPts; // keep px version for direct use in editor
+    // Store centroid in feet
+    const icxFt=pxToFt(icx),icyFt=pxToFt(icy);
+    planOverlay.buildCentroidFt={x:icxFt,y:icyFt};
+    // Bounding box in feet
+    const ixsFt=planOverlay.buildPolyFt.map(p=>p.x),iysFt=planOverlay.buildPolyFt.map(p=>p.y);
+    planOverlay.buildBBoxFt={
+      minX:Math.min(...ixsFt),maxX:Math.max(...ixsFt),
+      minY:Math.min(...iysFt),maxY:Math.max(...iysFt)
+    };
+    // Legacy buildRect in px for editor drag (will be recomputed per-canvas on snapshot)
+    const ixs=insetPts.map(p=>p.x),iys=insetPts.map(p=>p.y);
+    const ibx=Math.min(...ixs),iby=Math.min(...iys);
+    const ibw=Math.max(...ixs)-ibx,ibh=Math.max(...iys)-iby;
+    planOverlay.buildRect={x:ibx,y:iby,w:ibw,h:ibh,cx:icx,cy:icy};
+    planOverlay.editorFtPerPx=sc2ft; // store the ft/px ratio used when polygon was built
+    if(planOverlay.active&&!planOverlay.positioned){
+      planOverlay.x=icx;planOverlay.y=icy;planOverlay.positioned=true;
+    }
+  }
+
+  // Draw corner dots
+  for(let i=0;i<n;i++){
+    const p=pts[i];
+    ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);
+    ctx.fillStyle=polyDragIdx===i?'#fff':'rgba(232,169,77,0.9)';ctx.fill();
+    ctx.strokeStyle='rgba(13,26,38,0.9)';ctx.lineWidth=2;ctx.stroke();
+    ctx.font='bold 10px DM Mono,monospace';ctx.textAlign='center';ctx.fillStyle='#0d1a26';
+    ctx.fillText(i+1,p.x,p.y+4);
+  }
+
+  // Plan overlay
+  if(planOverlay.active&&planOverlay.fpW>0&&planOverlay.fpH>0&&planOverlay.buildRect){
+    const sc=planOverlay.scale||1;
+    const pw=planOverlay.fpW*sc,ph=planOverlay.fpH*sc;
+    const rad=planOverlay.rotation*Math.PI/180;
+    if(!planOverlay.positioned){
+      const br=planOverlay.buildRect;
+      planOverlay.x=br.x+br.w/2;planOverlay.y=br.y+br.h/2;planOverlay.positioned=true;
+    }
+    ctx.save();ctx.translate(planOverlay.x,planOverlay.y);ctx.rotate(rad);
+    const br=planOverlay.buildRect;
+    const cosA=Math.abs(Math.cos(rad)),sinA=Math.abs(Math.sin(rad));
+    const rotW=pw*cosA+ph*sinA,rotH=pw*sinA+ph*cosA;
+    const fits=br&&(planOverlay.x-rotW/2>=br.x&&planOverlay.x+rotW/2<=br.x+br.w&&planOverlay.y-rotH/2>=br.y&&planOverlay.y+rotH/2<=br.y+br.h);
+    ctx.fillStyle=fits?'rgba(76,175,130,0.3)':'rgba(224,92,92,0.3)';ctx.fillRect(-pw/2,-ph/2,pw,ph);
+    ctx.strokeStyle=fits?'rgba(76,175,130,0.9)':'rgba(224,92,92,0.9)';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.strokeRect(-pw/2,-ph/2,pw,ph);
+    ctx.font='bold 10px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.9)';
+    ctx.fillText(planOverlay.planName||'',0,-2);ctx.font='9px DM Mono,monospace';ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fillText(planOverlay.fpW+"'×"+planOverlay.fpH+"'",0,11);
+    ctx.restore();
+    const fe=$('ov-fits');if(fe){fe.textContent=fits?'✓ Yes':'✗ Outside';fe.className=fits?'overlay-fit-ok':'overlay-fit-warn';}
+  }
+
+  // Legend
+  drawLegend(ctx,W,H);
+  updatePolyStats();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+function drawLegend(ctx,W,H){
+  const items=[
+    {color:'#4a9eff',dash:false,label:'Front (click edge to change)'},
+    {color:'#e05c5c',dash:false,label:'Rear'},
+    {color:'rgba(255,255,255,0.35)',dash:true,label:'Side'},
+    {color:'rgba(232,169,77,0.85)',dash:true,label:'Setback boundary'},
+    {color:'rgba(76,175,130,0.6)',dash:false,label:'Buildable area (inside setbacks)'},
+  ];
+  const lh=18,pad=10,bw=160,bh=lh*items.length+pad*2;
+  ctx.fillStyle='rgba(13,26,38,0.88)';
+  roundRect(ctx,8,H-bh-8,bw,bh,5);ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+  roundRect(ctx,8,H-bh-8,bw,bh,5);ctx.stroke();
+  items.forEach((it,i)=>{
+    const y=H-bh-8+pad+i*lh+lh/2;
+    ctx.strokeStyle=it.color;ctx.lineWidth=it.dash?1.5:2.5;
+    ctx.setLineDash(it.dash?[4,3]:[]);
+    ctx.beginPath();ctx.moveTo(16,y);ctx.lineTo(38,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='10px DM Sans,sans-serif';ctx.fillStyle='rgba(200,210,220,0.75)';ctx.textAlign='left';
+    ctx.fillText(it.label,44,y+4);
+  });
+}
+
+// Per-edge setback inset using edge-offset + line intersection
+// Spikes are prevented by clamping any result point that falls outside the original polygon
+function insetPolygonPerEdge(pts,designations){
+  const n=pts.length;
+  if(n<3)return null;
+
+  function sbPxForEdge(i){
+    const des=designations[i]||'side';
+    if(des==='front')return ftToPx(pv('sb-front')||0);
+    if(des==='rear') return ftToPx(pv('sb-rear')||0);
+    return ftToPx(pv('sb-sides')||0);
+  }
+
+  // Winding
+  let area=0;
+  for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n];area+=a.x*b.y-b.x*a.y;}
+  const isCW=area>0;
+  const s=isCW?1:-1;
+
+  // Offset each edge inward
+  const offsetEdges=[];
+  for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];
+    const dx=b.x-a.x,dy=b.y-a.y;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const nx=s*(-dy/len),ny=s*(dx/len);
+    const sb=sbPxForEdge(i);
+    offsetEdges.push({ax:a.x+nx*sb,ay:a.y+ny*sb,bx:b.x+nx*sb,by:b.y+ny*sb,nx,ny,sb});
+  }
+
+  // Centroid
+  const cx=pts.reduce((a,p)=>a+p.x,0)/n;
+  const cy=pts.reduce((a,p)=>a+p.y,0)/n;
+
+  // Point-in-polygon test for original lot
+  function ptInOrig(px,py){
+    let inside=false;
+    for(let i=0,j=n-1;i<n;j=i++){
+      const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
+      if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+    }
+    return inside;
+  }
+
+  // Closest point on a line segment to point p
+  function closestOnSeg(px,py,ax,ay,bx,by){
+    const dx=bx-ax,dy=by-ay;
+    const lenSq=dx*dx+dy*dy;
+    if(lenSq===0)return{x:ax,y:ay};
+    const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/lenSq));
+    return{x:ax+t*dx,y:ay+t*dy};
+  }
+
+  const result=[];
+  for(let i=0;i<n;i++){
+    const e1=offsetEdges[i];
+    const e2=offsetEdges[(i+1)%n];
+    const d1x=e1.bx-e1.ax,d1y=e1.by-e1.ay;
+    const d2x=e2.bx-e2.ax,d2y=e2.by-e2.ay;
+    const denom=d1x*d2y-d1y*d2x;
+    let px,py;
+    if(Math.abs(denom)<0.001){
+      px=(e1.bx+e2.ax)/2;py=(e1.by+e2.ay)/2;
+    } else {
+      const t=((e2.ax-e1.ax)*d2y-(e2.ay-e1.ay)*d2x)/denom;
+      px=e1.ax+t*d1x;py=e1.ay+t*d1y;
+    }
+
+    // If result is outside original polygon or NaN — clamp it
+    if(isNaN(px)||isNaN(py)||!ptInOrig(px,py)){
+      // Try e2 start (the offset start of the outgoing edge) — usually safe
+      const c1=closestOnSeg(cx,cy,e2.ax,e2.ay,e2.bx,e2.by);
+      if(ptInOrig(c1.x,c1.y)){px=c1.x;py=c1.y;}
+      else {
+        // Last resort: push the original vertex toward centroid by avg setback
+        const origPt=pts[(i+1)%n];
+        const dx2=origPt.x-cx,dy2=origPt.y-cy;
+        const d2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
+        const avgSb=(sbPxForEdge(i)+sbPxForEdge((i+1)%n))/2;
+        px=origPt.x-(dx2/d2)*avgSb;
+        py=origPt.y-(dy2/d2)*avgSb;
+      }
+    }
+    result.push({x:px,y:py});
+  }
+  return result;
+}
+
+function bestGridInterval(totalFt){
+  const targets=[5,10,20,25,50,100,200];
+  const ideal=totalFt/8;
+  return targets.reduce((a,b)=>Math.abs(b-ideal)<Math.abs(a-ideal)?b:a);
+}
+
+function updatePolyStats(){
+  const n=polyPoints.length;
+  const areaEl=$('poly-stat-area'), perEl=$('poly-stat-perimeter'), cEl=$('poly-stat-corners');
+  if(cEl)cEl.textContent=n;
+  if(n<3){if(areaEl)areaEl.textContent='—';if(perEl)perEl.textContent='—';return;}
+  // Area (shoelace)
+  let area=0;
+  for(let i=0;i<n;i++){const a=polyPoints[i],b=polyPoints[(i+1)%n];area+=a.x*b.y-b.x*a.y;}
+  const areaFt=Math.abs(area)/2*getScaleFtPerPx()*getScaleFtPerPx();
+  if(areaEl)areaEl.textContent=Math.round(areaFt).toLocaleString();
+  // Perimeter
+  let perim=0;
+  for(let i=0;i<n;i++){const a=polyPoints[i],b=polyPoints[(i+1)%n];perim+=Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2);}
+  if(perEl)perEl.textContent=Math.round(pxToFt(perim)).toLocaleString();
+  // Update buildable area for calculations
+  const lotSFManual=pv('lot-sf-poly');
+  if(!lotSFManual && areaEl){
+    const val=parseInt(areaEl.textContent.replace(/,/g,''));
+    if(!isNaN(val))buildableArea=val; // rough — gets overridden by inscribed rect calc
+  }
+}
+
+// Inscribed rect search removed — buildable area is the full inset polygon
+function largestInscribedRectPts(pts){ return null; }
+
+function pointInPolygonPts(pt,poly){
+  let inside=false;
+  const n=poly.length;
+  for(let i=0,j=n-1;i<n;j=i++){
+    const pi=poly[i],pj=poly[j];
+    if(((pi.y>pt.y)!==(pj.y>pt.y))&&(pt.x<(pj.x-pi.x)*(pt.y-pi.y)/(pj.y-pi.y)+pi.x))inside=!inside;
+  }
+  return inside;
+}
+
+// ── DRAG EVENTS for lot editor ────────────────────────────────────────────
+function distToSegment(p,a,b){
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq===0)return Math.sqrt((p.x-a.x)**2+(p.y-a.y)**2);
+  let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/lenSq;
+  t=Math.max(0,Math.min(1,t));
+  return Math.sqrt((p.x-a.x-t*dx)**2+(p.y-a.y-t*dy)**2);
+}
+
+function initLotEditorDrag(){
+  const canvas=$('lot-editor-canvas');
+  if(!canvas)return;
+  const HIT=12;
+  function getPos(e){
+    const r=canvas.getBoundingClientRect();
+    const scX=canvas.width/r.width,scY=canvas.height/r.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:(cx-r.left)*scX,y:(cy-r.top)*scY};
+  }
+  canvas.addEventListener('mousedown',e=>{
+    const pos=getPos(e);
+    polyDragIdx=-1;
+    // Check corner dots first
+    for(let i=0;i<polyPoints.length;i++){
+      const p=polyPoints[i];
+      if(Math.abs(pos.x-p.x)<HIT&&Math.abs(pos.y-p.y)<HIT){
+        polyDragIdx=i;polyDragOffX=pos.x-p.x;polyDragOffY=pos.y-p.y;
+        canvas.style.cursor='grabbing';return;
+      }
+    }
+    // Check edge clicks (within ~10px of line segment)
+    const n=polyPoints.length;
+    for(let i=0;i<n;i++){
+      const a=polyPoints[i],b=polyPoints[(i+1)%n];
+      if(distToSegment(pos,a,b)<12){
+        cycleEdgeDesignation(i);return;
+      }
+    }
+  });
+  window.addEventListener('mousemove',e=>{
+    if(polyDragIdx<0)return;
+    const canvas2=$('lot-editor-canvas');if(!canvas2)return;
+    const pos=getPos(e);
+    const W=canvas2.width,H=canvas2.height;
+    polyPoints[polyDragIdx]={
+      x:Math.max(10,Math.min(W-10,pos.x-polyDragOffX)),
+      y:Math.max(10,Math.min(H-10,pos.y-polyDragOffY))
+    };
+    redrawEditor();calcBuildable();
+  });
+  window.addEventListener('mouseup',()=>{
+    polyDragIdx=-1;
+    const c=$('lot-editor-canvas');if(c)c.style.cursor='crosshair';
+  });
+  canvas.addEventListener('touchstart',e=>{
+    e.preventDefault();const pos=getPos(e);polyDragIdx=-1;
+    for(let i=0;i<polyPoints.length;i++){
+      const p=polyPoints[i];
+      if(Math.abs(pos.x-p.x)<HIT+6&&Math.abs(pos.y-p.y)<HIT+6){
+        polyDragIdx=i;polyDragOffX=pos.x-p.x;polyDragOffY=pos.y-p.y;return;
+      }
+    }
+    // Edge tap
+    const n=polyPoints.length;
+    for(let i=0;i<n;i++){
+      const a=polyPoints[i],b=polyPoints[(i+1)%n];
+      if(distToSegment(pos,a,b)<16){cycleEdgeDesignation(i);return;}
+    }
+  },{passive:false});
+  window.addEventListener('touchmove',e=>{
+    if(polyDragIdx<0)return;e.preventDefault();
+    const pos=getPos(e);
+    const canvas2=$('lot-editor-canvas');if(!canvas2)return;
+    const W=canvas2.width,H=canvas2.height;
+    polyPoints[polyDragIdx]={
+      x:Math.max(10,Math.min(W-10,pos.x-polyDragOffX)),
+      y:Math.max(10,Math.min(H-10,pos.y-polyDragOffY))
+    };
+    redrawEditor();calcBuildable();
+  },{passive:false});
+  window.addEventListener('touchend',()=>{polyDragIdx=-1;});
+}
+
+// Keep old stubs so nothing breaks
+function initSides(){}
+function renderSidesList(){}
+function addSide(){ if(polyPoints.length<20){ polyPoints.push({x:400,y:300}); redrawEditor(); } }
+function initSidesFromCount(){ initPolyEditor(); }
+
+// ═══════════════════ PAGE 2 — GIS ═══════════════════
+function updateGISLink(){
+  const county=$('county-sel').value,addr=fullAddr(),bl=$('gis-link-block');
+  if(!bl)return;
+  if(county&&addr&&COUNTY_GIS[county])
+    bl.innerHTML=`<div class="link-card"><div class="link-card-title">📐 Pull lot dimensions from GIS</div><div class="link-row"><span class="link-row-label">Open ${county} GIS — find lot width &amp; depth, enter below</span><a class="link-btn" href="${COUNTY_GIS[county](addr)}" target="_blank">Open GIS →</a></div><p class="note" style="margin-top:6px">Always confirm in GIS before finalizing.</p></div>`;
+  else
+    bl.innerHTML=`<div class="warn">Enter address and county on Step 1 to get a pre-filled GIS link.</div>`;
+}
+
+// ═══════════════════ BUILDABLE AREA ═══════════════════
+function calcBuildable(){
+  const front=pv('sb-front'),rear=pv('sb-rear'),sides=pv('sb-sides'),corner=pv('sb-corner');
+  const minW=pv('sb-minw');
+  const br=$('buildable-result');
+
+  if(lotMode === 'rect'){
+    const w=pv('lot-w'),d=pv('lot-d');
+    const isCorner=$('corner-lot')&&$('corner-lot').checked;
+    const overrideSF=pv('buildable-override'),lotSFManual=pv('lot-sf');
+    const ww=$('width-warn');
+    if(ww&&minW>0&&w>0&&w<minW){ww.style.display='';ww.textContent=`⚠ Lot width (${w} ft) is below the zone minimum (${minW} ft). Verify with the city.`;}
+    else if(ww)ww.style.display='none';
+    const sideTotal=isCorner?(sides+corner):(sides*2);
+    const buildW=Math.max(0,w-sideTotal),buildD=Math.max(0,d-front-rear);
+    buildableArea=overrideSF||(w&&d?buildW*buildD:0);
+    if(br){
+      if(buildableArea>0){
+        br.innerHTML=`<div class="area-display">
+          <div style="color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Buildable Footprint Envelope</div>
+          <div class="area-big">${fmtN(buildableArea)}</div><div class="area-unit">sq ft</div>
+          ${buildW&&buildD?`<div class="area-dims">${buildW.toFixed(1)} ft wide × ${buildD.toFixed(1)} ft deep</div>`:''}
+          <div class="area-grid">
+            <div class="area-item"><div class="area-item-val">${w||'—'} ft</div><div class="area-item-lbl">Lot Width</div></div>
+            <div class="area-item"><div class="area-item-val">${d||'—'} ft</div><div class="area-item-lbl">Lot Depth</div></div>
+            <div class="area-item"><div class="area-item-val">${fmtN(lotSFManual||(w*d))} sf</div><div class="area-item-lbl">Total Lot</div></div>
+          </div></div>`;
+      }else br.innerHTML=`<div class="warn">Enter lot dimensions and setbacks on Steps 1–2.</div>`;
+    }
+  } else {
+    // IRREGULAR MODE — uses polyPoints (canvas drag points)
+    const lotSFManual = pv('lot-sf-poly');
+    if(polyPoints.length < 3){
+      buildableArea=0;
+      if(br)br.innerHTML=`<div class="warn">Click "Set Corners" and drag the dots to define your lot shape.</div>`;
+    } else {
+      // Area from canvas points converted to feet
+      const sc=getScaleFtPerPx();
+      let area=0;
+      for(let i=0;i<polyPoints.length;i++){
+        const a=polyPoints[i],b=polyPoints[(i+1)%polyPoints.length];
+        area+=a.x*b.y-b.x*a.y;
+      }
+      const lotSFCalc=Math.round(Math.abs(area)/2*sc*sc);
+      // Buildable area comes from the inscribed rect drawn in redrawEditor
+      // It's stored in planOverlay.buildRect — convert back to ft
+      // buildableArea is set by redrawEditor via inset polygon shoelace
+      const baSF = buildableArea || 0;
+      const bwFt = '—';
+      const bhFt = '—';
+      if(br){
+        br.innerHTML=`<div class="area-display">
+          <div style="color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Buildable Envelope (inside setbacks)</div>
+          <div class="area-big">${fmtN(baSF||buildableArea)}</div><div class="area-unit">sq ft</div>
+          <div class="area-grid">
+            <div class="area-item"><div class="area-item-val">${polyPoints.length}</div><div class="area-item-lbl">Lot Corners</div></div>
+            <div class="area-item"><div class="area-item-val">${fmtN(lotSFManual||lotSFCalc)} sf</div><div class="area-item-lbl">Lot Area</div></div>
+            <div class="area-item"><div class="area-item-val">${fmtN(baSF)} sf</div><div class="area-item-lbl">Buildable sf</div></div>
+          </div></div>`;
+      }
+      // Trigger editor redraw so buildable rect is current
+      redrawEditor();
+    }
+  }
+  calcBUA();renderFitCheck();updateSummaryBar();
+  // For poly mode, snapshotLotEditor handles the draw after image loads
+  if(lotMode==='poly') snapshotLotEditor();
+  else drawDiagram();
+}
+
+// Build polygon in real feet (for calculations)
+function buildLotPolygonFt(sides){
+  let heading = 0;
+  let pts = [[0,0]];
+  for(let i=0;i<sides.length;i++){
+    const s=sides[i];
+    const rad=heading*Math.PI/180;
+    const prev=pts[pts.length-1];
+    pts.push([prev[0]+s.length*Math.cos(rad), prev[1]+s.length*Math.sin(rad)]);
+    const ext = 180-(s.angleDeg||90);
+    heading=(heading+ext)%360;
+  }
+  return pts;
+}
+
+function polygonAreaFt(pts){
+  let area=0;const n=pts.length;
+  for(let i=0;i<n;i++){const[x1,y1]=pts[i],[x2,y2]=pts[(i+1)%n];area+=x1*y2-x2*y1;}
+  return Math.abs(area)/2;
+}
+
+// Inset polygon by setback amounts (simple centroid-push method, adequate for mostly-rectangular lots)
+function insetPolygonFt(pts, front, rear, sideL, sideR){
+  const n=pts.length;
+  const cx=pts.reduce((s,p)=>s+p[0],0)/n;
+  const cy=pts.reduce((s,p)=>s+p[1],0)/n;
+  // Find bounding box extents to determine which side of centroid is "front"
+  const minY=Math.min(...pts.map(p=>p[1]));
+  const maxY=Math.max(...pts.map(p=>p[1]));
+  const minX=Math.min(...pts.map(p=>p[0]));
+  const maxX=Math.max(...pts.map(p=>p[0]));
+  return pts.map(([x,y])=>{
+    const dx=x-cx, dy=y-cy;
+    // Determine which edge: use dominant direction
+    let inset=sideL;
+    if(dy<0 && Math.abs(dy)>Math.abs(dx)) inset=front;      // top = front
+    else if(dy>0 && Math.abs(dy)>Math.abs(dx)) inset=rear;   // bottom = rear
+    else if(dx<0) inset=sideL;
+    else inset=sideR;
+    // Push toward centroid
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    return [x - (dx/dist)*inset, y - (dy/dist)*inset];
+  });
+}
+
+// Largest inscribed rectangle using sampling approach
+function largestInscribedRect(poly){
+  if(!poly||poly.length<3)return null;
+  const xs=poly.map(p=>p[0]),ys=poly.map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs);
+  const minY=Math.min(...ys),maxY=Math.max(...ys);
+  const spanX=maxX-minX,spanY=maxY-minY;
+  // Sample candidate rectangles at multiple aspect ratios
+  let best={w:0,h:0,cx:0,cy:0,area:0};
+  const steps=20;
+  for(let wi=2;wi<=steps;wi++){
+    for(let hi=2;hi<=steps;hi++){
+      const w=spanX*(wi/steps)*0.9;
+      const h=spanY*(hi/steps)*0.9;
+      // Try multiple center positions
+      for(let xi=1;xi<steps;xi++){
+        for(let yi=1;yi<steps;yi++){
+          const cx=minX+spanX*(xi/steps);
+          const cy=minY+spanY*(yi/steps);
+          const corners=[[cx-w/2,cy-h/2],[cx+w/2,cy-h/2],[cx+w/2,cy+h/2],[cx-w/2,cy+h/2]];
+          if(corners.every(c=>pointInPolygon(c,poly))){
+            if(w*h>best.area){best={w,h,cx,cy,area:w*h};}
+          }
+        }
+      }
+    }
+  }
+  return best.area>0?best:null;
+}
+
+function pointInPolygon([px,py],poly){
+  let inside=false;
+  const n=poly.length;
+  for(let i=0,j=n-1;i<n;j=i++){
+    const[xi,yi]=poly[i],[xj,yj]=poly[j];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+function calcBUA(){
+  const county=$('county-sel').value;
+  const buaSec=$('bua-section');if(!buaSec)return;
+  buaSec.style.display=county==='Mecklenburg'?'':'none';
+  if(county!=='Mecklenburg')return;
+  const w=pv('lot-w'),d=pv('lot-d');
+  // Use poly lot area if in irregular mode, otherwise rect mode fields
+  const lotSFManual = lotMode==='poly'
+    ? (pv('lot-sf-poly') || buildableArea || 0)
+    : (pv('lot-sf') || (w*d));
+  const lotSF=lotSFManual;if(!lotSF)return;
+  const buaLimit=Math.min(lotSF*0.24,5000);
+  const val=($('plan-sel')||{}).value||'';
+  const parts=val.split('|');
+  const fpW=parseFloat(parts[4])||0,fpD=parseFloat(parts[5])||0;
+  const footprint=fpW&&fpD?fpW*fpD:0;
+  const hardscape=pv('bua-hardscape')||500;
+  const estBUA=footprint+hardscape;
+  const pct=buaLimit>0?Math.min(estBUA/buaLimit,1):0;
+  const fill=$('bua-fill');if(fill){fill.style.width=(pct*100)+'%';fill.style.background=pct>1?'var(--red)':pct>0.9?'var(--amber)':'var(--green)';}
+  const res=$('bua-result');
+  if(res)res.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim)">Limit: ${fmtN(buaLimit)} sf<br>Est. used: ${fmtN(estBUA)} sf<br>Remaining: ${fmtN(Math.max(0,buaLimit-estBUA))} sf</div>`;
+  const msg=$('bua-msg');
+  if(msg){
+    if(!footprint)msg.innerHTML='<div class="note">Select a plan on Step 5 to run BUA check.</div>';
+    else if(estBUA>buaLimit)msg.innerHTML=`<div class="err">⚠ BUA Exceeded — ${fmtN(estBUA)} sf used vs ${fmtN(buaLimit)} sf limit. Consider a smaller footprint or confirm adjacent parcel pooling.</div>`;
+    else if(pct>0.9)msg.innerHTML=`<div class="warn">BUA is within 10% of the limit. Verify hardscape carefully.</div>`;
+    else msg.innerHTML=`<div class="ok">✓ BUA within limit (${Math.round(pct*100)}% used).</div>`;
+  }
+}
+
+// Image upload removed — lot editor canvas is the visual reference
+let lotImageObj = null; // kept for rect-mode diagram compat
+
+function drawDiagram(){
+  const canvas=$('sb-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // ── POLY MODE: draw synchronously using pre-loaded snapshot image ──
+  if(lotMode==='poly'){
+    if(lotEditorSnapshotImg){
+      // Synchronous draw — no async race, no ghost overlays
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(lotEditorSnapshotImg,0,0,W,H);
+      const edCanvas=$('lot-editor-canvas');
+      const edW=edCanvas?edCanvas.width:800,edH=edCanvas?edCanvas.height:600;
+      const snapshotScaleX=W/edW,snapshotScaleY=H/edH;
+      drawPlanOverlayOnSnapshotCanvas(ctx,W,H,snapshotScaleX,snapshotScaleY);
+    } else {
+      ctx.fillStyle='rgba(46,156,143,0.08)';ctx.fillRect(0,0,W,H);
+      ctx.font='13px DM Sans,sans-serif';ctx.fillStyle='rgba(143,163,188,0.6)';ctx.textAlign='center';
+      ctx.fillText('Navigate to Step 2 → Irregular Lot to define your lot shape',W/2,H/2);
+    }
+    return;
+  }
+
+  // ── RECT MODE: original diagram ──
+  if(lotImageObj){
+    const ir=lotImageObj.width/lotImageObj.height,cr=W/H;
+    let iw,ih,ix,iy;
+    if(ir>cr){iw=W;ih=W/ir;ix=0;iy=(H-ih)/2;}else{ih=H;iw=H*ir;iy=0;ix=(W-iw)/2;}
+    ctx.globalAlpha=0.65;ctx.drawImage(lotImageObj,ix,iy,iw,ih);ctx.globalAlpha=1.0;
+  }
+
+  const front=pv('sb-front'),rear=pv('sb-rear'),sides=pv('sb-sides'),corner=pv('sb-corner');
+  const w=pv('lot-w')||100,d=pv('lot-d')||150;
+  const isCorner=$('corner-lot')&&$('corner-lot').checked;
+  const pad=20,scale=Math.min((W-pad*2)/w,(H-pad*2)/d);
+  const ox=(W-w*scale)/2,oy=(H-d*scale)/2;
+  if(!lotImageObj){ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(ox,oy,w*scale,d*scale);ctx.setLineDash([]);}
+  const sL=sides,sR=isCorner?corner:sides;
+  const bx=ox+sL*scale,by=oy+front*scale,bw=(w-sL-sR)*scale,bh=(d-front-rear)*scale;
+  if(bw>0&&bh>0){
+    ctx.fillStyle='rgba(46,156,143,0.15)';ctx.fillRect(bx,by,bw,bh);
+    ctx.strokeStyle='rgba(232,169,77,0.9)';ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.strokeRect(bx,by,bw,bh);ctx.setLineDash([]);
+    [[bx,by],[bx+bw,by],[bx,by+bh],[bx+bw,by+bh]].forEach(([cx,cy])=>{
+      const mk=7;ctx.strokeStyle='rgba(232,169,77,0.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(cx-mk,cy);ctx.lineTo(cx+mk,cy);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx,cy-mk);ctx.lineTo(cx,cy+mk);ctx.stroke();
+    });
+  }
+  ctx.font='bold 10px DM Mono,monospace';ctx.fillStyle='rgba(143,163,188,0.85)';
+  ctx.textAlign='center';
+  if(front>0)ctx.fillText(`Front ${front}'`,W/2,oy+front*scale/2+4);
+  if(rear>0)ctx.fillText(`Rear ${rear}'`,W/2,oy+d*scale-rear*scale/2+4);
+  ctx.textAlign='left';if(sides>0)ctx.fillText(`${sides}'`,ox+4,H/2+2);
+  ctx.textAlign='right';
+  if(isCorner&&corner>0)ctx.fillText(`${corner}'`,W-ox-4,H/2+2);
+  else if(sides>0)ctx.fillText(`${sides}'`,W-ox-4,H/2+2);
+  if(bw>40&&bh>20){ctx.textAlign='center';ctx.fillStyle='rgba(58,184,168,0.6)';ctx.fillText('Buildable',bx+bw/2,by+bh/2+4);}
+  planOverlay.scale=scale;
+  planOverlay.buildRect={x:bx,y:by,w:bw,h:bh};
+  planOverlay.buildPoly=null;
+  if(planOverlay.active&&!planOverlay.positioned){
+    planOverlay.x=bx+bw/2;planOverlay.y=by+bh/2;planOverlay.positioned=true;
+  }
+  drawPlanOverlayOnCanvas(ctx,W,H);
+}
+
+// Draw plan overlay on the sb-canvas snapshot (coordinates scaled from lot editor)
+function drawPlanOverlayOnSnapshotCanvas(ctx,W,H,scaleX,scaleY){
+  if(!planOverlay.active||!planOverlay.fpW||!planOverlay.fpH)return;
+  if(!planOverlay.buildPolyFt||!planOverlay.editorFtPerPx)return;
+
+  // px-per-ft in the editor, then scale to snapshot canvas
+  const edPxPerFt=1/planOverlay.editorFtPerPx; // editor pixels per foot
+  const snapPxPerFt=edPxPerFt*scaleX; // snapshot canvas pixels per foot
+
+  // Convert plan footprint feet → snapshot px
+  const pw=planOverlay.fpW*snapPxPerFt;
+  const ph=planOverlay.fpH*snapPxPerFt;
+  const rad=planOverlay.rotation*Math.PI/180;
+
+  // Convert planOverlay.x/y (lot-editor px) to snapshot px
+  const sx=planOverlay.x*scaleX;
+  const sy=planOverlay.y*scaleY;
+
+  // Convert buildPoly from editor px to snapshot px for hit testing
+  const snapPoly=planOverlay.buildPoly
+    ?planOverlay.buildPoly.map(p=>({x:p.x*scaleX,y:p.y*scaleY}))
+    :null;
+
+  // Initial placement: use centroid computed at snapshot time (not recomputed here)
+  if(!planOverlay.snapshotX&&!planOverlay.snapshotY){
+    if(planOverlay.snapshotCentroidEditorX!=null){
+      // Convert stored editor-px centroid to snapshot-px
+      planOverlay.snapshotX=planOverlay.snapshotCentroidEditorX*scaleX;
+      planOverlay.snapshotY=planOverlay.snapshotCentroidEditorY*scaleY;
+    } else {
+      planOverlay.snapshotX=W/2;
+      planOverlay.snapshotY=H/2;
+    }
+    planOverlay.snapshotPositioned=true;
+  }
+  const drawX=planOverlay.snapshotX;
+  const drawY=planOverlay.snapshotY;
+
+  // Hit test: all 4 corners inside snapshot-scaled buildPoly
+  const cos=Math.cos(rad),sin=Math.sin(rad);
+  const hw=pw/2,hh=ph/2;
+  const corners=[
+    {x:drawX+(-hw)*cos-(-hh)*sin,y:drawY+(-hw)*sin+(-hh)*cos},
+    {x:drawX+(hw)*cos-(-hh)*sin, y:drawY+(hw)*sin+(-hh)*cos},
+    {x:drawX+(hw)*cos-(hh)*sin,  y:drawY+(hw)*sin+(hh)*cos},
+    {x:drawX+(-hw)*cos-(hh)*sin, y:drawY+(-hw)*sin+(hh)*cos},
+  ];
+  const fits=snapPoly?corners.every(c=>pointInPolygonPts(c,snapPoly)):false;
+
+  ctx.save();
+  ctx.translate(drawX,drawY);
+  ctx.rotate(rad);
+  ctx.fillStyle=fits?'rgba(76,175,130,0.3)':'rgba(224,92,92,0.3)';
+        console.log("[OVERLAY] Drawing at x="+drawX.toFixed(1)+",y="+drawY.toFixed(1)+" rot="+planOverlay.rotation+" snapshotPositioned="+planOverlay.snapshotPositioned);
+  ctx.fillRect(-pw/2,-ph/2,pw,ph);
+  ctx.strokeStyle=fits?'rgba(76,175,130,0.9)':'rgba(224,92,92,0.9)';
+  ctx.lineWidth=2.5;ctx.strokeRect(-pw/2,-ph/2,pw,ph);
+  ctx.font='bold 11px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.95)';
+  ctx.fillText(planOverlay.planName||'',0,-2);
+  ctx.font='9px DM Mono,monospace';ctx.fillStyle='rgba(255,255,255,0.65)';
+  ctx.fillText(`${planOverlay.fpW}'×${planOverlay.fpH}'`,0,11);
+  ctx.restore();
+
+  const fe=$('ov-fits');
+  if(fe){fe.textContent=fits?'✓ Fits':'✗ Outside';fe.className=fits?'overlay-fit-ok':'overlay-fit-warn';}
+}
+
+// Drag on sb-canvas for poly mode: move snapshotX/Y
+function initSnapshotDrag(){
+  const canvas=$('sb-canvas');if(!canvas)return;
+  let dragging=false,offX=0,offY=0;
+  const HIT=20;
+  function getPos(e){
+    const r=canvas.getBoundingClientRect();
+    const scX=canvas.width/r.width,scY=canvas.height/r.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:(cx-r.left)*scX,y:(cy-r.top)*scY};
+  }
+  function hitTest(x,y){
+    if(!planOverlay.active||!planOverlay.snapshotPositioned)return false;
+    const dx=x-(planOverlay.snapshotX||0),dy=y-(planOverlay.snapshotY||0);
+    return Math.abs(dx)<(planOverlay.fpW*20+HIT)&&Math.abs(dy)<(planOverlay.fpH*20+HIT);
+  }
+  canvas.addEventListener('mousedown',e=>{
+    if(lotMode!=='poly')return;
+    const pos=getPos(e);
+    if(hitTest(pos.x,pos.y)){dragging=true;offX=pos.x-(planOverlay.snapshotX||0);offY=pos.y-(planOverlay.snapshotY||0);canvas.style.cursor='grabbing';}
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!dragging||lotMode!=='poly')return;
+    const pos=getPos(e);
+    planOverlay.snapshotX=pos.x-offX;
+    planOverlay.snapshotY=pos.y-offY;
+    drawDiagram();
+  });
+  window.addEventListener('mouseup',()=>{if(dragging){dragging=false;const c=$('sb-canvas');if(c)c.style.cursor='default';}});
+  canvas.addEventListener('touchstart',e=>{
+    if(lotMode!=='poly')return;
+    e.preventDefault();const pos=getPos(e);
+    if(hitTest(pos.x,pos.y)){dragging=true;offX=pos.x-(planOverlay.snapshotX||0);offY=pos.y-(planOverlay.snapshotY||0);}
+  },{passive:false});
+  window.addEventListener('touchmove',e=>{
+    if(!dragging||lotMode!=='poly')return;
+    e.preventDefault();const pos=getPos(e);
+    planOverlay.snapshotX=pos.x-offX;planOverlay.snapshotY=pos.y-offY;drawDiagram();
+  },{passive:false});
+  window.addEventListener('touchend',()=>{dragging=false;});
+}
+
+function drawPlanOverlayOnCanvas(ctx,W,H){
+  if(!planOverlay.active||!planOverlay.fpW||!planOverlay.fpH)return;
+  const sc=planOverlay.scale||1;
+  const pw=planOverlay.fpW*sc,ph=planOverlay.fpH*sc;
+  const rad=planOverlay.rotation*Math.PI/180;
+  if(!planOverlay.positioned&&planOverlay.buildRect){
+    const br=planOverlay.buildRect;
+    planOverlay.x=br.x+br.w/2;planOverlay.y=br.y+br.h/2;planOverlay.positioned=true;
+  }
+  if(!planOverlay.x)return;
+  ctx.save();ctx.translate(planOverlay.x,planOverlay.y);ctx.rotate(rad);
+  const br=planOverlay.buildRect;
+  const cos2=Math.cos(rad),sin2=Math.sin(rad);
+  const hw2=pw/2,hh2=ph/2;
+  const corners2=[
+    {x:planOverlay.x+(-hw2)*cos2-(-hh2)*sin2,y:planOverlay.y+(-hw2)*sin2+(-hh2)*cos2},
+    {x:planOverlay.x+(hw2)*cos2-(-hh2)*sin2, y:planOverlay.y+(hw2)*sin2+(-hh2)*cos2},
+    {x:planOverlay.x+(hw2)*cos2-(hh2)*sin2,  y:planOverlay.y+(hw2)*sin2+(hh2)*cos2},
+    {x:planOverlay.x+(-hw2)*cos2-(hh2)*sin2, y:planOverlay.y+(-hw2)*sin2+(hh2)*cos2},
+  ];
+  const poly2=planOverlay.buildPoly||null;
+  const fits=poly2
+    ?corners2.every(c=>pointInPolygonPts(c,poly2))
+    :br&&corners2.every(c=>c.x>=br.x&&c.x<=br.x+br.w&&c.y>=br.y&&c.y<=br.y+br.h);
+  ctx.fillStyle=fits?'rgba(76,175,130,0.3)':'rgba(224,92,92,0.3)';
+  ctx.fillRect(-pw/2,-ph/2,pw,ph);
+  ctx.strokeStyle=fits?'rgba(76,175,130,0.9)':'rgba(224,92,92,0.9)';
+  ctx.lineWidth=2.5;ctx.strokeRect(-pw/2,-ph/2,pw,ph);
+  ctx.font='bold 11px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.95)';
+  ctx.fillText(planOverlay.planName||'',0,-2);
+  ctx.font='9px DM Mono,monospace';ctx.fillStyle='rgba(255,255,255,0.65)';
+  ctx.fillText(`${planOverlay.fpW}'×${planOverlay.fpH}'`,0,11);
+  ctx.restore();
+  const fe=$('ov-fits');
+  if(fe){fe.textContent=fits?'✓ Fits':'✗ Outside';fe.className=fits?'overlay-fit-ok':'overlay-fit-warn';}
+}
+
+
+function setRotation(deg){
+  planOverlay.rotation = parseFloat(deg) % 360;
+  const sl=$('rot-slider');if(sl)sl.value=planOverlay.rotation;
+  const rv=$('rot-val');if(rv)rv.textContent=Math.round(planOverlay.rotation)+'°';
+  drawDiagram();
+}
+
+// ── DRAG ──────────────────────────────────────────────────────────────────
+function initDrag(){
+  const canvas=$('sb-canvas');if(!canvas)return;
+  function getPos(e){
+    const r=canvas.getBoundingClientRect();
+    const scX=canvas.width/r.width,scY=canvas.height/r.height;
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    return[(clientX-r.left)*scX,(clientY-r.top)*scY];
+  }
+  function hitTest(x,y){
+    if(!planOverlay.active||!planOverlay.buildRect)return false;
+    const dx=x-planOverlay.x,dy=y-planOverlay.y;
+    const rad=planOverlay.rotation*Math.PI/180;
+    const sc=planOverlay.scale;
+    const hw=planOverlay.fpW*sc/2,hh=planOverlay.fpH*sc/2;
+    const lx=dx*Math.cos(-rad)-dy*Math.sin(-rad);
+    const ly=dx*Math.sin(-rad)+dy*Math.cos(-rad);
+    return Math.abs(lx)<=hw&&Math.abs(ly)<=hh;
+  }
+  canvas.addEventListener('mousedown',e=>{
+    const[x,y]=getPos(e);
+    if(hitTest(x,y)){planOverlay.dragging=true;planOverlay.dragOffX=x-planOverlay.x;planOverlay.dragOffY=y-planOverlay.y;canvas.style.cursor='grabbing';}
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!planOverlay.dragging)return;
+    const[x,y]=getPos(e);
+    planOverlay.x=x-planOverlay.dragOffX;
+    planOverlay.y=y-planOverlay.dragOffY;
+    drawDiagram();
+  });
+  window.addEventListener('mouseup',()=>{planOverlay.dragging=false;const canvas=$('sb-canvas');if(canvas)canvas.style.cursor='default';});
+  // Touch
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();const[x,y]=getPos(e);if(hitTest(x,y)){planOverlay.dragging=true;planOverlay.dragOffX=x-planOverlay.x;planOverlay.dragOffY=y-planOverlay.y;}},{passive:false});
+  window.addEventListener('touchmove',e=>{if(!planOverlay.dragging)return;e.preventDefault();const[x,y]=getPos(e);planOverlay.x=x-planOverlay.dragOffX;planOverlay.y=y-planOverlay.dragOffY;drawDiagram();},{passive:false});
+  window.addEventListener('touchend',()=>{planOverlay.dragging=false;});
+}
+
+
+function selectPlanFromTile(planKey){
+  const sel=$('plan-sel');
+  if(!sel)return;
+  const opt=Array.from(sel.options).find(o=>o.value===planKey);
+  if(!opt)return;
+  sel.value=planKey;
+  onPlanChange();
+  renderFitCheck();
+}
+
+// initSidesFromCount handled by stub above
+
+function renderFitCheck(){
+  const grid=$('fit-grid'),empty=$('fit-empty');if(!grid)return;
+  if(!buildableArea||buildableArea<=0){grid.innerHTML='';if(empty)empty.style.display='';return;}
+  if(empty)empty.style.display='none';
+  const currentPlanVal=($('plan-sel')||{}).value||'';
+  const isCorner=$('corner-lot')&&$('corner-lot').checked;
+  const polyFt=(lotMode==='poly'&&planOverlay.buildPolyFt&&planOverlay.buildPolyFt.length>=3)
+    ?planOverlay.buildPolyFt:null;
+  const evaluated=PLANS.filter(p=>p.w>0&&p.d>0).map(p=>{
+    const fpW=p.w,fpD=p.d;
+    let cls,badge,selectable=true;
+    const fs=fitStatus(fpW,fpD);
+    if(fs.status==='fits'){cls='fit-ok';badge=fs.rotated?'Fits (rotated)':'Fits';}
+    else if(fs.status==='tight'){cls='fit-warn';badge='Tight — verify';}
+    else{cls='fit-no';badge='Too Large';selectable=false;}
+    return {p,name:p.n,sf:p.sf,cost:p.c,fpW,fpD,cls,badge,selectable,area:fpW*fpD};
+  });
+  // Sort (#1)
+  const [skey,sdir]=(FIT_SORT||'sf-desc').split('-');
+  const sval=o=>skey==='fp'?o.area:(skey==='c'?o.cost:o.sf);
+  evaluated.sort((a,b)=>sdir==='asc'?sval(a)-sval(b):sval(b)-sval(a));
+  const fitting=evaluated.filter(o=>o.selectable);
+  const tooLarge=evaluated.filter(o=>!o.selectable);
+  const card=o=>{
+    const planKey=o.p.val;
+    const isSel=planKey===currentPlanVal;
+    const clickAttr=o.selectable?`onclick="selectPlanFromTile('${planKey.replace(/'/g,"\'")}')"`:'';
+    return `<div class="fit-card ${o.cls}${isSel?' selected':''}" ${clickAttr}>`
+      +(planImg(o.name)?`<button class="fit-img-btn" title="View plan drawing" onclick="event.stopPropagation();openPlanImg('${o.name}')">${IMG_ICON}</button>`:'')
+      +`<div class="fit-name">${o.name}${isSel?' ✓':''}</div>`
+      +`<div class="fit-detail">Footprint ${o.fpW}'W × ${o.fpD}'D · ${o.area.toLocaleString()} sf`
+      +`<br>Finished ${o.sf>0?o.sf.toLocaleString()+' sf':'—'} · ${fmt(o.cost)}</div>`
+      +`<span class="fit-badge">${o.badge}</span></div>`;
+  };
+  // Group fitting plans by type (#2)
+  const TYPE_LABEL={sfh:'Single Family',duet:'Duets',th:'Townhomes',mf:'Multifamily'};
+  const TYPE_ORDER=['sfh','duet','th','mf'];
+  let html='';
+  TYPE_ORDER.forEach(t=>{
+    const g=fitting.filter(o=>o.p.t===t);
+    if(!g.length)return;
+    html+=`<div class="fit-group-hdr">${TYPE_LABEL[t]} <span>(${g.length})</span></div>`
+      +`<div class="fit-grid">${g.map(card).join('')}</div>`;
+  });
+  if(!fitting.length)html='<div class="note">No plans with footprint data fit the current envelope.</div>';
+  if(tooLarge.length>0){
+    html+=`<button class="fit-collapse-btn" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.fit-collapse-arrow').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'"><span>Plans that don't fit (${tooLarge.length})</span><span class="fit-collapse-arrow">▼</span></button><div class="fit-collapse-section"><div class="fit-grid" style="opacity:0.6">${tooLarge.map(card).join('')}</div></div>`;
+  }
+  grid.innerHTML=html;
+}
+function minEdgeDist(px,py,poly){
+  let minD=Infinity;const n=poly.length;
+  for(let i=0;i<n;i++){
+    const a=poly[i],b=poly[(i+1)%n];
+    const dx=b.x-a.x,dy=b.y-a.y,lenSq=dx*dx+dy*dy;
+    if(lenSq===0){minD=Math.min(minD,Math.sqrt((px-a.x)**2+(py-a.y)**2));continue;}
+    const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/lenSq));
+    minD=Math.min(minD,Math.sqrt((px-a.x-t*dx)**2+(py-a.y-t*dy)**2));
+  }
+  return minD;
+}
+
+function ptInPolyFt(px,py,poly){
+  let inside=false;const n=poly.length;
+  for(let i=0,j=n-1;i<n;j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+function planFitsInPolyFt(fpW,fpD){
+  const polyFt=planOverlay.buildPolyFt;
+  if(!polyFt||polyFt.length<3)return'no';
+  const TIGHT=5;
+  const n=polyFt.length;
+  let polyArea=0;
+  for(let i=0;i<n;i++){const a=polyFt[i],b=polyFt[(i+1)%n];polyArea+=a.x*b.y-b.x*a.y;}
+  if(fpW*fpD>Math.abs(polyArea)/2*1.05)return'no';
+  const cx=polyFt.reduce((s,p)=>s+p.x,0)/n;
+  const cy=polyFt.reduce((s,p)=>s+p.y,0)/n;
+  const xs=polyFt.map(p=>p.x),ys=polyFt.map(p=>p.y);
+  const mnX=Math.min(...xs),mxX=Math.max(...xs),mnY=Math.min(...ys),mxY=Math.max(...ys);
+  const positions=[{x:cx,y:cy}];
+  for(let i=0;i<n;i++){
+    const a=polyFt[i],b=polyFt[(i+1)%n];
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    const dx=cx-mx,dy=cy-my,dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const push=Math.min(Math.max(fpW,fpD)*0.4,dist*0.6);
+    positions.push({x:mx+(dx/dist)*push,y:my+(dy/dist)*push});
+  }
+  for(let gi=1;gi<7;gi++)for(let gj=1;gj<7;gj++){
+    const gx=mnX+(mxX-mnX)*gi/7,gy=mnY+(mxY-mnY)*gj/7;
+    if(ptInPolyFt(gx,gy,polyFt))positions.push({x:gx,y:gy});
+  }
+  const angles=[0,Math.PI/4,Math.PI/2,Math.PI*3/4];
+  for(let i=0;i<n;i++){
+    const a=polyFt[i],b=polyFt[(i+1)%n];
+    const ang=Math.atan2(b.y-a.y,b.x-a.x);
+    angles.push(ang,ang+Math.PI/2);
+  }
+  let best='no';
+  outer:
+  for(const rad of angles){
+    const cos=Math.cos(rad),sin=Math.sin(rad);
+    for(const pos of positions){
+      for(const [w,h] of [[fpW,fpD],[fpD,fpW]]){
+        const hw=w/2,hh=h/2;
+        const corners=[
+          {x:pos.x+(-hw)*cos-(-hh)*sin,y:pos.y+(-hw)*sin+(-hh)*cos},
+          {x:pos.x+(hw)*cos-(-hh)*sin, y:pos.y+(hw)*sin+(-hh)*cos},
+          {x:pos.x+(hw)*cos-(hh)*sin,  y:pos.y+(hw)*sin+(hh)*cos},
+          {x:pos.x+(-hw)*cos-(hh)*sin, y:pos.y+(-hw)*sin+(hh)*cos},
+        ];
+        if(corners.every(c=>ptInPolyFt(c.x,c.y,polyFt))){
+          if(corners.every(c=>minEdgeDist(c.x,c.y,polyFt)>=TIGHT)){best='fits';break outer;}
+          if(best==='no')best='tight';
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function updateTopoLinks(){
+  const addr=fullAddr(),enc=encodeURIComponent(addr);
+  if(addr){$('topo-usgs').href=`https://apps.nationalmap.gov/viewer/?basemap=USGSTopo&search=${enc}`;$('topo-earth').href=`https://earth.google.com/web/search/${enc}`;}
+}
+
+// ═══════════════════ LOT FACTOR ═══════════════════
+function calcLF(){
+  const demo=pv('demo-sqft')*pv('demo-rate');
+  const heritage=pv('her-trees')*750;
+  const rowCount=pv('row-count'),rowDiam=pv('row-diam'),rowLabor=pv('row-labor');
+  const rowCity=rowCount*rowDiam*200,rowLaborTotal=rowCount*rowLabor;
+  const clearing=parseFloat(($('clearing')||{value:'0'}).value)||0;
+  const dirt=pv('dirt-loads')*pv('dirt-rate');
+  const grading=pv('grading'),sitePrep=pv('site-prep'),util=pv('utilities'),framing=pv('framing'),culverts=pv('culverts'),land=pv('landscaping');
+  const gcPct=pv('gc-markup')/100;
+  const raw=demo+heritage+rowCity+rowLaborTotal+clearing+dirt+grading+sitePrep+util+framing+culverts+land;
+  const gcFee=raw*gcPct;
+  lotFactor=raw+gcFee;
+  const items=[
+    {l:'Demo / Teardown',v:demo},{l:`Heritage Trees (${pv('her-trees')} × $750)`,v:heritage},
+    {l:`ROW City Fee (${rowCount}×${rowDiam}"×$200/in)`,v:rowCity},{l:'ROW Removal Labor',v:rowLaborTotal},
+    {l:'Clearing',v:clearing},{l:`Dirt (${pv('dirt-loads')} loads)`,v:dirt},
+    {l:'Grading',v:grading},{l:'Site Prep / Driveway',v:sitePrep},
+    {l:'Utilities',v:util},{l:'Framing Labor',v:framing},{l:'Culverts',v:culverts},{l:'Landscaping',v:land},
+    {l:`GC Markup (${pv('gc-markup')}%)`,v:gcFee},
+  ].filter(i=>i.v>0);
+  const bd=$('lf-breakdown');
+  if(bd)bd.innerHTML=items.map(i=>`<div class="lf-row"><span class="lf-lbl">${i.l}</span><span class="lf-val">${fmt(i.v)}</span></div>`).join('')||'<div class="lf-row"><span class="lf-lbl" style="color:var(--text-dim)">No costs entered</span></div>';
+  const td=$('lf-total-display');if(td)td.textContent=fmt(lotFactor);
+  const rmsg=$('row-tree-msg');
+  if(rmsg&&rowCount>0)rmsg.innerHTML=`<div class="warn">Est. ROW total: ${fmt(rowCity+rowLaborTotal)}</div>`;
+  else if(rmsg)rmsg.innerHTML='';
+  calcAll();return lotFactor;
+}
+
+// ═══════════════════ PLAN & BUILD ═══════════════════
+function onPlanChange(){
+  const val=($('plan-sel')||{}).value||'';
+  const info=$('plan-info');
+  if(!val||!info){if(info)info.style.display='none';calcAll();return;}
+  const [name,sfStr,costStr,duStr,fpWStr,fpDStr]=val.split('|');
+  sfPerUnit=parseInt(sfStr)||0;currentPlanCost=parseInt(costStr)||0;
+  const du=parseInt(duStr)||0,fpW=parseFloat(fpWStr)||0,fpD=parseFloat(fpDStr)||0;
+  $('plan-info-name').textContent=name;$('plan-info-cost').textContent=fmt(currentPlanCost);
+  $('plan-info-sf').textContent=sfPerUnit>0?sfPerUnit.toLocaleString()+' sf':'N/A';
+  $('plan-info-fp').textContent=fpW&&fpD?`${fpW}'W×${fpD}'D`:'N/A';
+  info.style.display='';
+  {const pii=$('plan-info-img');if(pii)pii.innerHTML=planImg(name)?`<button class="plan-img-btn" onclick="openPlanImg('${name}')">${IMG_ICON} View plan drawing</button>`:'';}
+  if(du>0){$('units').value=du;$('units').style.borderColor='var(--teal)';setTimeout(()=>$('units').style.borderColor='',1200);}
+  const pfm=$('plan-fit-msg');
+  if(pfm&&buildableArea>0&&fpW&&fpD){
+    if(lotMode==='poly'&&planOverlay.buildPolyFt&&planOverlay.buildPolyFt.length>=3){
+      // Use polygon-based fit check (same logic as the fit tiles)
+      const r=planFitsInPolyFt(fpW,fpD);
+      if(r==='fits')pfm.innerHTML=`<div class="ok">✓ This plan fits the buildable envelope.</div>`;
+      else if(r==='tight')pfm.innerHTML=`<div class="warn">⚠ Fits but within 5 ft of boundary — verify.</div>`;
+      else pfm.innerHTML=`<div class="err">✗ Footprint (${fpW}'W×${fpD}'D) exceeds buildable envelope.</div>`;
+    } else {
+      // Rect mode: dimension comparison
+      const isCorner=$('corner-lot')&&$('corner-lot').checked;
+      const bW=pv('lot-w')-((isCorner)?(pv('sb-sides')+pv('sb-corner')):(pv('sb-sides')*2));
+      const bD=pv('lot-d')-pv('sb-front')-pv('sb-rear');
+      if(bW>=fpW&&bD>=fpD)pfm.innerHTML=`<div class="ok">✓ This plan fits the buildable envelope.</div>`;
+      else if(bW>=fpD&&bD>=fpW)pfm.innerHTML=`<div class="warn">⚠ Fits if rotated 90°.</div>`;
+      else pfm.innerHTML=`<div class="err">✗ Footprint (${fpW}'W×${fpD}'D) exceeds buildable envelope.</div>`;
+    }
+  }else if(pfm)pfm.innerHTML='';
+  const isDuet=val.includes('Duet')||val.includes('Triplex');
+  const county=$('county-sel').value;
+  const dp=$('duet-prompt');if(dp)dp.style.display=(isDuet&&county==='Mecklenburg')?'':'none';
+  // Activate plan overlay
+  if(fpW>0&&fpD>0){
+    planOverlay.active=true;
+    planOverlay.fpW=fpW;planOverlay.fpH=fpD;
+    planOverlay.planName=name;
+    planOverlay.rotation=0;
+    planOverlay.positioned=false;
+    planOverlay.snapshotPositioned=false; // reset snapshot position too
+    $('plan-overlay-controls').style.display='';
+    $('rot-slider').value=0;
+    $('rot-val').textContent='0°';
+    $('ov-plan-name').textContent=name;
+    $('ov-footprint').textContent=`${fpW}'W×${fpD}'D`;
+  }else{
+    planOverlay.active=false;
+    $('plan-overlay-controls').style.display='none';
+  }
+  calcBUA();calcAll();renderFitCheck();
+  // If we're on step 3, refresh the diagram so overlay appears immediately
+  if($('page-3').classList.contains('active')){
+    if(lotMode==='poly')snapshotLotEditor();
+    drawDiagram();
+  }
+}
+function onTapChange(){$('custom-tap-f').style.display=$('tap-muni').value==='custom'?'':'none';calcAll();}
+
+function calcAll(){
+  const val=($('plan-sel')||{}).value||'';
+  const parts=val.split('|');
+  sfPerUnit=parseInt(parts[1])||0;currentPlanCost=parseInt(parts[2])||0;
+  units=Math.max(1,pv('units'));
+  const buildTotal=currentPlanCost*units;
+  const upgPerUnit=Array.from(selectedUpgrades).reduce((s,id)=>{const u=UPGRADES.find(x=>x.id===id);return s+(u?u.cost:0);},0);
+  const upgTotal=upgPerUnit*units;
+  const tapMuni=$('tap-muni').value;
+  const tapPerUnit=tapMuni==='custom'?pv('custom-tap'):parseInt(tapMuni)||17340;
+  const existingTaps=$('existing-taps')&&$('existing-taps').checked;
+  tapTotal=existingTaps?0:(tapPerUnit*units); // existing taps = $0 new cost
+  const softFixed=pv('survey')+pv('appraisal')+pv('insurance');
+  // allInExLand = everything except land and financing
+  allInExLand=buildTotal+upgTotal+lotFactor+tapTotal+softFixed;
+  const allInPerUnit=allInExLand/units;
+  const cs=$('cost-stack');
+  if(cs){
+    const items=[
+      {l:'Build Cost (all units)',v:buildTotal},{l:'Upgrades (all units)',v:upgTotal},
+      {l:'Lot Factor',v:lotFactor},{l:'Tap Fees',v:tapTotal},
+      {l:'Survey',v:pv('survey')},{l:'Appraisal',v:pv('appraisal')},{l:'Insurance',v:pv('insurance')},
+    ].filter(i=>i.v>0);
+    cs.innerHTML=items.map(i=>`<div class="sb-stat"><span class="sb-stat-lbl">${i.l}</span><span class="sb-stat-val">${fmt(i.v)}</span></div>`).join('');
+  }
+  const ald=$('allin-display');if(ald)ald.textContent=fmt(allInPerUnit);
+  const ut=$('upg-total');if(ut)ut.textContent=fmt(upgTotal);
+  const tapmsg=$('tap-msg');
+  if(tapmsg){
+    if(existingTaps)tapmsg.innerHTML=`<div class="ok">✓ Existing taps — no new tap fees ($0)</div>`;
+    else tapmsg.innerHTML=`<div style="font-size:11px;color:var(--text-dim)">$${tapPerUnit.toLocaleString()} × ${units} = ${fmt(tapTotal)} total</div>`;
+  }
+  calcFinancing();
+}
+
+// ═══════════════════ FINANCING (Page 6) ═══════════════════
+function calcLoanBase(landCost){
+  // LTC base = land + build (allInExLand already has everything except land)
+  // Purchase closing = 1% of loan, and loan includes closing cost base
+  // Loan = LTC% * (land + allInExLand + purchaseClosing)
+  // purchaseClosing = 0.01 * loan => circular
+  // Solve: loan = LTC% * (land + allInExLand + 0.01*loan)
+  // loan * (1 - LTC%*0.01) = LTC% * (land + allInExLand)
+  // loan = LTC% * (land + allInExLand) / (1 - LTC%*0.01)
+  const ltcPct=pv('ltc-pct')/100;
+  const costBase=landCost+allInExLand;
+  const loan=ltcPct*costBase/(1-ltcPct*0.01);
+  return {loan, costBase, purchaseClosing:loan*0.01, cash:costBase-loan+loan*0.01};
+}
+
+function holdingCost(loan,term){
+  const rate=pv('fin-rate')/100;
+  const pts=pv('fin-points')/100;
+  const docFee=pv('fin-doc-fee');
+  const annualTax=pv('fin-tax');
+  const interest=loan*(rate/12)*term;
+  const points=loan*pts;
+  const taxes=(annualTax/12)*term;
+  const total=interest+points+docFee+taxes;
+  return {interest,points,docFee,taxes,total};
+}
+
+function calcFinancing(){
+  const landCost=pv('land-cost');
+  const {loan,costBase,purchaseClosing,cash}=calcLoanBase(landCost);
+
+  // Update loan summary sidebar
+  const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+  set('fin-cost-base',fmt(costBase+purchaseClosing));
+  set('fin-loan-amt',fmt(loan));
+  set('fin-purch-closing',fmt(purchaseClosing));
+  set('fin-cash-needed',fmt(Math.max(0,cash)));
+  set('exit-loan-amt',fmt(loan));
+  set('exit-cash-needed',fmt(Math.max(0,cash)));
+
+  // Holding cost per scenario
+  const terms={w:pv('term-w'),b:pv('term-b'),best:pv('term-best')};
+  const labels={w:'Worst',b:'Base',best:'Best'};
+  ['w','b','best'].forEach(k=>{
+    const term=terms[k];
+    const h=holdingCost(loan,term);
+    const tbl=$(  `hold-${k==='best'?'best':k}`);
+    const rows=[
+      ['Interest',h.interest],[`Points (${pv('fin-points')}%)`,h.points],
+      ['Doc / Origination Fee',h.docFee],['Property Taxes',h.taxes],
+      ['Purchase Closing (1%)',purchaseClosing],
+    ].filter(r=>r[1]>0);
+    if(tbl)tbl.innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${fmt(r[1])}</td></tr>`).join('');
+    const tot=$(`hold-${k==='best'?'best':k}-total`);
+    if(tot)tot.textContent=fmt(h.total+purchaseClosing);
+    // Update term labels on exit page
+    const lbl=$(`term-${k}-label`);if(lbl)lbl.textContent=term;
+  });
+  calcScenarios();
+}
+
+// ═══════════════════ SCENARIOS (Page 7) ═══════════════════
+function calcScenarios(){
+  const landCost=pv('land-cost');
+  const basePSF=pv('arv-b');
+  const {loan,purchaseClosing}=calcLoanBase(landCost);
+  const loanPerUnit=loan/units;
+  const salePct=pv('sale-cost-pct')/100;
+  const allInPerUnit=(allInExLand+landCost)/units;
+
+  ['w','b','best'].forEach(k=>{
+    const termId=k==='w'?'term-w':k==='b'?'term-b':'term-best';
+    const arvId=k==='w'?'arv-w':k==='b'?'arv-b':'arv-best';
+    let arvPSF=pv(arvId);
+    if(!arvPSF&&basePSF){if(k==='w')arvPSF=basePSF*0.90;if(k==='best')arvPSF=basePSF*1.10;}
+    const arv=sfPerUnit>0&&arvPSF>0?arvPSF*sfPerUnit:0;
+    const term=pv(termId);
+    const h=holdingCost(loan,term);
+    const holdPerUnit=(h.total+purchaseClosing)/units;
+    const saleCost=arv*salePct;
+    const totalAllIn=allInPerUnit+holdPerUnit+saleCost;
+    const profit=arv-totalAllIn;
+    const coc=loanPerUnit>0?profit/loanPerUnit*100:0;
+
+    const lines=[
+      {l:'ARV',v:arv>0?fmt(arv):'Enter $/sf above',hi:true},
+      {l:'Build + Costs / Unit',v:fmt(allInPerUnit)},
+      {l:`Holding Cost / Unit (${term}mo)`,v:fmt(holdPerUnit)},
+      {l:`Sale Costs (${pv('sale-cost-pct')}% of ARV)`,v:fmt(saleCost)},
+      {l:'Total All-In',v:fmt(totalAllIn)},
+    ];
+    const lc=document.getElementById(`sc-lines-${k}`);
+    if(lc)lc.innerHTML=lines.map(l=>`<div class="sc-line"><span class="sc-line-lbl">${l.l}</span><span class="sc-line-val${l.hi?' hi':''}">${l.v}</span></div>`).join('');
+    const pe=document.getElementById(`profit-${k}`);
+    if(pe){pe.textContent=arv>0?fmt(profit):'—';pe.style.color=profit<0&&arv>0?'var(--red)':'';}
+    const ce=document.getElementById(`coc-${k}`);
+    if(ce)ce.textContent=arv>0?`CoC: ${coc.toFixed(1)}%`:'Enter ARV $/sf';
+    const projMap={w:'proj-worst',b:'proj-base',best:'proj-best'};
+    const pe2=document.getElementById(projMap[k]);
+    if(pe2)pe2.textContent=arv>0?fmt(profit*units):'—';
+  });
+
+  // Max land cost — back-solve for $50k base profit
+  if(basePSF>0&&sfPerUnit>0){
+    const bARV=basePSF*sfPerUnit;
+    const term=pv('term-b');
+    const salePctV=salePct;
+    const ltcPct=pv('ltc-pct')/100;
+    const rate=pv('fin-rate')/100,pts=pv('fin-points')/100,docFee=pv('fin-doc-fee'),annTax=pv('fin-tax');
+    const TARGET=50000;
+    // profit = ARV - (allInExLand+land)/units - holdPerUnit - saleCost = TARGET
+    // holdPerUnit = (loan*(rate/12*term+pts) + docFee + tax/12*term + loan*0.01) / units
+    // loan = ltcPct*(land+allInExLand)/(1-ltcPct*0.01)
+    // Let L = land (unknown), A = allInExLand (known)
+    // loan = ltcPct*(L+A)/(1-ltcPct*0.01) = k1*(L+A) where k1=ltcPct/(1-ltcPct*0.01)
+    const k1=ltcPct/(1-ltcPct*0.01);
+    // holdPerUnit = loan * (rate/12*term + pts + 0.01) / units + (docFee + annTax/12*term)/units
+    const loanFactor=rate/12*term+pts+0.01;
+    const fixedHold=(docFee+(annTax/12)*term)/units;
+    // profit = bARV - (A+L)/units - k1*(L+A)*loanFactor/units - fixedHold - bARV*salePctV = TARGET
+    // bARV*(1-salePctV) - TARGET - A/units - fixedHold = L/units + k1*(L+A)*loanFactor/units
+    // bARV*(1-salePctV) - TARGET - A/units - fixedHold - k1*A*loanFactor/units = L*(1/units + k1*loanFactor/units)
+    const rhs=bARV*(1-salePctV)-TARGET-allInExLand/units-fixedHold-k1*allInExLand*loanFactor/units;
+    const lhsCoeff=1/units+k1*loanFactor/units;
+    const maxLand=rhs/lhsCoeff;
+    const ml=$('max-land-display');if(ml)ml.textContent=maxLand>0?fmt(maxLand):'—';
+  }else{const ml=$('max-land-display');if(ml)ml.textContent='Enter ARV $/sf';}
+}
+
+// ═══════════════════ SUMMARY ═══════════════════
+function updateSummaryBar(){
+  const sa=$('sum-addr');if(sa)sa.textContent=fullAddr()||'—';
+  const county=$('county-sel').value,zone=$('zone-sel').value&&$('zone-sel').value.split('|')[1];
+  const sz=$('sum-zone');if(sz)sz.textContent=(county&&zone)?`${county} / ${zone}`:(county||zone||'—');
+  const w=pv('lot-w'),d=pv('lot-d');
+  const sls=$('sum-lotsize');if(sls)sls.textContent=w&&d?`${w}' × ${d}' (${(w*d).toLocaleString()} sf)`:'—';
+  const sb=$('sum-buildable');if(sb)sb.textContent=buildableArea>0?`${fmtN(buildableArea)} sf`:'—';
+}
+
+// ═══════════════════ UPGRADES ═══════════════════
+function renderUpgrades(){
+  const grid=$('upg-grid');if(!grid)return;
+  grid.innerHTML=UPGRADES.map(u=>`
+    <div class="upg-item${selectedUpgrades.has(u.id)?' on':''}" data-id="${u.id}">
+      <div class="upg-chk"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3l2.5 2.5L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <span class="upg-name">${u.name}</span><span class="upg-cost">$${u.cost.toLocaleString()}</span>
+    </div>`).join('');
+  grid.querySelectorAll('.upg-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const id=el.dataset.id;selectedUpgrades.has(id)?selectedUpgrades.delete(id):selectedUpgrades.add(id);
+      el.classList.toggle('on');calcAll();
+    });
+  });
+}
+
+// ═══════════════════ INIT ═══════════════════
+buildPlanDropdown();
+renderUpgrades();
+document.querySelectorAll('#addr-street,#addr-city,#addr-state,#addr-zip,#county-sel').forEach(el=>{
+  el.addEventListener('input',updateGISLink);el.addEventListener('change',updateGISLink);
+});
+$('land-cost').addEventListener('input',()=>{calcFinancing();calcScenarios();});
+// Fire on load so financing tab defaults populate immediately
+calcLF();
+calcAll();
+calcFinancing();
+// Init drag for plan overlay
+initDrag();
+// Init lot editor drag
+initLotEditorDrag();
+// Init snapshot canvas drag (for poly mode plan overlay on Step 3)
+initSnapshotDrag();
+
+// ── REPORT PACKAGE EXPORT ────────────────────────────────────────────────
+function generateReportPackage(){
+  // 1. Generate PDF in new tab
+  generatePDF();
+  // 2. Generate Excel download
+  setTimeout(()=>generateSheet(), 500);
+}
+
+function generatePDF(){
+  const sbCanvas=$('sb-canvas');
+  const canvasDataUrl=sbCanvas?sbCanvas.toDataURL('image/png'):null;
+  const html=buildReportHTML(canvasDataUrl);
+  const w=window.open('','_blank','width=960,height=750');
+  if(!w){alert('Pop-up blocked — please allow pop-ups for this page, then try again.');return;}
+  w.document.write(html);
+  w.document.close();
+  w.onload=()=>{setTimeout(()=>{w.focus();w.print();},600);};
+}
+
+function getReportData(){
+  // Collect all deal data from live DOM/variables
+  const zoneRaw=($('zone-sel')||{}).value||'';
+  const zoneName=zoneRaw.includes('|')?zoneRaw.split('|')[1]:zoneRaw;
+  const county=($('county-sel')||{}).value||'—';
+
+  const arvW=pv('arv-w')||0, arvB=pv('arv-b')||0, arvBest=pv('arv-best')||0;
+  const autoW=arvB?arvB*0.90:0, autoBest=arvB?arvB*1.10:0;
+  const farvW=arvW||autoW, farvBest=arvBest||autoBest;
+
+  const termW=pv('term-w')||12, termB=pv('term-b')||9, termBest=pv('term-best')||6;
+
+  // Read computed profit values from DOM text
+  const profitW=($('profit-w')||{}).textContent||'—';
+  const profitB=($('profit-b')||{}).textContent||'—';
+  const profitBest=($('profit-best')||{}).textContent||'—';
+  const cocW=($('coc-w')||{}).textContent||'—';
+  const cocB=($('coc-b')||{}).textContent||'—';
+  const cocBest=($('coc-best')||{}).textContent||'—';
+  const projW=($('proj-worst')||{}).textContent||'—';
+  const projB=($('proj-base')||{}).textContent||'—';
+  const projBest=($('proj-best')||{}).textContent||'—';
+  const maxLand=($('max-land-display')||{}).textContent||'—';
+
+  // ARV per unit
+  const fmtArv=v=>v>0?'$'+(v*sfPerUnit).toLocaleString(undefined,{maximumFractionDigits:0}):'—';
+
+  const landCost=pv('land-cost')||0;
+  const planVal=($('plan-sel')||{}).value||'';
+  const planParts=planVal.split('|');
+  const planName=planParts[0]||($('plan-info-name')||{}).textContent||'—';
+
+  return {
+    address:[($('addr-street')||{}).value||'',
+             ($('addr-city')||{}).value||'',($('addr-state')||{}).value||'',
+             ($('addr-zip')||{}).value||''].filter(Boolean).join(' ') || '—',
+    county, zone:zoneName,
+    units, plan:planName,
+    sf:sfPerUnit, footprint:($('plan-info-fp')||{}).textContent||'—',
+    buildable_sf:buildableArea||0,
+    land:landCost, lot_factor:lotFactor||0, tap_fees:tapTotal||0,
+    plan_cost:currentPlanCost||0,
+    all_in_ex_land:allInExLand||0,
+    all_in_total:(allInExLand||0)+landCost,
+    ltc:pv('ltc-pct')||93, rate:pv('fin-rate')||10,
+    pts:pv('fin-points')||1,
+    date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),
+    scenarios:[
+      {name:'WORST',color:'#e05c5c',arv:fmtArv(farvW),arv_psf:farvW?'$'+farvW+'/sf':'—',
+       profit:profitW,total:projW,coc:cocW,term:termW+' mo'},
+      {name:'BASE',color:'#2e9c8f',arv:fmtArv(arvB),arv_psf:arvB?'$'+arvB+'/sf':'—',
+       profit:profitB,total:projB,coc:cocB,term:termB+' mo'},
+      {name:'BEST',color:'#4caf82',arv:fmtArv(farvBest),arv_psf:farvBest?'$'+farvBest+'/sf':'—',
+       profit:profitBest,total:projBest,coc:cocBest,term:termBest+' mo'},
+    ],
+    max_land:maxLand,
+    arv_w:farvW, arv_b:arvB, arv_best:farvBest,
+    term_w:termW, term_b:termB, term_best:termBest,
+  };
+}
+
+function buildReportHTML(canvasDataUrl){
+  const d=getReportData();
+  const fmt=v=>typeof v==='number'?'$'+Math.round(v).toLocaleString():'—';
+
+  const imgTag=canvasDataUrl
+    ?'<img class="canvas-img" src="'+canvasDataUrl+'">'
+    :'<div class="no-diagram">No diagram — define lot on Step 2</div>';
+
+  const scHdrCells=d.scenarios.map(s=>
+    '<div class="sc-hdr" style="background:'+s.color+'">'+s.name+'</div>').join('');
+
+  const scRows=[
+    ['ARV / Unit',  d.scenarios.map(s=>s.arv)],
+    ['ARV ($/sf)',  d.scenarios.map(s=>s.arv_psf)],
+    ['Hold',        d.scenarios.map(s=>s.term)],
+    ['Profit / Unit', d.scenarios.map(s=>s.profit), true],
+    ['Total Profit',  d.scenarios.map(s=>s.total), true],
+    ['Cash-on-Cash',  d.scenarios.map(s=>s.coc)],
+  ].map(([lbl,vals,bold])=>{
+    const lc=bold?'sc-cell sc-lbl sc-bold':'sc-cell sc-lbl';
+    const vc=bold?'sc-cell sc-bold':'sc-cell';
+    return '<div class="'+lc+'">'+lbl+'</div>'+vals.map(v=>'<div class="'+vc+'">'+v+'</div>').join('');
+  }).join('');
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>TTV — '+d.address+'</title>'+
+    '<style>'+
+    '* { box-sizing:border-box; margin:0; padding:0; }'+
+    'body { font-family:Arial,sans-serif; font-size:10pt; color:#1a2535; background:#fff; }'+
+    '.page { width:7.2in; margin:0 auto; }'+
+    '.hdr { background:#1a2535; color:#fff; padding:13px 18px; display:flex; justify-content:space-between; align-items:center; }'+
+    '.hdr-title { font-size:15pt; font-weight:bold; }'+
+    '.hdr-sub { font-size:10pt; color:#e8a94d; }'+
+    '.addr-bar { background:#f4f5f7; padding:8px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #2e9c8f; margin-bottom:12px; }'+
+    '.addr-text { font-size:11pt; font-weight:bold; color:#1a2535; }'+
+    '.date-text { font-size:9pt; color:#8fa3bc; }'+
+    '.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }'+
+    '.sec-hdr { background:#2e9c8f; color:#fff; padding:5px 10px; font-weight:bold; font-size:9pt; margin-bottom:0; }'+
+    '.amber-hdr { background:#e8a94d !important; color:#1a2535 !important; }'+
+    '.kv { width:100%; border-collapse:collapse; }'+
+    '.kv tr:nth-child(even) { background:#f4f5f7; }'+
+    '.kv td { padding:3px 8px; font-size:9pt; border-bottom:1px solid #eef0f4; }'+
+    '.kv td:last-child { text-align:right; font-weight:bold; }'+
+    '.kv .total td { background:#e0f7f4 !important; border-top:2px solid #2e9c8f; border-bottom:2px solid #2e9c8f; font-weight:bold; font-size:10pt; color:#2e9c8f; padding:5px 8px; }'+
+    '.canvas-img { width:100%; max-height:230px; object-fit:contain; border:1px solid #d0d7e2; border-radius:3px; }'+
+    '.no-diagram { height:180px; display:flex; align-items:center; justify-content:center; background:#f4f5f7; color:#8fa3bc; font-size:9pt; }'+
+    '.sg { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; margin-bottom:12px; }'+
+    '.sc-hdr { padding:6px; text-align:center; color:#fff; font-weight:bold; font-size:9pt; }'+
+    '.sc-nav { background:#1a2535; }'+
+    '.sc-cell { padding:4px 8px; text-align:center; font-size:9pt; border-bottom:1px solid #eef0f4; }'+
+    '.sc-lbl { text-align:left !important; }'+
+    '.sc-bold { font-weight:bold; background:#fff8e8 !important; border-top:1px solid #e8a94d; }'+
+    '.max-box { border:2px solid #e8a94d; border-radius:4px; padding:12px; background:#fff8e8; text-align:center; }'+
+    '.max-val { font-size:22pt; font-weight:bold; color:#e8a94d; }'+
+    '.max-lbl { font-size:9pt; color:#8fa3bc; margin-top:3px; }'+
+    '.notes-box { border:1px solid #d0d7e2; padding:8px; font-size:9pt; color:#8fa3bc; min-height:72px; }'+
+    '.footer { margin-top:14px; padding-top:8px; border-top:1px solid #d0d7e2; display:flex; justify-content:space-between; font-size:8pt; color:#8fa3bc; }'+
+    'section { margin-bottom:12px; }'+
+    '@media print { body{font-size:9pt;} .page{width:100%;} @page{margin:0.5in;size:letter;} }'+
+    '</style></head><body><div class="page">'+
+
+    '<div class="hdr"><div class="hdr-title">TIDE &amp; TIMBER VENTURES</div>'+
+    '<div class="hdr-sub">New Construction Analysis</div></div>'+
+    '<div class="addr-bar">'+
+    '<div class="addr-text">'+d.address+'</div>'+
+    '<div class="date-text">'+d.date+'</div></div>'+
+
+    '<div class="two-col">'+
+      '<div>'+
+        '<section><div class="sec-hdr">DEAL INFO</div>'+
+        '<table class="kv">'+
+          '<tr><td>County / Zone</td><td>'+d.county+' / '+d.zone+'</td></tr>'+
+          '<tr><td>Units</td><td>'+d.units+'</td></tr>'+
+          '<tr><td>Plan Selected</td><td>'+d.plan+'</td></tr>'+
+          '<tr><td>Sq Ft / Unit</td><td>'+(d.sf?d.sf.toLocaleString()+' sf':'—')+'</td></tr>'+
+          '<tr><td>Footprint</td><td>'+d.footprint+'</td></tr>'+
+          '<tr><td>Buildable Area</td><td>'+(d.buildable_sf?d.buildable_sf.toLocaleString()+' sf':'—')+'</td></tr>'+
+        '</table></section>'+
+        '<section><div class="sec-hdr">FINANCING</div>'+
+        '<table class="kv">'+
+          '<tr><td>LTC %</td><td>'+d.ltc+'%</td></tr>'+
+          '<tr><td>Interest Rate</td><td>'+d.rate+'%</td></tr>'+
+          '<tr><td>Loan Points</td><td>'+d.pts+'%</td></tr>'+
+        '</table></section>'+
+      '</div>'+
+      '<div><section><div class="sec-hdr">SETBACK DIAGRAM</div>'+imgTag+'</section></div>'+
+    '</div>'+
+
+    '<section><div class="sec-hdr">COST BUILD-UP</div>'+
+    '<table class="kv">'+
+      '<tr><td>Land Cost</td><td>'+fmt(d.land)+'</td></tr>'+
+      '<tr><td>Lot Factor</td><td>'+fmt(d.lot_factor)+'</td></tr>'+
+      '<tr><td>Tap Fees</td><td>'+fmt(d.tap_fees)+'</td></tr>'+
+      '<tr><td>Build Cost + Upgrades</td><td>'+fmt(d.plan_cost)+'</td></tr>'+
+      '<tr><td>All-In Cost (ex. Land)</td><td>'+fmt(d.all_in_ex_land)+'</td></tr>'+
+      '<tr class="total"><td>TOTAL ALL-IN</td><td>'+fmt(d.all_in_total)+'</td></tr>'+
+    '</table></section>'+
+
+    '<section><div class="sec-hdr">SCENARIO ANALYSIS — WORST / BASE / BEST</div>'+
+    '<div class="sg">'+
+      '<div class="sc-hdr sc-nav"></div>'+scHdrCells+scRows+
+    '</div></section>'+
+
+    '<div class="two-col">'+
+      '<div><div class="sec-hdr amber-hdr">MAX LAND COST (Base, $50K profit target)</div>'+
+      '<div class="max-box"><div class="max-val">'+d.max_land+'</div>'+
+      '<div class="max-lbl">Maximum offer to achieve $50K profit / unit</div></div></div>'+
+      '<div><div class="sec-hdr">NOTES</div>'+
+      '<div class="notes-box">Figures from TTV Site Analyzer. Estimates only. '+
+      'Verify tap fees, setbacks, and BUA with county before offer.</div></div>'+
+    '</div>'+
+
+    '<div class="footer">'+
+      '<span>Tide &amp; Timber Ventures, LLC &nbsp;|&nbsp; management@tidetimberventures.com &nbsp;|&nbsp; Charlotte, NC</span>'+
+      '<span>For internal use only — not for distribution</span>'+
+    '</div>'+
+    '</div><\/body><\/html>';
+}
+
+// ── EXCEL EXPORT (ExcelJS — fully client-side, formatted, no embedded template) ──
+function generateSheet(){
+  const d = getReportData();
+  const slug = (d.address||'TTV_Deal').replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_').substring(0,40);
+  if(typeof ExcelJS !== 'undefined'){
+    buildAndDownloadXLSX(d, slug);
+  } else {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    sc.onload = () => buildAndDownloadXLSX(d, slug);
+    sc.onerror = () => alert('Could not load the Excel library. Check internet connection.');
+    document.head.appendChild(sc);
+  }
+}
+
+function buildAndDownloadXLSX(d, slug){
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'TTV Site Analyzer'; wb.created = new Date();
+
+  // palette (ARGB)
+  const NAVY='FF243044', TEAL='FF2E9C8F', RED='FFE05C5C', GREEN='FF4CAF82', AMBER='FFE8A94D', LIGHT='FFF0F3F8';
+  const fill = a => ({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+  const MONEY='"$"#,##0', MONEY2='"$"#,##0.00', PCT='0.0%', SF='#,##0';
+  const thin = {style:'thin',color:{argb:'FFD8DEE8'}};
+  const border = {top:thin,left:thin,bottom:thin,right:thin};
+
+  // ── live deal math (mirrors Step 7 exactly: calcLoanBase + holdingCost) ──
+  const land = pv('land-cost');
+  const lb = calcLoanBase(land); const loan = lb.loan, purchaseClosing = lb.purchaseClosing;
+  const u = Math.max(1, units); const salePct = pv('sale-cost-pct')/100;
+  const allInPerUnit = (allInExLand + land)/u;
+  const arvB = pv('arv-b'), arvW = pv('arv-w')||(arvB?arvB*0.9:0), arvBe = pv('arv-best')||(arvB?arvB*1.1:0);
+  const SC = [
+    {key:'WORST', color:RED,   term:pv('term-w'),    psf:arvW},
+    {key:'BASE',  color:TEAL,  term:pv('term-b'),    psf:arvB},
+    {key:'BEST',  color:GREEN, term:pv('term-best'), psf:arvBe},
+  ].map(o=>{
+    const arv = sfPerUnit>0 && o.psf>0 ? o.psf*sfPerUnit : 0;
+    const h = holdingCost(loan, o.term);
+    const holdPerUnit = (h.total + purchaseClosing)/u;
+    const sale = arv*salePct;
+    const totalAllIn = allInPerUnit + holdPerUnit + sale;
+    const profit = arv - totalAllIn;
+    const coc = (loan/u)>0 ? profit/(loan/u) : 0;
+    return Object.assign(o,{arv,holdPerUnit,sale,totalAllIn,profit,total:profit*u,coc});
+  });
+  const upgPerUnit = Array.from(typeof selectedUpgrades!=='undefined'?selectedUpgrades:[])
+    .reduce((acc,id)=>{const x=UPGRADES.find(z=>z.id===id);return acc+(x?x.cost:0);},0);
+  const upgTotal = upgPerUnit*u;
+  const buildTotal = (currentPlanCost||0)*u;
+  const softFixed = pv('survey')+pv('appraisal')+pv('insurance');
+  const maxLand = parseFloat(String(d.max_land||'0').replace(/[$,]/g,''))||0;
+
+  // ── style helpers ──
+  const title = (ws,row,txt,span)=>{const c=ws.getCell('A'+row);c.value=txt;c.font={bold:true,size:13,color:{argb:'FFFFFFFF'}};c.fill=fill(NAVY);c.alignment={vertical:'middle'};ws.mergeCells('A'+row+':'+span+row);ws.getRow(row).height=22;};
+  const sect  = (ws,row,txt,span)=>{const c=ws.getCell('A'+row);c.value=txt;c.font={bold:true,size:10,color:{argb:'FF06251F'}};c.fill=fill(TEAL);ws.mergeCells('A'+row+':'+span+row);};
+  const kv    = (ws,row,label,val,fmt)=>{const a=ws.getCell('A'+row);a.value=label;a.font={color:{argb:'FF566B82'}};const b=ws.getCell('B'+row);b.value=val;if(fmt)b.numFmt=fmt;b.font={bold:true};};
+
+  /* ───────── Sheet 1: Inputs ───────── */
+  const s1 = wb.addWorksheet('Inputs');
+  s1.getColumn(1).width=28; s1.getColumn(2).width=24; s1.getColumn(3).width=4; s1.getColumn(4).width=20;
+  let r=1;
+  title(s1,r++,'TIDE & TIMBER VENTURES — New Construction Underwriting','D');
+  s1.getCell('A'+r).value='Generated '+d.date; s1.getCell('A'+r).font={italic:true,size:9,color:{argb:'FF8FA3BC'}}; s1.mergeCells('A'+r+':D'+r); r++;
+  r++;
+  sect(s1,r++,'DEAL INFORMATION','D');
+  kv(s1,r++,'Property Address',d.address);
+  kv(s1,r++,'County',d.county); kv(s1,r++,'Zone',d.zone);
+  kv(s1,r++,'Units',u); kv(s1,r++,'Buildable Area (sf)',d.buildable_sf||0,SF);
+  r++;
+  sect(s1,r++,'PLAN SELECTION','D');
+  kv(s1,r++,'Selected Plan',d.plan);
+  kv(s1,r++,'Sq Ft / Unit',d.sf||0,SF);
+  kv(s1,r++,'Footprint (W x D)',d.footprint);
+  kv(s1,r++,'Build Cost (Cost + 14%)',d.plan_cost||0,MONEY);
+  kv(s1,r++,'Build Cost / SF',(d.sf>0?(d.plan_cost/d.sf):0),MONEY2);
+  r++;
+  sect(s1,r++,'COST INPUTS','D');
+  kv(s1,r++,'Land Cost',land,MONEY);
+  kv(s1,r++,'Lot Factor',lotFactor||0,MONEY);
+  kv(s1,r++,'Tap Fees',tapTotal||0,MONEY);
+  kv(s1,r++,'Survey',pv('survey'),MONEY);
+  kv(s1,r++,'Appraisal',pv('appraisal'),MONEY);
+  kv(s1,r++,'Insurance (carry)',pv('insurance'),MONEY);
+  kv(s1,r++,'Upgrades Total',upgTotal,MONEY);
+  r++;
+  sect(s1,r++,'FINANCING INPUTS','D');
+  kv(s1,r++,'LTC %',(pv('ltc-pct')||93)/100,PCT);
+  kv(s1,r++,'Interest Rate (annual)',(pv('fin-rate')||10)/100,PCT);
+  kv(s1,r++,'Loan Points',(pv('fin-points')||1)/100,PCT);
+  kv(s1,r++,'Origination / Doc Fee',pv('fin-doc-fee')||0,MONEY);
+  r++;
+  sect(s1,r++,'EXIT ASSUMPTIONS','D');
+  kv(s1,r++,'ARV $/sf — Worst',arvW,MONEY2);
+  kv(s1,r++,'ARV $/sf — Base',arvB,MONEY2);
+  kv(s1,r++,'ARV $/sf — Best',arvBe,MONEY2);
+  kv(s1,r++,'Sale Costs (% of ARV)',salePct,PCT);
+  kv(s1,r++,'Loan Term — Worst (mo)',pv('term-w'));
+  kv(s1,r++,'Loan Term — Base (mo)',pv('term-b'));
+  kv(s1,r++,'Loan Term — Best (mo)',pv('term-best'));
+
+  /* ───────── Sheet 2: Scenarios ───────── */
+  const s2 = wb.addWorksheet('Scenarios');
+  s2.getColumn(1).width=30; [2,3,4].forEach(i=>s2.getColumn(i).width=18);
+  let R=1;
+  title(s2,R++,'SCENARIO ANALYSIS — WORST / BASE / BEST','D');
+  R++;
+  // header row with colored scenario cells
+  const hdr=s2.getRow(R);
+  hdr.getCell(1).value='';
+  SC.forEach((sc,i)=>{const c=hdr.getCell(2+i);c.value=sc.key+' — '+sc.term+' mo';c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill=fill(sc.color);c.alignment={horizontal:'center'};});
+  R++;
+  const srow=(label,vals,fmt,bold)=>{
+    const row=s2.getRow(R++);
+    const a=row.getCell(1); a.value=label; a.font={bold:!!bold,color:{argb:bold?'FF06251F':'FF566B82'}};
+    vals.forEach((v,i)=>{const c=row.getCell(2+i);c.value=v;if(fmt)c.numFmt=fmt;c.alignment={horizontal:'right'};if(bold)c.font={bold:true};c.border=border;});
+    a.border=border;
+  };
+  srow('Loan Amount', SC.map(s=>loan), MONEY);
+  srow('Loan Term (months)', SC.map(s=>s.term));
+  srow('ARV $/sf', SC.map(s=>s.psf), MONEY2);
+  srow('ARV / Unit', SC.map(s=>s.arv), MONEY);
+  srow('Build + Costs / Unit', SC.map(s=>allInPerUnit), MONEY);
+  srow('Holding Cost / Unit', SC.map(s=>s.holdPerUnit), MONEY);
+  srow('Sale Costs / Unit', SC.map(s=>s.sale), MONEY);
+  srow('Total All-In / Unit', SC.map(s=>s.totalAllIn), MONEY);
+  srow('Profit / Unit', SC.map(s=>s.profit), MONEY, true);
+  srow('Total Project Profit', SC.map(s=>s.total), MONEY, true);
+  srow('Cash-on-Cash', SC.map(s=>s.coc), PCT);
+  R++;
+  sect(s2,R++,'MAX LAND COST ANALYSIS','D');
+  kv(s2,R++,'Target Profit / Unit',50000,MONEY);
+  kv(s2,R++,'Max Land Cost (Base, $50k target)',maxLand,MONEY);
+
+  /* ───────── Sheet 3: Cost Build-Up ───────── */
+  const s3 = wb.addWorksheet('Cost Build-Up');
+  s3.getColumn(1).width=32; s3.getColumn(2).width=16; s3.getColumn(3).width=12;
+  let Q=1;
+  title(s3,Q++,'COST BUILD-UP','C');
+  Q++;
+  sect(s3,Q++,'LAND & SOFT COSTS','C');
+  const li=(label,val)=>{const row=s3.getRow(Q++);row.getCell(1).value=label;const c=row.getCell(2);c.value=val;c.numFmt=MONEY;c.alignment={horizontal:'right'};};
+  li('Land Cost',land); li('Lot Factor',lotFactor||0); li('Tap Fees',tapTotal||0);
+  li('Survey',pv('survey')); li('Appraisal',pv('appraisal')); li('Insurance (carry)',pv('insurance'));
+  {const row=s3.getRow(Q++);row.getCell(1).value='Total Soft Costs';row.getCell(1).font={bold:true};const c=row.getCell(2);c.value=lotFactor+(tapTotal||0)+softFixed;c.numFmt=MONEY;c.font={bold:true};c.alignment={horizontal:'right'};}
+  Q++;
+  sect(s3,Q++,'CONSTRUCTION','C');
+  li('Base Build Cost (all units)',buildTotal);
+  li('Upgrades (all units)',upgTotal);
+  {const row=s3.getRow(Q++);row.getCell(1).value='Grand Total (incl. Land)';row.getCell(1).font={bold:true};const c=row.getCell(2);c.value=allInExLand+land;c.numFmt=MONEY;c.font={bold:true,color:{argb:'FF06251F'}};c.fill=fill(AMBER);c.alignment={horizontal:'right'};}
+  Q++;
+  sect(s3,Q++,'UPGRADES / SELECT OPTIONS','C');
+  {const row=s3.getRow(Q++);['Upgrade','Cost','Include?'].forEach((t,i)=>{const c=row.getCell(1+i);c.value=t;c.font={bold:true,color:{argb:'FF566B82'}};});}
+  const selU = typeof selectedUpgrades!=='undefined'?selectedUpgrades:new Set();
+  UPGRADES.forEach(up=>{
+    const row=s3.getRow(Q++);
+    row.getCell(1).value=up.name;
+    const c=row.getCell(2); c.value=up.cost; c.numFmt=MONEY; c.alignment={horizontal:'right'};
+    const inc=row.getCell(3); inc.value=selU.has(up.id)?'Yes':'No'; inc.alignment={horizontal:'center'};
+    if(selU.has(up.id)){inc.font={bold:true,color:{argb:'FF06251F'}};inc.fill=fill('FFD8F0EA');}
+  });
+
+  // ── write + download ──
+  wb.xlsx.writeBuffer().then(buf=>{
+    const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='TTV_UW_'+slug+'.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }).catch(err=>{ console.error('XLSX generation error:',err); alert('Excel generation failed: '+err.message); });
+}
+
+
+function copyUWJson(){
+  const ta = document.getElementById('uw-json-ta');
+  if(!ta) return;
+  ta.select();
+  const btn = document.querySelector('#report-modal button');
+  try {
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(ta.value).then(()=>{
+        if(btn){const o=btn.innerHTML;btn.innerHTML='&#10003; Copied!';setTimeout(()=>btn.innerHTML=o,2000);}
+      });
+    } else { document.execCommand('copy'); if(btn){const o=btn.innerHTML;btn.innerHTML='&#10003; Copied!';setTimeout(()=>btn.innerHTML=o,2000);} }
+  } catch(e){ document.execCommand('copy'); }
+}
+
+
+function copyUWPayload(){
+  const ta = document.getElementById('uw-payload-txt');
+  if(!ta) return;
+  ta.select();
+  try {
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(ta.value).then(()=>{
+        const btn = ta.nextElementSibling && ta.nextElementSibling.querySelector('button');
+        if(btn){const orig=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=orig,2000);}
+      });
+    } else {
+      document.execCommand('copy');
+    }
+  } catch(e) { document.execCommand('copy'); }
+}
+
+
+
+
+
+
+// ═══════════════════ OFFER LETTER ═══════════════════
+function generateOfferLetter(){
+  const modal=document.getElementById("offer-letter-modal");
+  if(!modal)return;
+  const addrEl=document.getElementById("ol-address");
+  if(addrEl){
+    const st=($("addr-street")||{}).value||"";
+    const ci=($("addr-city")||{}).value||"";
+    const s=($("addr-state")||{}).value||"NC";
+    const z=($("addr-zip")||{}).value||"";
+    const pts=[st,ci&&z?ci+", "+s+" "+z:ci||s].filter(Boolean);
+    addrEl.value=pts.join(", ");
+  }
+  const de=document.getElementById("ol-date");
+  if(de&&!de.value)de.value=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
+  const ae=document.getElementById("ol-amount");
+  if(ae&&!ae.value){
+    const ml=($("max-land-display")||{}).textContent||"";
+    const n=parseFloat(ml.replace(/[$,]/g,""));
+    if(n>0)ae.value=Math.round(n).toLocaleString();
+  }
+  modal.style.display="flex";
+}
+function closeOfferLetter(){
+  const m=document.getElementById("offer-letter-modal");
+  if(m)m.style.display="none";
+}
+function formatOfferAmt(el){
+  const raw=el.value.replace(/[^0-9]/g,"");
+  if(raw)el.value=parseInt(raw).toLocaleString();
+}
+function previewOfferLetter(){
+  const addr=(document.getElementById("ol-address")||{}).value||"—";
+  const raw=((document.getElementById("ol-amount")||{}).value||"0").replace(/[^0-9]/g,"");
+  const amt="$"+parseInt(raw||"0").toLocaleString();
+  const dt=(document.getElementById("ol-date")||{}).value||"";
+  closeOfferLetter();
+  const html=buildOfferHTML(addr,amt,dt);
+  const w=window.open("","_blank","width=900,height=750");
+  if(!w){alert("Pop-up blocked — allow pop-ups and try again.");return;}
+  w.document.write(html);
+  w.document.close();
+  w.onload=()=>setTimeout(()=>{w.focus();w.print();},600);
+}
+function buildOfferHTML(address,amount,date){
+  const L=[];
+  const lg='<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">'
+    +'<rect width="54" height="54" rx="7" fill="#2E9C8F"/>'
+    +'<text x="27" y="19" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="9.5" fill="#fff">TIDE &amp;</text>'
+    +'<text x="27" y="31" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="9.5" fill="#fff">TIMBER</text>'
+    +'<text x="27" y="42" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="7.5" fill="rgba(255,255,255,0.75)">VENTURES</text>'
+    +'</svg>';
+  L.push('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Offer Letter</title><style>');
+  L.push('*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10.5pt;color:#1a2535;background:#fff}.page{max-width:7.5in;margin:0 auto}');
+  L.push('.hdr{background:#1a2535;padding:18px 28px;display:flex;align-items:center;gap:16px}.hdr h1{color:#fff;font-size:15pt;font-weight:bold}.hdr p{color:#8fa3bc;font-size:9pt;margin-top:2px}');
+  L.push('.abar{background:#2e3d56;padding:10px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2e9c8f}.abar .prop{color:#fff;font-size:11pt;font-weight:bold;line-height:1.4}.abar .dt{color:#8fa3bc;font-size:9.5pt;margin-left:16px}');
+  L.push('.body{padding:32px 36px}.intro{font-size:10.5pt;line-height:1.65;color:#2a3a4a;margin-bottom:28px}.salut{font-size:11pt;margin-bottom:16px}');
+  L.push('.ob{text-align:center;padding:24px 20px 18px;margin:0 0 26px}.ol{font-size:8.5pt;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#2e9c8f;margin-bottom:10px}');
+  L.push('.oa{font-size:42pt;font-weight:bold;color:#1a2535;line-height:1}.or{height:2px;background:#2e9c8f;width:80px;margin:12px auto 0;border-radius:2px}');
+  L.push('.fl{border:1px solid #e0e6ef;border-radius:6px;overflow:hidden;margin:0 0 26px}.fi{display:flex;align-items:flex-start;gap:14px;padding:13px 18px;border-bottom:1px solid #e0e6ef}.fi:last-child{border-bottom:none}.fi:nth-child(even){background:#f7f9fc}');
+  L.push('.fic{font-size:16pt;flex-shrink:0}.fit{font-size:10pt;font-weight:bold;color:#1a2535;margin-bottom:2px}.fis{font-size:9pt;color:#5a6a7a;line-height:1.5}');
+  L.push('.hw{background:#f4f6f9;border-radius:6px;padding:20px 22px;margin:0 0 26px}.hwt{font-size:9pt;font-weight:bold;letter-spacing:.12em;text-transform:uppercase;color:#2e9c8f;margin-bottom:14px}');
+  L.push('.hwi{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px}.hwi:last-child{margin-bottom:0}.hwn{width:26px;height:26px;border-radius:50%;background:#1a2535;color:#fff;font-size:9pt;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0}');
+  L.push('.hwbt{font-size:10pt;font-weight:bold;color:#1a2535}.hwbs{font-size:9pt;color:#5a6a7a;line-height:1.5}.cta{font-style:italic;font-size:10.5pt;color:#2a3a4a;margin-bottom:20px}');
+  L.push('.sn{font-size:13pt;font-weight:bold;color:#1a2535;margin-bottom:4px}.sc{font-size:10pt;color:#5a6a7a}.sct{font-size:9.5pt;color:#2e9c8f;margin-top:3px}');
+  L.push('.disc{margin-top:22px;padding-top:14px;border-top:1px solid #d0d7e2;font-size:8pt;color:#8fa3bc;font-style:italic;line-height:1.5}');
+  L.push('@media print{body{font-size:10pt}.page{max-width:100%}@page{margin:.5in;size:letter}}');
+  L.push('</style></head><body><div class="page">');
+  L.push('<div class="hdr">'+lg+'<div><h1>TIDE &amp; TIMBER VENTURES, LLC</h1><p>Real Estate Acquisitions &nbsp;&middot;&nbsp; Charlotte, NC</p></div></div>');
+  L.push('<div class="abar"><div class="prop">A Personal Offer for the Owner of:<br>'+address+'</div><div class="dt">'+date+'</div></div>');
+  L.push('<div class="body"><p class="salut">To the Owner(s) of Record,</p>');
+  L.push('<p class="intro">We are a local Charlotte investment company and we would love to make you a simple, straightforward offer on your property &mdash; no agents, no hassle, no surprises.</p>');
+  L.push('<div class="ob"><div class="ol">Our Estimated Offer</div><div class="oa">'+amount+'</div><div class="or"></div></div>');
+  L.push('<div class="fl">');
+  L.push('<div class="fi"><div class="fic">&#128181;</div><div><div class="fit">All-Cash Offer</div><div class="fis">No banks, no financing delays &mdash; we have the funds ready to go.</div></div></div>');
+  L.push('<div class="fi"><div class="fic">&#128273;</div><div><div class="fit">No Repairs or Prep Needed</div><div class="fis">We purchase the property as-is. You do not need to do a thing.</div></div></div>');
+  L.push('<div class="fi"><div class="fic">&#128203;</div><div><div class="fit">We Pay All Closing Costs</div><div class="fis">Zero out-of-pocket expenses for you. We handle everything.</div></div></div>');
+  L.push('<div class="fi"><div class="fic">&#128197;</div><div><div class="fit">Flexible Closing Timeline</div><div class="fis">You pick the date. We work around your schedule, not ours.</div></div></div>');
+  L.push('</div>');
+  L.push('<div class="hw"><div class="hwt">Here\'s How It Works</div>');
+  L.push('<div class="hwi"><div class="hwn">01</div><div><div class="hwbt">Schedule a Property Visit</div><div class="hwbs">We come to you &mdash; a quick, no-pressure visit at a time that works for you.</div></div></div>');
+  L.push('<div class="hwi"><div class="hwn">02</div><div><div class="hwbt">Receive Your Final Offer</div><div class="hwbs">We confirm the number with you directly. No contingencies, no games.</div></div></div>');
+  L.push('<div class="hwi"><div class="hwn">03</div><div><div class="hwbt">Pick Your Closing Date</div><div class="hwbs">You choose when. We handle all the paperwork and closing costs.</div></div></div>');
+  L.push('</div>');
+  L.push('<p class="cta">Ready to talk? Reach out anytime &mdash; we\'re easy to work with.</p>');
+  L.push('<div class="sn">Brian &nbsp;&amp;&nbsp; Wendell</div>');
+  L.push('<div class="sc">Tide &amp; Timber Ventures, LLC</div>');
+  L.push('<div class="sct">(980) 990-3713 &nbsp;&middot;&nbsp; management@tidetimberventures.com</div>');
+  L.push('<div class="disc">This is a non-binding letter of intent and does not constitute a legally binding contract. Final offer is subject to a property visit and verification of condition. Offer price may be adjusted based on findings at the time of our visit.</div>');
+  L.push('</div></div></body></html>');
+  return L.join("");
+}
+
+
+/* ═══════════════════ PLAN COMPARISON (#3) ═══════════════════ */
+function fitStatus(fpW,fpD){
+  if(!(fpW>0&&fpD>0))return{status:'na'};
+  const polyFt=(lotMode==='poly'&&planOverlay.buildPolyFt&&planOverlay.buildPolyFt.length>=3)?planOverlay.buildPolyFt:null;
+  if(lotMode==='poly'&&polyFt){
+    const r=planFitsInPolyFt(fpW,fpD);
+    return{status:r==='fits'?'fits':(r==='tight'?'tight':'no')};
+  }
+  if(!(buildableArea>0))return{status:'na'};
+  const isCorner=$('corner-lot')&&$('corner-lot').checked;
+  const bW=pv('lot-w')-((isCorner)?(pv('sb-sides')+pv('sb-corner')):(pv('sb-sides')*2));
+  const bD=pv('lot-d')-pv('sb-front')-pv('sb-rear');
+  const fits=bW>=fpW&&bD>=fpD,fitFlipped=bW>=fpD&&bD>=fpW;
+  const tight=(fits&&(bW-fpW<5||bD-fpD<5))||(fitFlipped&&(bW-fpD<5||bD-fpW<5));
+  const areaOk=buildableArea>=fpW*fpD;
+  if((fits||fitFlipped)&&!tight)return{status:'fits',rotated:fitFlipped&&!fits};
+  if(fits||fitFlipped)return{status:'tight'};
+  if(areaOk)return{status:'tight'};
+  return{status:'no'};
+}
+
+// Pure per-plan deal math — mirrors calcLoanBase / holdingCost / calcScenarios.
+// Holds land, lot factor, soft costs, tap fee/unit, upgrades/unit and all financing
+// (LTC, rate, points, doc fee, tax, term) constant; loan SIZE and ARV vary by plan.
+function dealForPlan(plan,psf){
+  const landCost=pv('land-cost');
+  const softFixed=pv('survey')+pv('appraisal')+pv('insurance');
+  const tapMuni=$('tap-muni').value;
+  const tapPerUnit=tapMuni==='custom'?pv('custom-tap'):(parseInt(tapMuni)||17340);
+  const existingTaps=$('existing-taps')&&$('existing-taps').checked;
+  const upgPerUnit=Array.from(selectedUpgrades).reduce((acc,id)=>{const u=UPGRADES.find(x=>x.id===id);return acc+(u?u.cost:0);},0);
+  const u=Math.max(1,plan.u||1);
+  const buildTotal=plan.c*u, upgTotal=upgPerUnit*u, tapTot=existingTaps?0:tapPerUnit*u;
+  const allInExL=buildTotal+upgTotal+lotFactor+tapTot+softFixed;
+  const ltcPct=pv('ltc-pct')/100;
+  const loan=ltcPct*(landCost+allInExL)/(1-ltcPct*0.01);
+  const purchaseClosing=loan*0.01;
+  const loanPerUnit=loan/u;
+  const salePct=pv('sale-cost-pct')/100;
+  const allInPerUnit=(allInExL+landCost)/u;
+  const scen={};
+  ['w','b','best'].forEach(k=>{
+    const term=pv(k==='w'?'term-w':k==='b'?'term-b':'term-best');
+    const arvPSF=psf[k]||0;
+    const arv=plan.sf>0&&arvPSF>0?arvPSF*plan.sf:0;
+    const h=holdingCost(loan,term);
+    const holdPerUnit=(h.total+purchaseClosing)/u;
+    const saleCost=arv*salePct;
+    const totalAllIn=allInPerUnit+holdPerUnit+saleCost;
+    const profit=arv-totalAllIn;
+    const coc=loanPerUnit>0?profit/loanPerUnit*100:0;
+    scen[k]={arv,arvPSF,holdPerUnit,saleCost,totalAllIn,profit,total:profit*u,coc,term};
+  });
+  return{plan,u,loan,allInPerUnit,buildTotal,scen};
+}
+
+const CMP=[null,null,null];
+const CMP_ARV=[{w:'',b:'',best:''},{w:'',b:'',best:''},{w:'',b:'',best:''}];
+function openCompare(){
+  const cur=($('plan-sel')||{}).value||'';
+  const curName=cur?cur.split('|')[0]:'';
+  CMP[0]=curName||PLANS[0].n;CMP[1]=null;CMP[2]=null;
+  CMP_ARV.forEach(o=>{o.w='';o.b='';o.best='';});
+  calcAll();
+  buildComparePickers();renderCompare();
+  $('compare-modal').style.display='flex';
+}
+function closeCompare(){$('compare-modal').style.display='none';}
+function buildComparePickers(){
+  const wrap=$('cmp-pickers');if(!wrap)return;
+  const labels=['Plan A','Plan B (optional)','Plan C (optional)'];
+  wrap.innerHTML=[0,1,2].map(i=>{
+    const opts='<option value="">— '+labels[i]+' —</option>'+PLANS.map(p=>'<option value="'+p.n+'"'+(CMP[i]===p.n?' selected':'')+'>'+p.n+'</option>').join('');
+    return '<select onchange="setCmpPlan('+i+',this.value)">'+opts+'</select>';
+  }).join('');
+}
+function setCmpPlan(i,name){CMP[i]=name||null;renderCompare();}
+function onCmpArv(i,k,v){CMP_ARV[i][k]=v;renderCompare();}
+function resolveCmpArv(i){
+  const gB=pv('arv-b'),gW=pv('arv-w'),gBest=pv('arv-best');
+  const b=CMP_ARV[i].b!==''?(parseFloat(CMP_ARV[i].b)||0):gB;
+  const w=CMP_ARV[i].w!==''?(parseFloat(CMP_ARV[i].w)||0):(gW||(b?b*0.9:0));
+  const best=CMP_ARV[i].best!==''?(parseFloat(CMP_ARV[i].best)||0):(gBest||(b?b*1.1:0));
+  return{w,b,best};
+}
+function renderCompare(){
+  const body=$('cmp-body');if(!body)return;
+  const cc=$('cmp-constants');
+  if(cc){
+    const upgPerUnit=Array.from(selectedUpgrades).reduce((acc,id)=>{const u=UPGRADES.find(x=>x.id===id);return acc+(u?u.cost:0);},0);
+    cc.innerHTML='Held constant — Land '+fmt(pv('land-cost'))+' \u00b7 Lot Factor '+fmt(lotFactor)+' \u00b7 Upgrades '+fmt(upgPerUnit)+'/unit \u00b7 LTC '+(pv('ltc-pct')||93)+'% \u00b7 Rate '+(pv('fin-rate')||10)+'% \u00b7 Term '+pv('term-w')+'/'+pv('term-b')+'/'+pv('term-best')+'. Loan size & ARV $/sf vary by plan.';
+  }
+  const cols=[0,1,2].filter(i=>CMP[i]).map(i=>{
+    const plan=PLANS.find(p=>p.n===CMP[i]);if(!plan)return null;
+    const psf=resolveCmpArv(i);
+    return{i,plan,psf,deal:dealForPlan(plan,psf)};
+  }).filter(Boolean);
+  if(!cols.length){body.innerHTML='<div class="note">Pick at least one plan to compare.</div>';return;}
+  let winI=-1,winV=-Infinity;
+  cols.forEach(c=>{if(c.deal.scen.b.arv>0&&c.deal.scen.b.total>winV){winV=c.deal.scen.b.total;winI=c.i;}});
+  const wc=i=>i===winI?' class="cmp-win-col"':'';
+  const money=(v)=>'<span'+(v<0?' class="cmp-neg"':'')+'>'+fmt(v)+'</span>';
+  const fitTxt=p=>{const f=fitStatus(p.w,p.d);return f.status==='fits'?(f.rotated?'Fits (rotated)':'\u2713 Fits'):f.status==='tight'?'Tight \u2014 verify':f.status==='no'?'\u2717 Too large':'No footprint data';};
+  const th=cols.map(c=>'<th'+wc(c.i)+'>'+c.plan.n+(c.i===winI?'<span class="cmp-winbadge">BEST BASE PROFIT</span>':'')+'</th>').join('');
+  const row=(lbl,fn)=>'<tr><td>'+lbl+'</td>'+cols.map(c=>'<td'+wc(c.i)+'>'+fn(c)+'</td>').join('')+'</tr>';
+  const sect=t=>'<tr class="cmp-sect"><td colspan="'+(cols.length+1)+'">'+t+'</td></tr>';
+  const arvInput=(c,k)=>'<input class="cmp-arv-input" type="number" value="'+(CMP_ARV[c.i][k]!==''?CMP_ARV[c.i][k]:'')+'" placeholder="'+(c.psf[k]?Math.round(c.psf[k]):'')+'" onchange="onCmpArv('+c.i+',\''+k+'\',this.value)">';
+  let h='<table class="cmp-table"><thead><tr><th></th>'+th+'</tr></thead><tbody>';
+  h+=sect('Plan');
+  h+=row('Plan drawing',c=>planImg(c.name)?`<button class="plan-img-btn" style="margin:0;padding:3px 8px" onclick="openPlanImg('${c.name}')">View</button>`:'\u2014');
+  h+=row('Units',c=>c.deal.u);
+  h+=row('Finished SF / unit',c=>c.plan.sf>0?c.plan.sf.toLocaleString()+' sf':'\u2014');
+  h+=row('Footprint (W\u00d7D)',c=>c.plan.w>0?c.plan.w+"'\u00d7"+c.plan.d+"'":'\u2014');
+  h+=row('Fit',c=>fitTxt(c.plan));
+  h+=row('Build Cost (Cost+14%)',c=>fmt(c.plan.c));
+  h+=row('All-In / unit',c=>fmt(c.deal.allInPerUnit));
+  h+=row('Loan Amount',c=>fmt(c.deal.loan));
+  h+=sect('ARV $/sf \u2014 editable');
+  h+=row('Worst $/sf',c=>arvInput(c,'w'));
+  h+=row('Base $/sf',c=>arvInput(c,'b'));
+  h+=row('Best $/sf',c=>arvInput(c,'best'));
+  [['w','Worst'],['b','Base'],['best','Best']].forEach(function(pair){
+    var k=pair[0],lbl=pair[1];
+    h+=sect(lbl+' Case ('+pv(k==='w'?'term-w':k==='b'?'term-b':'term-best')+' mo)');
+    h+=row('ARV / unit',c=>c.deal.scen[k].arv>0?fmt(c.deal.scen[k].arv):'\u2014');
+    h+=row('Holding / unit',c=>fmt(c.deal.scen[k].holdPerUnit));
+    h+=row('Profit / unit',c=>c.deal.scen[k].arv>0?money(c.deal.scen[k].profit):'\u2014');
+    h+=row('Total Project Profit',c=>c.deal.scen[k].arv>0?money(c.deal.scen[k].total):'\u2014');
+    h+=row('Cash-on-Cash',c=>c.deal.scen[k].arv>0?c.deal.scen[k].coc.toFixed(1)+'%':'\u2014');
+  });
+  h+='</tbody></table>';
+  body.innerHTML=h;
+}
+</script>
+
+<!-- PLAN DRAWING LIGHTBOX -->
+<div id="planimg-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:24px" onclick="closePlanImg()">
+  <div style="max-width:1100px;width:100%" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div id="planimg-cap" style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--text)"></div>
+      <button class="btn btn-ghost" onclick="closePlanImg()" style="padding:6px 14px">Close</button>
+    </div>
+    <img id="planimg-img" alt="Plan drawing" style="display:block;width:100%;max-height:82vh;object-fit:contain;border-radius:10px;background:#fff" />
+  </div>
+</div>
+
+<!-- PLAN COMPARISON MODAL -->
+<div id="compare-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9998;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px">
+  <div style="background:var(--navy-mid);border:1px solid rgba(46,156,143,0.35);border-radius:12px;padding:24px;max-width:1100px;width:100%;margin:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--text)">⚖ Plan Comparison</div>
+      <button class="btn btn-ghost" onclick="closeCompare()" style="padding:6px 14px">Close</button>
+    </div>
+    <div id="cmp-constants" class="note" style="margin-bottom:14px"></div>
+    <div class="cmp-pickers" id="cmp-pickers"></div>
+    <div id="cmp-body" style="margin-top:16px;overflow-x:auto"></div>
+  </div>
+</div>
+
+<!-- OFFER LETTER MODAL -->
+<div id="offer-letter-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--navy-mid);border:1px solid rgba(46,156,143,0.35);border-radius:12px;padding:28px;max-width:460px;width:90%;max-height:90vh;overflow-y:auto">
+    <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:18px">&#9993; Generate Offer Letter</div>
+    <div class="field"><label>Property Address <span style="color:var(--text-dim);font-weight:400;font-size:10px">(auto-filled from Step 1)</span></label>
+      <input type="text" id="ol-address" placeholder="e.g. 6627 Nevin Glen Dr, Charlotte NC 28269" style="width:100%"></div>
+    <div class="field"><label>Offer Amount</label>
+      <div class="input-wrap"><span class="pfx">$</span><input type="text" id="ol-amount" placeholder="e.g. 150,000" oninput="formatOfferAmt(this)"></div></div>
+    <div class="field"><label>Date</label>
+      <input type="text" id="ol-date" placeholder="e.g. May 28, 2026" style="width:100%"></div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" onclick="previewOfferLetter()" style="flex:1">Preview &amp; Print</button>
+      <button class="btn btn-ghost" onclick="closeOfferLetter()" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+<\/body>
+</html>
