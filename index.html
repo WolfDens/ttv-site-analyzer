@@ -402,7 +402,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-badge">V6.9 &middot; Jun 2026</div>
+  <div class="hdr-badge">V7.0 &middot; Jun 2026</div>
 </div>
 
 <div class="step-nav">
@@ -2965,184 +2965,331 @@ function generatePDF(){
   w.onload=()=>{setTimeout(()=>{w.focus();w.print();},600);};
 }
 
+// ── Plan comparison builder: ranked slots first, then next-best fitting plans ──
+function buildPlanComparison(psf){
+  const used=new Set();
+  const slots=[];
+  CHOICES.forEach((nm,i)=>{
+    if(nm){const p=PLANS.find(x=>x.n===nm);if(p){slots.push({rank:i+1,source:'ranked',plan:p});used.add(p.n);}}
+  });
+  if(!slots.length){
+    const cur=($('plan-sel')||{}).value||'';const curName=cur.split('|')[0];
+    const p=PLANS.find(x=>x.n===curName);
+    if(p){slots.push({rank:null,source:'selected',plan:p});used.add(p.n);}
+  }
+  const rankFit=s=>s==='fits'?0:s==='tight'?1:s==='na'?2:3;
+  const pool=PLANS.filter(p=>!used.has(p.n)&&p.w>0&&p.d>0).map(p=>({p,f:fitStatus(p.w,p.d)}))
+    .sort((a,b)=>{const r=rankFit(a.f.status)-rankFit(b.f.status);if(r)return r;return (b.p.sf||0)-(a.p.sf||0);});
+  let pi=0;
+  while(slots.length<3&&pi<pool.length){slots.push({rank:null,source:'fit',plan:pool[pi].p});used.add(pool[pi].p.n);pi++;}
+  return slots.slice(0,3).map(s=>({...s,deal:dealForPlan(s.plan,psf),fit:fitStatus(s.plan.w,s.plan.d)}));
+}
+
 function getReportData(){
-  // Collect all deal data from live DOM/variables
   const zoneRaw=($('zone-sel')||{}).value||'';
   const zoneName=zoneRaw.includes('|')?zoneRaw.split('|')[1]:zoneRaw;
   const county=($('county-sel')||{}).value||'—';
-
-  const arvW=pv('arv-w')||0, arvB=pv('arv-b')||0, arvBest=pv('arv-best')||0;
-  const autoW=arvB?arvB*0.90:0, autoBest=arvB?arvB*1.10:0;
-  const farvW=arvW||autoW, farvBest=arvBest||autoBest;
-
-  const termW=pv('term-w')||12, termB=pv('term-b')||9, termBest=pv('term-best')||6;
-
-  // Read computed profit values from DOM text
-  const profitW=($('profit-w')||{}).textContent||'—';
-  const profitB=($('profit-b')||{}).textContent||'—';
-  const profitBest=($('profit-best')||{}).textContent||'—';
-  const cocW=($('coc-w')||{}).textContent||'—';
-  const cocB=($('coc-b')||{}).textContent||'—';
-  const cocBest=($('coc-best')||{}).textContent||'—';
-  const projW=($('proj-worst')||{}).textContent||'—';
-  const projB=($('proj-base')||{}).textContent||'—';
-  const projBest=($('proj-best')||{}).textContent||'—';
-  const maxLand=($('max-land-display')||{}).textContent||'—';
-
-  // ARV per unit
-  const fmtArv=v=>v>0?'$'+(v*sfPerUnit).toLocaleString(undefined,{maximumFractionDigits:0}):'—';
-
+  const address=[($('addr-street')||{}).value||'',($('addr-city')||{}).value||'',
+                 ($('addr-state')||{}).value||'',($('addr-zip')||{}).value||''].filter(Boolean).join(' ')||'—';
   const landCost=pv('land-cost')||0;
-  const planVal=($('plan-sel')||{}).value||'';
-  const planParts=planVal.split('|');
-  const planName=planParts[0]||($('plan-info-name')||{}).textContent||'—';
+  const u=Math.max(1,units);
 
-  return {
-    address:[($('addr-street')||{}).value||'',
-             ($('addr-city')||{}).value||'',($('addr-state')||{}).value||'',
-             ($('addr-zip')||{}).value||''].filter(Boolean).join(' ') || '—',
-    county, zone:zoneName,
-    units, plan:planName,
-    sf:sfPerUnit, footprint:($('plan-info-fp')||{}).textContent||'—',
-    buildable_sf:buildableArea||0,
-    land:landCost, lot_factor:lotFactor||0, tap_fees:tapTotal||0,
-    plan_cost:currentPlanCost||0,
-    all_in_ex_land:allInExLand||0,
-    all_in_total:(allInExLand||0)+landCost,
-    ltc:pv('ltc-pct')||93, rate:pv('fin-rate')||10,
-    pts:pv('fin-points')||1,
+  // ARV $/sf with auto ±10% fallback off base
+  const basePSF=pv('arv-b')||0;
+  const psf={w:pv('arv-w')||(basePSF?basePSF*0.90:0),b:basePSF,best:pv('arv-best')||(basePSF?basePSF*1.10:0)};
+  const terms={w:pv('term-w')||12,b:pv('term-b')||9,best:pv('term-best')||6};
+
+  // Financing
+  const lb=calcLoanBase(landCost);
+  const fin={ltc:pv('ltc-pct')||93,rate:pv('fin-rate')||10,points:pv('fin-points')||1,
+    docFee:pv('fin-doc-fee')||0,annualTax:pv('fin-tax')||0,salePct:pv('sale-cost-pct')||0,
+    loan:lb.loan,costBase:lb.costBase,purchaseClosing:lb.purchaseClosing,cash:Math.max(0,lb.cash)};
+
+  // Cost build-up
+  const softFixed=(pv('survey')||0)+(pv('appraisal')||0)+(pv('insurance')||0);
+  const upgPerUnit=Array.from(selectedUpgrades).reduce((a,id)=>{const x=UPGRADES.find(y=>y.id===id);return a+(x?x.cost:0);},0);
+  const cost={land:landCost,lotFactor:lotFactor||0,tap:tapTotal||0,
+    buildTotal:(currentPlanCost||0)*u,upgrades:upgPerUnit*u,soft:softFixed,
+    allInExLand:allInExLand||0,total:(allInExLand||0)+landCost};
+
+  // Scenario economics computed directly (not read from DOM text)
+  const loanPerUnit=fin.loan/u;
+  const allInPerUnit=(cost.allInExLand+landCost)/u;
+  const scenarios=['w','b','best'].map(k=>{
+    const arvPSF=psf[k]||0;
+    const arv=sfPerUnit>0&&arvPSF>0?arvPSF*sfPerUnit:0;
+    const h=holdingCost(fin.loan,terms[k]);
+    const holdPerUnit=(h.total+fin.purchaseClosing)/u;
+    const saleCost=arv*(fin.salePct/100);
+    const totalAllIn=allInPerUnit+holdPerUnit+saleCost;
+    const profit=arv?arv-totalAllIn:0;
+    const coc=loanPerUnit>0&&arv?profit/loanPerUnit*100:0;
+    return {key:k,name:k==='w'?'WORST':k==='b'?'BASE':'BEST',
+      color:k==='w'?'#cf4037':k==='b'?'#5e8095':'#648370',
+      term:terms[k],arvPSF,arv,holding:h,holdPerUnit,allInPerUnit,saleCost,
+      totalAllIn,profit,total:profit*u,coc,hasArv:arv>0};
+  });
+
+  const planVal=($('plan-sel')||{}).value||'';
+  const planName=planVal.split('|')[0]||($('plan-info-name')||{}).textContent||'—';
+
+  return {address,county,zone:zoneName||'—',units:u,plan:planName,sf:sfPerUnit||0,
+    footprint:($('plan-info-fp')||{}).textContent||'—',buildable_sf:buildableArea||0,
+    lotMode,lotW:pv('lot-w'),lotD:pv('lot-d'),
     date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),
-    scenarios:[
-      {name:'WORST',color:'#e05c5c',arv:fmtArv(farvW),arv_psf:farvW?'$'+farvW+'/sf':'—',
-       profit:profitW,total:projW,coc:cocW,term:termW+' mo'},
-      {name:'BASE',color:'#5e8095',arv:fmtArv(arvB),arv_psf:arvB?'$'+arvB+'/sf':'—',
-       profit:profitB,total:projB,coc:cocB,term:termB+' mo'},
-      {name:'BEST',color:'#648370',arv:fmtArv(farvBest),arv_psf:farvBest?'$'+farvBest+'/sf':'—',
-       profit:profitBest,total:projBest,coc:cocBest,term:termBest+' mo'},
-    ],
-    max_land:maxLand,
-    arv_w:farvW, arv_b:arvB, arv_best:farvBest,
-    term_w:termW, term_b:termB, term_best:termBest,
-  };
+    fin,cost,scenarios,psf,terms,
+    maxLand:($('max-land-display')||{}).textContent||'—',
+    planComp:buildPlanComparison(psf),
+    comps:COMPS.map(c=>({addr:c.addr||'',sqft:c.sqft||'',sold:c.sold||'',adj:c.adj||'',
+      ppsf:compPPSF(c),date:c.date||'',dist:c.dist||'',mom:c.mom||'',notes:c.notes||'',url:c.url||''})),
+    compStats:compStats()};
 }
 
 function buildReportHTML(canvasDataUrl){
   const d=getReportData();
-  const fmt=v=>typeof v==='number'?'$'+Math.round(v).toLocaleString():'—';
+  const F=v=>(v===0||v)&&!isNaN(v)?'$'+Math.round(v).toLocaleString():'—';
+  const PG='#2f8f5b',PR='#cf4037';                       // print-safe green / red
+  const sign=v=>{const c=v>0?PG:v<0?PR:'#102538';return '<span style="color:'+c+';font-weight:bold">'+F(v)+'</span>';};
+  const signPct=v=>{const c=v>0?PG:v<0?PR:'#102538';return '<span style="color:'+c+';font-weight:bold">'+v.toFixed(1)+'%</span>';};
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-  const imgTag=canvasDataUrl
-    ?'<img class="canvas-img" src="'+canvasDataUrl+'">'
-    :'<div class="no-diagram">No diagram — define lot on Step 2</div>';
+  const emblem=(typeof TTV_EMBLEM!=='undefined'&&TTV_EMBLEM)
+    ?'<img src="'+TTV_EMBLEM+'" width="34" height="34" style="border-radius:6px;background:#f5f0e7">':'';
 
-  const scHdrCells=d.scenarios.map(s=>
-    '<div class="sc-hdr" style="background:'+s.color+'">'+s.name+'</div>').join('');
+  const head=label=>'<div class="hdr">'
+    +'<div class="hdr-l">'+emblem+'<div><div class="hdr-title">TIDE &amp; TIMBER VENTURES</div>'
+    +'<div class="hdr-sub">New Construction Underwriting Memo</div></div></div>'
+    +'<div class="hdr-r">'+label+'</div></div>';
+  const foot='<div class="footer"><span>Tide &amp; Timber Ventures, LLC &nbsp;|&nbsp; management@tidetimberventures.com &nbsp;|&nbsp; Charlotte, NC</span>'
+    +'<span>Confidential — internal use only</span></div>';
+  const sheet=(label,inner)=>'<div class="sheet">'+head(label)+'<div class="body">'+inner+'</div>'+foot+'</div>';
+  const secHdr=(t,cls)=>'<div class="sec-hdr'+(cls?' '+cls:'')+'">'+t+'</div>';
 
-  const scRows=[
-    ['ARV / Unit',  d.scenarios.map(s=>s.arv)],
-    ['ARV ($/sf)',  d.scenarios.map(s=>s.arv_psf)],
-    ['Hold',        d.scenarios.map(s=>s.term)],
-    ['Profit / Unit', d.scenarios.map(s=>s.profit), true],
-    ['Total Profit',  d.scenarios.map(s=>s.total), true],
-    ['Cash-on-Cash',  d.scenarios.map(s=>s.coc)],
-  ].map(([lbl,vals,bold])=>{
-    const lc=bold?'sc-cell sc-lbl sc-bold':'sc-cell sc-lbl';
-    const vc=bold?'sc-cell sc-bold':'sc-cell';
-    return '<div class="'+lc+'">'+lbl+'</div>'+vals.map(v=>'<div class="'+vc+'">'+v+'</div>').join('');
-  }).join('');
+  /* ── SHEET 1: COVER / DEAL SUMMARY + SITE DIAGRAM ── */
+  const base=d.scenarios.find(s=>s.key==='b');
+  const metric=(lbl,val,sub,big)=>'<div class="mcard"><div class="mcard-lbl">'+lbl+'</div>'
+    +'<div class="mcard-val'+(big?' big':'')+'">'+val+'</div>'+(sub?'<div class="mcard-sub">'+sub+'</div>':'')+'</div>';
+  const baseProfit=base.hasArv?sign(base.profit):'<span style="color:#647a8e">Enter ARV</span>';
+  const baseCoc=base.hasArv?signPct(base.coc):'—';
+  const cover=
+    '<div class="addr-bar"><div class="addr-text">'+esc(d.address)+'</div><div class="date-text">'+d.date+'</div></div>'
+    +'<div class="metric-row">'
+      +metric('Base-Case Profit / Unit',baseProfit,base.hasArv?('CoC '+base.coc.toFixed(1)+'%'):'',true)
+      +metric('Total All-In',F(d.cost.total),d.units>1?(d.units+' units'):'',true)
+      +metric('Max Land (Base, $50K target)',d.maxLand,'per $50K/unit goal',true)
+    +'</div>'
+    +'<div class="two-col">'
+      +'<div>'+secHdr('DEAL SUMMARY')
+        +'<table class="kv avoid">'
+          +'<tr><td>Address</td><td>'+esc(d.address)+'</td></tr>'
+          +'<tr><td>County / Zone</td><td>'+esc(d.county)+' / '+esc(d.zone)+'</td></tr>'
+          +'<tr><td>Lot</td><td>'+(d.lotMode==='poly'?'Irregular (polygon)':(d.lotW&&d.lotD?(d.lotW+"' × "+d.lotD+"' ("+(d.lotW*d.lotD).toLocaleString()+' sf)'):'—'))+'</td></tr>'
+          +'<tr><td>Buildable Area</td><td>'+(d.buildable_sf?d.buildable_sf.toLocaleString()+' sf':'—')+'</td></tr>'
+          +'<tr><td>Units</td><td>'+d.units+'</td></tr>'
+          +'<tr><td>Plan Selected</td><td>'+esc(d.plan)+'</td></tr>'
+          +'<tr><td>Finished SF / Unit</td><td>'+(d.sf?d.sf.toLocaleString()+' sf':'—')+'</td></tr>'
+          +'<tr><td>Footprint</td><td>'+esc(d.footprint)+'</td></tr>'
+        +'</table>'
+        +secHdr('FINANCING SNAPSHOT')
+        +'<table class="kv avoid">'
+          +'<tr><td>Loan-to-Cost</td><td>'+d.fin.ltc+'%</td></tr>'
+          +'<tr><td>Loan Amount</td><td>'+F(d.fin.loan)+'</td></tr>'
+          +'<tr><td>Cash Required</td><td>'+F(d.fin.cash)+'</td></tr>'
+          +'<tr><td>Rate / Points</td><td>'+d.fin.rate+'% / '+d.fin.points+'%</td></tr>'
+        +'</table>'
+      +'</div>'
+      +'<div>'+secHdr('SITE DIAGRAM')
+        +(canvasDataUrl?'<img class="canvas-img" src="'+canvasDataUrl+'">':'<div class="no-diagram">No diagram — define the lot on Step 2 to populate.</div>')
+        +'<div class="diagram-cap">Setback envelope &amp; plan footprint overlay (where placed). Verify all dimensions against survey.</div>'
+      +'</div>'
+    +'</div>';
 
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<title>TTV — '+d.address+'</title>'+
-    '<style>'+
-    '* { box-sizing:border-box; margin:0; padding:0; }'+
-    'body { font-family:Arial,sans-serif; font-size:10pt; color:#102538; background:#fff; }'+
-    '.page { width:7.2in; margin:0 auto; }'+
-    '.hdr { background:#102538; color:#fff; padding:13px 18px; display:flex; justify-content:space-between; align-items:center; }'+
-    '.hdr-title { font-size:15pt; font-weight:bold; }'+
-    '.hdr-sub { font-size:10pt; color:#648370; }'+
-    '.addr-bar { background:#f4f5f7; padding:8px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #5e8095; margin-bottom:12px; }'+
-    '.addr-text { font-size:11pt; font-weight:bold; color:#102538; }'+
-    '.date-text { font-size:9pt; color:#8fa3bc; }'+
-    '.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }'+
-    '.sec-hdr { background:#5e8095; color:#fff; padding:5px 10px; font-weight:bold; font-size:9pt; margin-bottom:0; }'+
-    '.amber-hdr { background:#648370 !important; color:#102538 !important; }'+
-    '.kv { width:100%; border-collapse:collapse; }'+
-    '.kv tr:nth-child(even) { background:#f4f5f7; }'+
-    '.kv td { padding:3px 8px; font-size:9pt; border-bottom:1px solid #eef0f4; }'+
-    '.kv td:last-child { text-align:right; font-weight:bold; }'+
-    '.kv .total td { background:#e6edf1 !important; border-top:2px solid #5e8095; border-bottom:2px solid #5e8095; font-weight:bold; font-size:10pt; color:#5e8095; padding:5px 8px; }'+
-    '.canvas-img { width:100%; max-height:230px; object-fit:contain; border:1px solid #d0d7e2; border-radius:3px; }'+
-    '.no-diagram { height:180px; display:flex; align-items:center; justify-content:center; background:#f4f5f7; color:#8fa3bc; font-size:9pt; }'+
-    '.sg { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; margin-bottom:12px; }'+
-    '.sc-hdr { padding:6px; text-align:center; color:#fff; font-weight:bold; font-size:9pt; }'+
-    '.sc-nav { background:#102538; }'+
-    '.sc-cell { padding:4px 8px; text-align:center; font-size:9pt; border-bottom:1px solid #eef0f4; }'+
-    '.sc-lbl { text-align:left !important; }'+
-    '.sc-bold { font-weight:bold; background:#eef2f5 !important; border-top:1px solid #648370; }'+
-    '.max-box { border:2px solid #648370; border-radius:4px; padding:12px; background:#eef2f5; text-align:center; }'+
-    '.max-val { font-size:22pt; font-weight:bold; color:#648370; }'+
-    '.max-lbl { font-size:9pt; color:#8fa3bc; margin-top:3px; }'+
-    '.notes-box { border:1px solid #d0d7e2; padding:8px; font-size:9pt; color:#8fa3bc; min-height:72px; }'+
-    '.footer { margin-top:14px; padding-top:8px; border-top:1px solid #d0d7e2; display:flex; justify-content:space-between; font-size:8pt; color:#8fa3bc; }'+
-    'section { margin-bottom:12px; }'+
-    '@media print { body{font-size:9pt;} .page{width:100%;} @page{margin:0.5in;size:letter;} }'+
-    '</style></head><body><div class="page">'+
+  /* ── SHEET 2: COST BUILD-UP + FINANCING DETAIL ── */
+  const c=d.cost;
+  const costRows=[
+    ['Land Cost',c.land],['Lot Factor (site work)',c.lotFactor],['Tap / Utility Fees',c.tap],
+    ['Build Cost ('+d.units+' × plan)',c.buildTotal],['Upgrades',c.upgrades],['Soft Costs (survey/appraisal/ins.)',c.soft],
+  ];
+  const costBuild=secHdr('COST BUILD-UP')
+    +'<table class="kv avoid">'
+      +costRows.map(r=>'<tr><td>'+r[0]+'</td><td>'+F(r[1])+'</td></tr>').join('')
+      +'<tr class="subtotal"><td>All-In (excl. land)</td><td>'+F(c.allInExLand)+'</td></tr>'
+      +'<tr class="total"><td>TOTAL ALL-IN</td><td>'+F(c.total)+'</td></tr>'
+    +'</table>';
 
-    '<div class="hdr"><div style="display:flex;gap:12px;align-items:center">'+(typeof TTV_EMBLEM!=='undefined'&&TTV_EMBLEM?'<img src="'+TTV_EMBLEM+'" width="40" height="40" style="border-radius:6px;background:#f5f0e7">':'')+'<div class="hdr-title">TIDE &amp; TIMBER VENTURES</div></div>'+
-    '<div class="hdr-sub">New Construction Analysis</div></div>'+
-    '<div class="addr-bar">'+
-    '<div class="addr-text">'+d.address+'</div>'+
-    '<div class="date-text">'+d.date+'</div></div>'+
+  const holdRowsFor=s=>{
+    const h=s.holding;
+    const rows=[['Interest ('+s.term+' mo)',h.interest],['Points ('+d.fin.points+'%)',h.points],
+      ['Doc / Origination',h.docFee],['Property Taxes',h.taxes],['Purchase Closing (1%)',d.fin.purchaseClosing]]
+      .filter(r=>r[1]>0);
+    return '<table class="mini avoid"><thead><tr><th style="background:'+s.color+'">'+s.name+' — '+s.term+' mo</th><th style="background:'+s.color+'"></th></tr></thead><tbody>'
+      +(rows.length?rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+F(r[1])+'</td></tr>').join(''):'<tr><td colspan="2" class="muted">No carry yet — set loan/term.</td></tr>')
+      +'<tr class="mini-total"><td>Total Holding</td><td>'+F(s.holding.total+d.fin.purchaseClosing)+'</td></tr>'
+      +'</tbody></table>';
+  };
+  const finDetail=secHdr('FINANCING DETAIL')
+    +'<table class="kv avoid">'
+      +'<tr><td>Cost Base (land + all-in + closing)</td><td>'+F(d.fin.costBase+d.fin.purchaseClosing)+'</td></tr>'
+      +'<tr><td>Loan Amount ('+d.fin.ltc+'% LTC)</td><td>'+F(d.fin.loan)+'</td></tr>'
+      +'<tr><td>Purchase Closing (1% of loan)</td><td>'+F(d.fin.purchaseClosing)+'</td></tr>'
+      +'<tr><td>Interest Rate / Points</td><td>'+d.fin.rate+'% / '+d.fin.points+'%</td></tr>'
+      +'<tr><td>Annual Property Tax</td><td>'+F(d.fin.annualTax)+'</td></tr>'
+      +'<tr class="total"><td>CASH REQUIRED AT CLOSE</td><td>'+F(d.fin.cash)+'</td></tr>'
+    +'</table>'
+    +'<div class="hold-label">Holding cost by scenario</div>'
+    +'<div class="hold-grid">'+d.scenarios.map(holdRowsFor).join('')+'</div>';
 
-    '<div class="two-col">'+
-      '<div>'+
-        '<section><div class="sec-hdr">DEAL INFO</div>'+
-        '<table class="kv">'+
-          '<tr><td>County / Zone</td><td>'+d.county+' / '+d.zone+'</td></tr>'+
-          '<tr><td>Units</td><td>'+d.units+'</td></tr>'+
-          '<tr><td>Plan Selected</td><td>'+d.plan+'</td></tr>'+
-          '<tr><td>Sq Ft / Unit</td><td>'+(d.sf?d.sf.toLocaleString()+' sf':'—')+'</td></tr>'+
-          '<tr><td>Footprint</td><td>'+d.footprint+'</td></tr>'+
-          '<tr><td>Buildable Area</td><td>'+(d.buildable_sf?d.buildable_sf.toLocaleString()+' sf':'—')+'</td></tr>'+
-        '</table></section>'+
-        '<section><div class="sec-hdr">FINANCING</div>'+
-        '<table class="kv">'+
-          '<tr><td>LTC %</td><td>'+d.ltc+'%</td></tr>'+
-          '<tr><td>Interest Rate</td><td>'+d.rate+'%</td></tr>'+
-          '<tr><td>Loan Points</td><td>'+d.pts+'%</td></tr>'+
-        '</table></section>'+
-      '</div>'+
-      '<div><section><div class="sec-hdr">SETBACK DIAGRAM</div>'+imgTag+'</section></div>'+
-    '</div>'+
+  /* ── SHEET 3: FULL SCENARIO TABLE ── */
+  const scHdr=d.scenarios.map(s=>'<th style="background:'+s.color+';color:#fff">'+s.name+'</th>').join('');
+  const scRow=(lbl,fn,cls)=>'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+lbl+'</td>'+d.scenarios.map(s=>'<td>'+fn(s)+'</td>').join('')+'</tr>';
+  const scTable=secHdr('SCENARIO ANALYSIS — WORST / BASE / BEST')
+    +'<table class="sc avoid"><thead><tr><th></th>'+scHdr+'</tr></thead><tbody>'
+      +scRow('ARV $/sf',s=>s.arvPSF?('$'+Math.round(s.arvPSF)):'—')
+      +scRow('ARV / Unit',s=>s.hasArv?F(s.arv):'—')
+      +scRow('Hold (months)',s=>s.term+' mo')
+      +scRow('Build + Costs / Unit',s=>F(s.allInPerUnit))
+      +scRow('Holding / Unit',s=>F(s.holdPerUnit))
+      +scRow('Sale Costs ('+d.fin.salePct+'%)',s=>s.hasArv?F(s.saleCost):'—')
+      +scRow('Total All-In / Unit',s=>F(s.totalAllIn))
+      +scRow('Profit / Unit',s=>s.hasArv?sign(s.profit):'—','rowhi')
+      +scRow('Total Profit ('+d.units+' u)',s=>s.hasArv?sign(s.total):'—','rowhi')
+      +scRow('Cash-on-Cash',s=>s.hasArv?signPct(s.coc):'—','rowhi')
+    +'</tbody></table>'
+    +'<div class="legend"><span class="lg" style="background:'+PG+'"></span> Positive &nbsp;&nbsp; <span class="lg" style="background:'+PR+'"></span> Negative &nbsp;&nbsp; Worst/Best auto-derive ±10% off base ARV when not entered.</div>';
 
-    '<section><div class="sec-hdr">COST BUILD-UP</div>'+
-    '<table class="kv">'+
-      '<tr><td>Land Cost</td><td>'+fmt(d.land)+'</td></tr>'+
-      '<tr><td>Lot Factor</td><td>'+fmt(d.lot_factor)+'</td></tr>'+
-      '<tr><td>Tap Fees</td><td>'+fmt(d.tap_fees)+'</td></tr>'+
-      '<tr><td>Build Cost + Upgrades</td><td>'+fmt(d.plan_cost)+'</td></tr>'+
-      '<tr><td>All-In Cost (ex. Land)</td><td>'+fmt(d.all_in_ex_land)+'</td></tr>'+
-      '<tr class="total"><td>TOTAL ALL-IN</td><td>'+fmt(d.all_in_total)+'</td></tr>'+
-    '</table></section>'+
+  /* ── SHEET 4: PLAN COMPARISON ── */
+  const fitTxt=f=>f.status==='fits'?(f.rotated?'Fits (rotated)':'✓ Fits'):f.status==='tight'?'⚠ Tight':f.status==='no'?'✗ Too large':'—';
+  const fitCls=f=>f.status==='fits'?'pc-fit':f.status==='tight'?'pc-tight':f.status==='no'?'pc-no':'';
+  let planComp;
+  if(!d.planComp.length){planComp=secHdr('PLAN COMPARISON')+'<div class="note-box">No plans available to compare.</div>';}
+  else{
+    const cols=d.planComp;
+    const slotLbl=s=>s.rank?('#'+s.rank+' Ranked'):(s.source==='selected'?'Selected':'Next-best fit');
+    let bestI=-1,bestV=-Infinity;
+    cols.forEach((s,i)=>{const t=s.deal.scen.b.total;if(s.deal.scen.b.arv>0&&t>bestV){bestV=t;bestI=i;}});
+    const th=cols.map((s,i)=>'<th'+(i===bestI?' class="pc-win"':'')+'>'+esc(s.plan.n)
+      +'<div class="pc-slot">'+slotLbl(s)+(i===bestI?' · BEST BASE':'')+'</div></th>').join('');
+    const row=(lbl,fn,cls)=>'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+lbl+'</td>'
+      +cols.map((s,i)=>'<td'+(i===bestI?' class="pc-win"':'')+'>'+fn(s)+'</td>').join('')+'</tr>';
+    planComp=secHdr('PLAN COMPARISON — RANKED + NEXT-BEST FITS')
+      +'<table class="sc pc avoid"><thead><tr><th></th>'+th+'</tr></thead><tbody>'
+      +row('Finished SF',s=>s.plan.sf?s.plan.sf.toLocaleString()+' sf':'—')
+      +row('Footprint',s=>(s.plan.w&&s.plan.d)?(s.plan.w+"'W × "+s.plan.d+"'D"):'—')
+      +row('Fit',s=>'<span class="'+fitCls(s.fit)+'">'+fitTxt(s.fit)+'</span>')
+      +row('Build Cost / Unit',s=>F(s.plan.c))
+      +row('Loan Size',s=>F(s.deal.loan))
+      +row('Base ARV / Unit',s=>s.deal.scen.b.arv>0?F(s.deal.scen.b.arv):'—')
+      +row('Base Profit / Unit',s=>s.deal.scen.b.arv>0?sign(s.deal.scen.b.profit):'—','rowhi')
+      +row('Base Total Profit',s=>s.deal.scen.b.arv>0?sign(s.deal.scen.b.total):'—','rowhi')
+      +row('Base Cash-on-Cash',s=>s.deal.scen.b.arv>0?signPct(s.deal.scen.b.coc):'—','rowhi')
+      +'</tbody></table>'
+      +'<div class="legend">Slots fill from your Step-3 rankings first, then the highest-finished-SF plans that still fit the envelope. ARV held at the deal\u2019s base $/sf across all plans.</div>';
+  }
 
-    '<section><div class="sec-hdr">SCENARIO ANALYSIS — WORST / BASE / BEST</div>'+
-    '<div class="sg">'+
-      '<div class="sc-hdr sc-nav"></div>'+scHdrCells+scRows+
-    '</div></section>'+
+  /* ── SHEET 5: COMPS + NOTES ── */
+  const st=d.compStats;
+  let compsTbl;
+  if(!d.comps.length){
+    compsTbl='<table class="comps avoid"><thead><tr><th>Address</th><th>Sq Ft</th><th>Sold $</th><th>Adj</th><th>Adj $/SF</th><th>Date</th><th>Dist</th><th>Notes</th></tr></thead>'
+      +'<tbody><tr><td colspan="8" class="muted" style="padding:10px">No comps entered yet — add comps on the Exit step to populate this table.</td></tr></tbody></table>';
+  }else{
+    compsTbl='<table class="comps avoid"><thead><tr><th>Address</th><th>Sq Ft</th><th>Sold $</th><th>Adj</th><th>Adj $/SF</th><th>Date</th><th>Dist</th><th>Notes</th></tr></thead><tbody>'
+      +d.comps.map(c=>'<tr><td>'+esc(c.addr||'—')+'</td><td>'+esc(c.sqft||'—')+'</td><td>'+esc(c.sold||'—')+'</td>'
+        +'<td>'+esc(c.adj||'—')+'</td><td>'+(c.ppsf>0?'$'+c.ppsf.toFixed(0):'—')+'</td><td>'+esc(c.date||'—')+'</td>'
+        +'<td>'+esc(c.dist||'—')+'</td><td>'+esc(c.notes||'')+'</td></tr>').join('')
+      +'</tbody></table>';
+  }
+  const subjSf=d.sf||0;
+  const compSummary=st.n
+    ? '<div class="comp-sum"><b>'+st.n+'</b> comps &nbsp;·&nbsp; Median adj $/SF <b>$'+st.median.toFixed(0)+'</b>'
+      +' &nbsp;·&nbsp; Avg <b>$'+st.avg.toFixed(0)+'</b> &nbsp;·&nbsp; Range <b>$'+st.min.toFixed(0)+'–$'+st.max.toFixed(0)+'</b>'
+      +(subjSf>0?(' &nbsp;·&nbsp; Suggested ARV (median × '+subjSf.toLocaleString()+' sf) <b>$'+Math.round(st.median*subjSf).toLocaleString()+'</b>'):'')+'</div>'
+    : '<div class="comp-sum muted">Add comps with Sq Ft and Sold price to compute blended adjusted $/SF.</div>';
+  const compsSheet=secHdr('COMPARABLE SALES')+compsTbl+compSummary
+    +secHdr('UNDERWRITING NOTES')
+    +'<div class="notes-box">'
+      +'Figures generated by the TTV Site Analyzer and are estimates for internal screening only. '
+      +'Confirm tap/utility fees with CMUD, setbacks and BUA allocation with the county, and final build pricing with the builder before submitting any offer. '
+      +'Worst/Best scenarios auto-derive at ±10% of the base ARV $/sf unless overridden. '
+      +'Plan footprints follow Slate\u2019s D\u2032×W\u2032 source convention.'
+    +'</div>';
 
-    '<div class="two-col">'+
-      '<div><div class="sec-hdr amber-hdr">MAX LAND COST (Base, $50K profit target)</div>'+
-      '<div class="max-box"><div class="max-val">'+d.max_land+'</div>'+
-      '<div class="max-lbl">Maximum offer to achieve $50K profit / unit</div></div></div>'+
-      '<div><div class="sec-hdr">NOTES</div>'+
-      '<div class="notes-box">Figures from TTV Site Analyzer. Estimates only. '+
-      'Verify tap fees, setbacks, and BUA with county before offer.</div></div>'+
-    '</div>'+
+  /* ── ASSEMBLE ── */
+  const css=
+    '*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Arial,Helvetica,sans-serif;font-size:10pt;color:#102538;background:#e7e2d8}'
+    +'.sheet{width:7.5in;min-height:10in;margin:0 auto 16px;background:#fff;display:flex;flex-direction:column;box-shadow:0 2px 10px rgba(16,37,56,0.18)}'
+    +'.body{flex:1;padding:0 0.32in 0.1in}'
+    +'.hdr{background:#102538;color:#fff;padding:11px 0.32in;display:flex;justify-content:space-between;align-items:center}'
+    +'.hdr-l{display:flex;gap:11px;align-items:center}'
+    +'.hdr-title{font-size:13pt;font-weight:bold;letter-spacing:.3px}'
+    +'.hdr-sub{font-size:8.5pt;color:#9fc0b1}'
+    +'.hdr-r{font-size:9pt;color:#f5f0e7;text-transform:uppercase;letter-spacing:.5px}'
+    +'.addr-bar{background:#f5f0e7;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid #5e8095;margin:12px 0}'
+    +'.addr-text{font-size:12pt;font-weight:bold;color:#102538}'
+    +'.date-text{font-size:9pt;color:#647a8e}'
+    +'.metric-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}'
+    +'.mcard{border:1px solid #d9d2c4;border-top:3px solid #648370;border-radius:4px;padding:9px 11px;background:#faf8f3}'
+    +'.mcard-lbl{font-size:7.5pt;text-transform:uppercase;letter-spacing:.4px;color:#647a8e}'
+    +'.mcard-val{font-size:13pt;font-weight:bold;color:#102538;margin-top:3px}'
+    +'.mcard-val.big{font-size:16pt}'
+    +'.mcard-sub{font-size:8pt;color:#5e8095;margin-top:2px}'
+    +'.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}'
+    +'.sec-hdr{background:#5e8095;color:#fff;padding:5px 10px;font-weight:bold;font-size:8.5pt;letter-spacing:.4px;margin:12px 0 0}'
+    +'.sec-hdr.green{background:#648370}'
+    +'.kv{width:100%;border-collapse:collapse}'
+    +'.kv tr:nth-child(even){background:#f7f5f0}'
+    +'.kv td{padding:3.5px 9px;font-size:9pt;border-bottom:1px solid #eceae3}'
+    +'.kv td:last-child{text-align:right;font-weight:bold}'
+    +'.kv .subtotal td{background:#eef2f0!important;border-top:1px solid #648370;color:#3c5547}'
+    +'.kv .total td{background:#e6edf1!important;border-top:2px solid #5e8095;border-bottom:2px solid #5e8095;font-weight:bold;font-size:10pt;color:#33576e;padding:5px 9px}'
+    +'.canvas-img{width:100%;max-height:3.0in;object-fit:contain;border:1px solid #d9d2c4;border-radius:3px;background:#fff;margin-top:4px}'
+    +'.no-diagram{height:2.4in;display:flex;align-items:center;justify-content:center;background:#f5f0e7;color:#647a8e;font-size:9pt;border:1px dashed #c9c0ae;border-radius:3px;margin-top:4px}'
+    +'.diagram-cap{font-size:7.5pt;color:#647a8e;margin-top:5px;line-height:1.35}'
+    +'.hold-label{font-size:8.5pt;font-weight:bold;color:#33576e;margin:12px 0 5px}'
+    +'.hold-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}'
+    +'.mini{width:100%;border-collapse:collapse;font-size:8pt}'
+    +'.mini th{color:#fff;padding:4px 7px;text-align:left;font-size:8pt}'
+    +'.mini td{padding:3px 7px;border-bottom:1px solid #eceae3}'
+    +'.mini td:last-child{text-align:right}'
+    +'.mini .mini-total td{font-weight:bold;border-top:1px solid #5e8095;background:#f3f5f4}'
+    +'.mini .muted{color:#8a99a6;text-align:center}'
+    +'.sc{width:100%;border-collapse:collapse;margin-top:0}'
+    +'.sc th{padding:6px 8px;font-size:8.5pt;text-align:center}'
+    +'.sc th:first-child{text-align:left;background:#102538;color:#fff}'
+    +'.sc td{padding:4px 9px;text-align:center;font-size:9pt;border-bottom:1px solid #eceae3}'
+    +'.sc td:first-child{text-align:left;color:#33576e}'
+    +'.sc tr:nth-child(even){background:#f7f5f0}'
+    +'.sc .rowhi td{background:#eef2f0;border-top:1px solid #cfe0d4}'
+    +'.sc .rowhi td:first-child{font-weight:bold}'
+    +'.pc th{background:#33576e;color:#fff;vertical-align:top}'
+    +'.pc th.pc-win,.pc td.pc-win{background:#eaf3ec}'
+    +'.pc th.pc-win{background:#648370}'
+    +'.pc-slot{font-size:7pt;font-weight:normal;color:#d7e6dc;margin-top:2px}'
+    +'.pc-fit{color:#2f8f5b;font-weight:bold}.pc-tight{color:#b9842a;font-weight:bold}.pc-no{color:#cf4037;font-weight:bold}'
+    +'.legend{font-size:7.5pt;color:#647a8e;margin-top:6px;line-height:1.4}'
+    +'.lg{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle}'
+    +'.comps{width:100%;border-collapse:collapse;margin-top:0;font-size:8pt}'
+    +'.comps th{background:#33576e;color:#fff;padding:4px 6px;text-align:left;font-size:7.5pt}'
+    +'.comps td{padding:3px 6px;border-bottom:1px solid #eceae3}'
+    +'.comps tr:nth-child(even){background:#f7f5f0}'
+    +'.comps .muted{color:#8a99a6;text-align:center}'
+    +'.comp-sum{font-size:8.5pt;color:#33576e;background:#f5f0e7;border-left:3px solid #648370;padding:7px 10px;margin-top:8px}'
+    +'.comp-sum.muted{color:#647a8e}'
+    +'.note-box,.notes-box{border:1px solid #d9d2c4;background:#faf8f3;padding:9px 11px;font-size:8.5pt;color:#3c4b59;line-height:1.5;margin-top:0}'
+    +'.muted{color:#8a99a6}'
+    +'.footer{padding:8px 0.32in;border-top:1px solid #d9d2c4;display:flex;justify-content:space-between;font-size:7.5pt;color:#647a8e;background:#fff}'
+    +'.avoid{break-inside:avoid;page-break-inside:avoid}'
+    +'@media print{body{background:#fff}.sheet{width:100%;min-height:0;margin:0;box-shadow:none;page-break-after:always}.sheet:last-child{page-break-after:auto}@page{size:letter;margin:0.45in}}';
 
-    '<div class="footer">'+
-      '<span>Tide &amp; Timber Ventures, LLC &nbsp;|&nbsp; management@tidetimberventures.com &nbsp;|&nbsp; Charlotte, NC</span>'+
-      '<span>For internal use only — not for distribution</span>'+
-    '</div>'+
-    '</div><\/body><\/html>';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TTV Underwriting Memo — '+esc(d.address)+'</title>'
+    +'<style>'+css+'</style></head><body>'
+    +sheet('Deal Summary',cover)
+    +sheet('Cost &amp; Financing',costBuild+finDetail)
+    +sheet('Scenario Analysis',scTable)
+    +sheet('Plan Comparison',planComp)
+    +sheet('Comps &amp; Notes',compsSheet)
+    +'<\/body><\/html>';
 }
 
 // ── EXCEL EXPORT (ExcelJS — live formulas, branded; fully client-side) ──
