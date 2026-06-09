@@ -28,17 +28,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);m
 .ba-green{fill:none;stroke:var(--brand-green);stroke-width:1.5;opacity:0.24}
 .ba-steel{fill:none;stroke:var(--teal);stroke-width:1.5;opacity:0.19}
 .ba-wave{fill:none;stroke:var(--cream);stroke-width:1.4;opacity:0.07;stroke-linecap:round}
-.bg-emblem{position:absolute;right:-70px;bottom:-50px;width:440px;opacity:0.08}
-@media (max-width:760px){.bg-emblem{width:300px;right:-90px;bottom:-70px}}
+.bg-emblem{position:absolute;right:30px;bottom:26px;width:372px;opacity:0.08}
+@media (max-width:760px){.bg-emblem{width:230px;right:10px;bottom:16px}}
+.ba-green,.ba-steel,.ba-wave,.bg-emblem{transition:opacity .45s ease}
+.bg-art::before{transition:opacity .45s ease}
+body[data-step]:not([data-step="1"]) .ba-green{opacity:0.07}
+body[data-step]:not([data-step="1"]) .ba-steel{opacity:0.06}
+body[data-step]:not([data-step="1"]) .ba-wave{opacity:0.025}
+body[data-step]:not([data-step="1"]) .bg-emblem{opacity:0.035}
+body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
+
 @media (prefers-reduced-motion:no-preference){.bg-emblem{transition:opacity .6s}}
 
 
-.hdr{border-bottom:1px solid rgba(100,131,112,0.30);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;background:rgba(16,37,56,0.94);position:sticky;top:0;z-index:200;backdrop-filter:blur(8px);box-shadow:0 1px 0 rgba(245,240,231,0.05)}
+.hdr{position:sticky;top:0;z-index:200;padding:15px 28px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(100deg,rgba(16,37,56,0.97) 52%,rgba(94,128,149,0.16) 100%);backdrop-filter:blur(8px);border-bottom:none}.hdr::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--brand-green) 42%,var(--cream) 72%,transparent)}
 .hdr-brand{display:flex;align-items:center;gap:10px}
-.hdr-logo{width:36px;height:36px;background:var(--cream);border-radius:7px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2px}
+.hdr-logo{width:42px;height:42px;background:var(--cream);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:3px;box-shadow:0 0 0 1px rgba(245,240,231,0.22),0 3px 10px rgba(0,0,0,0.28)}
 .hdr-logo img{width:100%;height:100%;object-fit:contain}
-.hdr-title{font-family:'DM Serif Display',serif;font-size:17px;color:var(--cream)}
-.hdr-sub{font-size:10px;color:var(--text-mid);margin-top:1px}
+.hdr-title{font-family:'DM Serif Display',serif;font-size:19px;color:var(--cream);letter-spacing:.005em;line-height:1.1}
+.hdr-sub{font-size:10.5px;color:var(--text-mid);margin-top:2px;letter-spacing:.01em}
 .hdr-badge{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);background:var(--teal-dim);border:1px solid rgba(94,128,149,0.35);padding:3px 8px;border-radius:20px}
 
 .step-nav{display:flex;align-items:stretch;background:var(--navy-mid);border-bottom:1px solid var(--border)}
@@ -359,7 +367,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);m
 .shortlist b{color:var(--teal-light)}
 </style>
 </head>
-<body>
+<body data-step="1">
 <div class="bg-art" aria-hidden="true">
   <svg class="bg-svg" viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice">
     <defs><path id="ttv-ctr" d="M0,-150 C70,-150 138,-92 134,-18 C131,46 92,118 14,140 C-66,162 -150,96 -150,12 C-150,-72 -78,-150 0,-150 Z"/></defs>
@@ -394,7 +402,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);m
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-badge">V6.8 &middot; Jun 2026</div>
+  <div class="hdr-badge">V6.9 &middot; Jun 2026</div>
 </div>
 
 <div class="step-nav">
@@ -1351,6 +1359,7 @@ const pv=id=>{const e=$(id);if(!e)return 0;const v=parseFloat((e.value||'').repl
 
 // ═══════════════════ NAVIGATION ═══════════════════
 function goTo(n){
+  try{document.body.setAttribute('data-step',n);}catch(e){}
   for(let i=1;i<=7;i++){
     $(`page-${i}`).classList.toggle('active',i===n);
     const nb=$(`nav-${i}`);
@@ -3182,11 +3191,11 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   const band=(ws,row,span,txt)=>{const c=ws.getCell('A'+row);c.value=txt;c.font={bold:true,size:10,color:{argb:WHITE},name:'Arial'};c.fill=fill(STEEL);ws.mergeCells('A'+row+':'+span+row);};
 
   // ---------- Inputs ----------
-  const wsI=wb.addWorksheet('Inputs'); wsI.getColumn(1).width=30; wsI.getColumn(2).width=22;
-  titleBar(wsI,1,'B','TIDE & TIMBER VENTURES — Underwriting Inputs');
-  wsI.getCell('A2').value='Blue cells are inputs — change any of them and every sheet recalculates.'; wsI.getCell('A2').font={italic:true,size:9,color:{argb:'FF566B82'}}; wsI.mergeCells('A2:B2');
+  const wsI=wb.addWorksheet('Inputs'); wsI.getColumn(1).width=30; wsI.getColumn(2).width=22; wsI.getColumn(3).width=16;
+  titleBar(wsI,1,'C','TIDE & TIMBER VENTURES — Underwriting Inputs');
+  wsI.getCell('A2').value='Blue cells are inputs — change any of them and every sheet recalculates.'; wsI.getCell('A2').font={italic:true,size:9,color:{argb:'FF566B82'}}; wsI.mergeCells('A2:C2');
   let ir=2; const IN={};
-  const sec=t=>{ir+=2;band(wsI,ir,'B',t);};
+  const sec=t=>{ir+=2;band(wsI,ir,'C',t);};
   const inp=(key,label,val,fmt)=>{ir++;wsI.getCell('A'+ir).value=label;const c=wsI.getCell('B'+ir);if(val!==''&&val!=null)c.value=val;if(fmt)c.numFmt=fmt;c.font={color:{argb:BLUE},name:'Arial'};IN[key]='B'+ir;};
   sec('DEAL'); inp('addr','Property Address',M.address); inp('county','County',M.county); inp('zone','Zone',M.zone); inp('units','Units',M.units);
   sec('PLAN'); inp('plan','Plan',M.planName); inp('sf','Sq Ft / Unit',M.sf,SF); inp('build','Build Cost / Unit (Cost+14)',M.buildUnit,MONEY);
@@ -3194,6 +3203,7 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   sec('FINANCING'); inp('ltc','LTC %',M.ltc,PCT); inp('rate','Interest Rate',M.rate,PCT); inp('pts','Loan Points',M.points,PCT); inp('doc','Doc / Orig Fee',M.docFee,MONEY); inp('tax','Annual Property Tax',M.annTax,MONEY); inp('sale','Sale Costs %',M.salePct,PCT);
   sec('EXIT'); inp('land','Land Cost',M.land,MONEY); inp('arvB','ARV Base ($/sf)',M.arvBase,MONEY2); inp('arvW','ARV Worst ($/sf, blank=auto -10%)',M.arvWorst,MONEY2); inp('arvBest','ARV Best ($/sf, blank=auto +10%)',M.arvBest,MONEY2); inp('termW','Term Worst (mo)',M.termW); inp('termB','Term Base (mo)',M.termB); inp('termBest','Term Best (mo)',M.termBest);
   const I=k=>'Inputs!'+IN[k];
+  wsI.pageSetup={printArea:'A1:C'+ir};
 
   // ---------- Scenarios ----------
   const ws=wb.addWorksheet('Scenarios'); ws.getColumn(1).width=26;[2,3,4,5].forEach(i=>ws.getColumn(i).width=16);
@@ -3223,25 +3233,41 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   ws.getCell('A21').value='Profit / Unit'; ['C','D','E'].forEach(col=>F(col+21,`${col}15-${col}20`,MONEY,true));
   ws.getCell('A22').value='Total Project Profit'; ['C','D','E'].forEach(col=>F(col+22,`${col}21*${I('units')}`,MONEY,true));
   ws.getCell('A23').value='Cash-on-Cash'; ['C','D','E'].forEach(col=>F(col+23,`IF($B$10>0,${col}21/$B$10,0)`,PCT));
+  const POS='FF2E8B57',NEG='FFD2645F';
+  ws.addConditionalFormatting({ref:'C21:E22',rules:[
+    {type:'cellIs',operator:'lessThan',formulae:['0'],priority:1,style:{font:{bold:true,color:{argb:NEG}}}},
+    {type:'cellIs',operator:'greaterThan',formulae:['0'],priority:2,style:{font:{bold:true,color:{argb:POS}}}}]});
+  ws.addConditionalFormatting({ref:'C23:E23',rules:[
+    {type:'cellIs',operator:'lessThan',formulae:['0'],priority:1,style:{font:{color:{argb:NEG}}}},
+    {type:'cellIs',operator:'greaterThan',formulae:['0'],priority:2,style:{font:{color:{argb:POS}}}}]});
+  ['C','D','E'].forEach(c=>{ws.getCell(c+'13').border={bottom:{style:'thin',color:{argb:WHITE}}};});
+  ws.getRow(21).height=17; ws.getRow(22).height=17;
   band(ws,25,'E','MAX LAND — back-solve for $50k/unit base profit');
   ws.getCell('A26').value='k1'; F('B26','B7/(1-B7*0.01)','0.0000');
   ws.getCell('A27').value='loan factor'; F('B27',`${I('rate')}/12*${I('termB')}+${I('pts')}+0.01`,'0.0000');
   ws.getCell('A28').value='fixed hold / unit'; F('B28',`(${I('doc')}+${I('tax')}/12*${I('termB')})/${I('units')}`,MONEY);
   ws.getCell('A29').value='Base ARV ($)'; F('B29','D15',MONEY);
   ws.getCell('A30').value='Max Land Cost'; F('B30',`(B29*(1-${I('sale')})-50000-B4/${I('units')}-B28-B26*B4*B27/${I('units')})/(1/${I('units')}+B26*B27/${I('units')})`,MONEY,true);
+  ws.pageSetup={printArea:'A1:E30'};
 
   // ---------- Cover ----------
-  const wc=wb.addWorksheet('Cover',{properties:{tabColor:{argb:NAVY}}}); wc.getColumn(1).width=34; wc.getColumn(2).width=24;
-  for(let r=1;r<=22;r++){for(let c=1;c<=4;c++){wc.getCell(r,c).fill=fill(CREAM);}}
-  if(logoBuf){const id=wb.addImage({buffer:logoBuf,extension:'png'});wc.addImage(id,{tl:{col:0.2,row:0.3},ext:{width:150,height:150}});}
-  wc.getCell('C2').value='TIDE & TIMBER VENTURES, LLC'; wc.getCell('C2').font={bold:true,size:18,color:{argb:NAVY},name:'Arial'};
-  wc.getCell('C3').value='New-Construction Underwriting'; wc.getCell('C3').font={size:11,color:{argb:STEEL},name:'Arial'};
-  wc.getCell('C5').value={formula:'Inputs!'+IN.addr}; wc.getCell('C5').font={bold:true,size:12,color:{argb:NAVY},name:'Arial'};
-  const head=(r,label,formula,fmt,color)=>{wc.getCell('A'+r).value=label;wc.getCell('A'+r).font={size:11,color:{argb:'FF566B82'},name:'Arial'};const c=wc.getCell('B'+r);c.value={formula};c.numFmt=fmt;c.font={bold:true,size:14,color:{argb:color||NAVY},name:'Arial'};};
+  const wc=wb.addWorksheet('Cover',{properties:{tabColor:{argb:NAVY}}});
+  wc.getColumn(1).width=30; wc.getColumn(2).width=20; wc.getColumn(3).width=18; wc.getColumn(4).width=18; wc.getColumn(5).width=6;
+  for(let r=1;r<=26;r++){for(let c=1;c<=5;c++){wc.getCell(r,c).fill=fill(CREAM);}}
+  if(logoBuf){const id=wb.addImage({buffer:logoBuf,extension:'png'});wc.addImage(id,{tl:{col:0.25,row:0.45},ext:{width:132,height:132}});}
+  wc.mergeCells('C2:E2'); wc.getCell('C2').value='TIDE & TIMBER VENTURES, LLC'; wc.getCell('C2').font={bold:true,size:14,color:{argb:NAVY},name:'Arial'}; wc.getCell('C2').alignment={vertical:'middle'};
+  wc.mergeCells('C3:E3'); wc.getCell('C3').value='New-Construction Underwriting'; wc.getCell('C3').font={size:11,color:{argb:STEEL},name:'Arial'};
+  wc.mergeCells('C5:E5'); wc.getCell('C5').value={formula:'Inputs!'+IN.addr}; wc.getCell('C5').font={bold:true,size:12,color:{argb:NAVY},name:'Arial'};
+  ['A','B','C','D','E'].forEach(c=>{wc.getCell(c+'7').border={bottom:{style:'medium',color:{argb:STEEL}}};});
+  const head=(r,label,formula,fmt,color)=>{wc.getCell('A'+r).value=label;wc.getCell('A'+r).font={size:11,color:{argb:'FF566B82'},name:'Arial'};const c=wc.getCell('B'+r);c.value={formula};c.numFmt=fmt;c.font={bold:true,size:15,color:{argb:color||NAVY},name:'Arial'};};
   head(9,'Base Profit / Unit','Scenarios!D21',MONEY,GREEN);
   head(11,'Base Cash-on-Cash','Scenarios!D23',PCT,NAVY);
   head(13,'Total Project Profit (Base)','Scenarios!D22',MONEY,GREEN);
   head(15,'Max Land Cost ($50k/unit)','Scenarios!B30',MONEY,STEEL);
+  ['A','B','C','D','E'].forEach(c=>{wc.getCell(c+'23').border={bottom:{style:'thin',color:{argb:'FFB8AE9C'}}};});
+  wc.mergeCells('A24:E24'); wc.getCell('A24').value='Tide & Timber Ventures, LLC   ·   management@tidetimberventures.com   ·   Charlotte, NC';
+  wc.getCell('A24').font={size:9,italic:true,color:{argb:'FF566B82'},name:'Arial'};
+  wc.pageSetup={printArea:'A1:E26'};
 
   // ---------- Cost Build-Up ----------
   const wcb=wb.addWorksheet('Cost Build-Up'); wcb.getColumn(1).width=30; wcb.getColumn(2).width=16;
@@ -3250,12 +3276,15 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   li('Land',`${I('land')}`); li('Lot Factor',`${I('lot')}`); li('Tap Fees',`${I('tap')}`); li('Survey',`${I('survey')}`); li('Appraisal',`${I('appr')}`); li('Insurance',`${I('ins')}`);
   li('Build Cost (all units)',`${I('build')}*${I('units')}`); li('Upgrades (all units)',`${I('upg')}*${I('units')}`);
   li('Grand Total (incl. Land)','Scenarios!B4+Scenarios!B5',true,true);
+  wcb.getCell('A'+cr).fill=fill(CREAM); wcb.getCell('A'+cr).border={top:{style:'medium',color:{argb:STEEL}}}; wcb.getCell('B'+cr).border={top:{style:'medium',color:{argb:STEEL}}};
+  wcb.pageSetup={printArea:'A1:B'+cr};
 
   // ---------- Comps ----------
   if(M.comps && M.comps.length){
-    const wco=wb.addWorksheet('Comps'); wco.getColumn(1).width=30;[2,3,4,5,7,8,10].forEach(i=>wco.getColumn(i).width=13);wco.getColumn(9).width=24;wco.getColumn(6).width=13;
+    const wco=wb.addWorksheet('Comps'); wco.getColumn(1).width=24; wco.getColumn(2).width=8; wco.getColumn(3).width=12; wco.getColumn(4).width=13; wco.getColumn(5).width=11; wco.getColumn(6).width=12; wco.getColumn(7).width=10; wco.getColumn(8).width=11; wco.getColumn(9).width=18; wco.getColumn(10).width=14;
     titleBar(wco,1,'J','SALES COMPS — live formulas');
     ['Address','Sq Ft','Sold $','Adjustments','Adj $/SF','Sold Date','Distance','Mo. on Mkt','Other Notes','Sugg. ARV (PPSF)'].forEach((t,i)=>{const c=wco.getRow(3).getCell(1+i);c.value=t;c.font={bold:true,color:{argb:WHITE},name:'Arial'};c.fill=fill(STEEL);});
+    for(let i=1;i<=10;i++){wco.getRow(3).getCell(i).border={bottom:{style:'thin',color:{argb:NAVY}}};wco.getRow(3).getCell(i).alignment={vertical:'middle'};}wco.getRow(3).height=16;
     const first=4; let rr=first;
     M.comps.forEach(cp=>{const row=wco.getRow(rr);
       const blue=cell=>{cell.font={color:{argb:BLUE},name:'Arial'};};
@@ -3268,10 +3297,12 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
       const c10=row.getCell(10);c10.value={formula:`IF(E${rr}<>"",E${rr}*${I('sf')},"")`};c10.numFmt=MONEY;
       rr++;});
     const last=rr-1, rng=`E${first}:E${last}`;
-    rr++; const stat=(lbl,formula,hi)=>{const row=wco.getRow(rr++);row.getCell(4).value=lbl;row.getCell(4).font={bold:true,name:'Arial'};const c=row.getCell(5);c.value={formula};c.numFmt=MONEY2;if(hi)c.font={bold:true,color:{argb:GREEN},name:'Arial'};};
+    rr++; const stat=(lbl,formula,hi)=>{const r=rr++;wco.mergeCells('C'+r+':D'+r);const lc=wco.getCell('C'+r);lc.value=lbl;lc.font={bold:true,name:'Arial'};lc.alignment={horizontal:'right'};const c=wco.getCell('E'+r);c.value={formula};c.numFmt=MONEY2;if(hi)c.font={bold:true,color:{argb:GREEN},name:'Arial'};};
     stat('Median $/SF',`MEDIAN(${rng})`); stat('Average $/SF',`AVERAGE(${rng})`); stat('Min $/SF',`MIN(${rng})`); stat('Max $/SF',`MAX(${rng})`);
-    const row=wco.getRow(rr++);row.getCell(4).value='Suggested ARV (median)';row.getCell(4).font={bold:true,name:'Arial'};const c=row.getCell(5);c.value={formula:`MEDIAN(${rng})*${I('sf')}`};c.numFmt=MONEY;c.font={bold:true,color:{argb:GREEN},name:'Arial'};
+    const sr=rr++;wco.mergeCells('C'+sr+':D'+sr);const slc=wco.getCell('C'+sr);slc.value='Suggested ARV (median)';slc.font={bold:true,name:'Arial'};slc.alignment={horizontal:'right'};const c=wco.getCell('E'+sr);c.value={formula:`MEDIAN(${rng})*${I('sf')}`};c.numFmt=MONEY;c.font={bold:true,color:{argb:GREEN},name:'Arial'};
+    wco.pageSetup={printArea:'A1:J'+(rr-1),orientation:'landscape'};
   }
+  wb.eachSheet(w=>{w.views=[{showGridLines:false}];w.pageSetup=Object.assign({fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.5,right:0.5,top:0.5,bottom:0.5,header:0.3,footer:0.3}},w.pageSetup||{});if(w.name==='Comps')w.pageSetup.orientation='landscape';});
   return wb;
 }
 
