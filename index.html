@@ -402,7 +402,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-badge">V7.0 &middot; Jun 2026</div>
+  <div class="hdr-badge">V7.2 &middot; Jun 2026</div>
 </div>
 
 <div class="step-nav">
@@ -649,7 +649,16 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       </div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>Heritage Trees</div>
-        <div class="field"><label>Number of Heritage Trees</label><input type="number" id="her-trees" value="0" min="0" oninput="calcLF()"></div>
+        <div class="fr2">
+          <div class="field"><label>Number of Heritage Trees</label><input type="number" id="her-trees" value="0" min="0" oninput="calcLF()"></div>
+          <div class="field"><label>Removal Timing</label>
+            <select id="her-timing" onchange="calcLF()">
+              <option value="750">Before house demo ($750/tree)</option>
+              <option value="1500">After demo / during dev ($1,500/tree)</option>
+            </select>
+          </div>
+        </div>
+        <p class="note" style="margin-top:6px">Remove heritage trees before demolishing the house to lock the $750 rate; after demo begins it's $1,500/tree.</p>
         <p class="note">$750/tree (pre-demo rate).</p>
       </div>
       <div class="card">
@@ -692,7 +701,6 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
           <div class="field"><label>Culverts</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="culverts" value="0" oninput="calcLF()"></div></div>
           <div class="field"><label>Landscaping</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="landscaping" value="500" oninput="calcLF()"></div></div>
         </div>
-        <div class="field"><label>GC Management Markup</label><div class="input-wrap"><input type="number" id="gc-markup" value="15" class="sfx-pad" oninput="calcLF()"><span class="sfx">%</span></div></div>
       </div>
     </div>
     <div class="sidebar">
@@ -730,7 +738,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
         <div id="plan-info" style="display:none;margin-top:12px;padding:12px;background:var(--teal-dim);border:1px solid rgba(94,128,149,0.25);border-radius:var(--radius-sm)">
           <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--teal-light);margin-bottom:6px" id="plan-info-name"></div>
           <div class="fr3">
-            <div><div style="font-size:10px;color:var(--text-dim)">Cost + 14%</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-cost"></div></div>
+            <div><div style="font-size:10px;color:var(--text-dim)">Build Cost (incl. GC)</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-cost"></div></div>
             <div><div style="font-size:10px;color:var(--text-dim)">Sq Ft / Unit</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-sf"></div></div>
             <div><div style="font-size:10px;color:var(--text-dim)">Footprint</div><div style="font-family:'DM Mono',monospace;font-size:13px" id="plan-info-fp"></div></div>
           </div>
@@ -739,28 +747,26 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
         </div>
         <div class="fr2" style="margin-top:14px">
           <div class="field"><label>Units</label><input type="number" id="units" value="1" min="1" max="20" oninput="calcAll()"></div>
+          <div class="field"><label>Slate GC Fee <span style="color:var(--text-dim);font-weight:normal">(on build)</span></label><div class="input-wrap"><input type="number" id="gc-build-fee" value="14" min="0" step="0.5" class="sfx-pad" oninput="applyGcBuildFee()"><span class="sfx">%</span></div></div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>Tap Fees</div>
+        <div class="card-title"><span class="dot"></span>Utility Taps</div>
+        <p class="note" style="margin-bottom:10px">Auto-filled from the county/city in Step 1 — per unit. Override with a project-specific quote if you have one.</p>
         <div class="fr2">
-          <div class="field"><label>Municipality</label>
-            <select id="tap-muni" onchange="onTapChange()">
-              <option value="17340">Charlotte / Mecklenburg — $17,340</option>
-              <option value="8003">Gaston County — $8,003</option>
-              <option value="7697">Statesville (Iredell) — $7,697</option>
-              <option value="10126">Lincoln County — $10,126</option>
-              <option value="9850">Kannapolis — $9,850</option>
-              <option value="2400">Mt Holly — $2,400</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-          <div class="field" id="custom-tap-f" style="display:none"><label>Custom Tap Fee (per unit)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="custom-tap" value="0" oninput="calcAll()"></div></div>
+          <div class="field"><label>Water Tap (per unit)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="tap-water" value="0" oninput="calcAll()"></div></div>
+          <div class="field"><label>Sewer Tap (per unit)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="tap-sewer" value="0" oninput="calcAll()"></div></div>
         </div>
         <div class="toggle-row">
-          <span class="toggle-lbl">Existing taps on lot (divide total by units)</span>
-          <label class="tog"><input type="checkbox" id="existing-taps" onchange="calcAll()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+          <span class="toggle-lbl">No water tap (existing / not available)</span>
+          <label class="tog"><input type="checkbox" id="skip-water" onchange="calcAll()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
         </div>
+        <div class="toggle-row">
+          <span class="toggle-lbl">No sewer tap — install septic instead</span>
+          <label class="tog"><input type="checkbox" id="skip-sewer" onchange="onSewerSkip()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <div class="field" id="septic-f" style="display:none;margin-top:8px"><label>Septic Install (per lot)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="septic-cost" value="8000" oninput="calcAll()"></div><p class="note">Default estimate — confirm with installer. Per lot, not × units (for multi-unit on separate systems, enter the combined cost). Set $0 if an existing sewer tap is present.</p></div>
+        <div id="tap-hint" class="warn" style="margin-top:8px;display:none"></div>
         <div id="tap-msg" style="margin-top:8px"></div>
       </div>
       <div class="card">
@@ -1106,54 +1112,82 @@ const PLANS=[
   // Source: "Slate Cost Plus Pricing — FINAL One Sheet" (canonical, May 2026), Cost Plus 14 column.
   // w=WIDTH ft, d=DEPTH ft (Slate lists D' x W'; corrected here). 0/0 = no published footprint.
   // NOTE: Akron is NOT on the FINAL sheet — carried over from the prior sheet (price may be stale; footprint est.).
-  {n:'Akron',sf:1533,c:188962,u:1,w:15,d:102,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Arlington (Standard)',sf:1315,c:145277,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Arlington (Modern)',sf:1315,c:163876,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Aurora',sf:1156,c:137424,u:1,w:30,d:20,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Bellville',sf:1627,c:180489,u:1,w:28,d:37,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Centerville',sf:1904,c:195754,u:1,w:22.5,d:53,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Columbus',sf:1311,c:148112,u:1,w:46,d:34.5,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Cuyahoga',sf:2005,c:207307,u:1,w:37,d:38,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin (Standard)',sf:1435,c:158865,u:1,w:22,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin 1 Car',sf:1435,c:170951,u:1,w:34,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin 2 Car',sf:1435,c:181461,u:1,w:46.5,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Grandview',sf:1528,c:161052,u:1,w:30,d:27,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Granville',sf:1848,c:198406,u:1,w:38,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Hampton',sf:2519,c:244759,u:1,w:50.5,d:58.1,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Hilliard',sf:1573,c:175933,u:1,w:25,d:41.7,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Muirfield',sf:1199,c:145088,u:1,w:30,d:42.3,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Plumwood',sf:1485,c:178876,u:1,w:34,d:58,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Seneca',sf:1985,c:204131,u:1,w:30,d:43,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Westerville',sf:1108,c:134918,u:1,w:25,d:48.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Worthington',sf:1405,c:170379,u:1,w:48,d:46,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Worthington 2.0',sf:1640,c:181893,u:1,w:48,d:51,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Albany',sf:2726,c:327313,u:1,w:40,d:45,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Galloway',sf:3203,c:379179,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Linden',sf:2986,c:372424,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Arcadia (Budget)',sf:1278,c:139130,u:1,w:22,d:30.6,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Hudson (Budget)',sf:1108,c:133065,u:1,w:25,d:48.4,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Laurel (Budget)',sf:1528,c:150552,u:1,w:30,d:27,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Powell (Budget)',sf:1323,c:140963,u:1,w:20,d:42,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Powell One Car',sf:1323,c:151547,u:1,w:32,d:42,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Wildwood (Budget)',sf:1315,c:138901,u:1,w:31,d:50.4,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Arcadia Duet (per side)',sf:1228,c:140636,u:2,w:40,d:34,t:'duet',g:'Duets — Per Side'},
-  {n:'Bexley Duet (per side)',sf:1664,c:172093,u:2,w:40,d:53,t:'duet',g:'Duets — Per Side'},
-  {n:'Findlay Duet (per side)',sf:1409,c:164462,u:2,w:38,d:45,t:'duet',g:'Duets — Per Side'},
-  {n:'Logan Duet (per side)',sf:1186,c:135976,u:2,w:39.5,d:62,t:'duet',g:'Duets — Per Side'},
-  {n:'Oxford Duet (per side)',sf:1690,c:177284,u:2,w:34,d:60,t:'duet',g:'Duets — Per Side'},
-  {n:'Polaris Duet (Modern, per side)',sf:2227,c:332019,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
-  {n:'Ashland Duet (Modern, per side)',sf:1747,c:295770,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
-  {n:'Whitehall Duet (per side)',sf:1854,c:186398,u:2,w:45,d:53,t:'duet',g:'Duets — Per Side'},
-  {n:'Winchester Duet (per side)',sf:1480,c:156739,u:2,w:40,d:42.3,t:'duet',g:'Duets — Per Side'},
-  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,u:3,w:66,d:33.7,t:'mf',g:'Multifamily & Mini'},
-  {n:'Dayton Townhomes (1 unit)',sf:1385,c:159359,u:1,w:21.7,d:40,t:'th',g:'Multifamily & Mini'},
-  {n:'Franklin Townhomes (1 unit)',sf:1549,c:162238,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
-  {n:'Dunkirk (mini home)',sf:702,c:104434,u:1,w:27,d:34,t:'sfh',g:'Multifamily & Mini'},
+  {n:'Akron',sf:1533,c:188962,base:165756,u:1,w:15,d:102,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Arlington (Standard)',sf:1315,c:145277,base:127436,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Arlington (Modern)',sf:1315,c:163876,base:143751,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Aurora',sf:1156,c:137424,base:120547,u:1,w:30,d:20,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Bellville',sf:1627,c:180489,base:158324,u:1,w:28,d:37,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Centerville',sf:1904,c:195754,base:171714,u:1,w:22.5,d:53,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Columbus',sf:1311,c:148112,base:129923,u:1,w:46,d:34.5,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Cuyahoga',sf:2005,c:207307,base:181848,u:1,w:37,d:38,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin (Standard)',sf:1435,c:158865,base:139355,u:1,w:22,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 1 Car',sf:1435,c:170951,base:149957,u:1,w:34,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 2 Car',sf:1435,c:181461,base:159176,u:1,w:46.5,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Grandview',sf:1528,c:161052,base:141274,u:1,w:30,d:27,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Granville',sf:1848,c:198406,base:174040,u:1,w:38,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hampton',sf:2519,c:244759,base:214701,u:1,w:50.5,d:58.1,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hilliard',sf:1573,c:175933,base:154327,u:1,w:25,d:41.7,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Muirfield',sf:1199,c:145088,base:127270,u:1,w:30,d:42.3,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Plumwood',sf:1485,c:178876,base:156909,u:1,w:34,d:58,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Seneca',sf:1985,c:204131,base:179062,u:1,w:30,d:43,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Westerville',sf:1108,c:134918,base:118349,u:1,w:25,d:48.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington',sf:1405,c:170379,base:149455,u:1,w:48,d:46,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington 2.0',sf:1640,c:181893,base:159555,u:1,w:48,d:51,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Albany',sf:2726,c:327313,base:287117,u:1,w:40,d:45,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Galloway',sf:3203,c:379179,base:332613,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Linden',sf:2986,c:372424,base:326688,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Arcadia (Budget)',sf:1278,c:139130,base:122044,u:1,w:22,d:30.6,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Hudson (Budget)',sf:1108,c:133065,base:116724,u:1,w:25,d:48.4,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Laurel (Budget)',sf:1528,c:150552,base:132063,u:1,w:30,d:27,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell (Budget)',sf:1323,c:140963,base:123652,u:1,w:20,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell One Car',sf:1323,c:151547,base:132936,u:1,w:32,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Wildwood (Budget)',sf:1315,c:138901,base:121843,u:1,w:31,d:50.4,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Arcadia Duet (per side)',sf:1228,c:140636,base:123365,u:2,w:40,d:34,t:'duet',g:'Duets — Per Side'},
+  {n:'Bexley Duet (per side)',sf:1664,c:172093,base:150959,u:2,w:40,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Findlay Duet (per side)',sf:1409,c:164462,base:144265,u:2,w:38,d:45,t:'duet',g:'Duets — Per Side'},
+  {n:'Logan Duet (per side)',sf:1186,c:135976,base:119277,u:2,w:39.5,d:62,t:'duet',g:'Duets — Per Side'},
+  {n:'Oxford Duet (per side)',sf:1690,c:177284,base:155512,u:2,w:34,d:60,t:'duet',g:'Duets — Per Side'},
+  {n:'Polaris Duet (Modern, per side)',sf:2227,c:332019,base:291245,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
+  {n:'Ashland Duet (Modern, per side)',sf:1747,c:295770,base:259447,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
+  {n:'Whitehall Duet (per side)',sf:1854,c:186398,base:163507,u:2,w:45,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Winchester Duet (per side)',sf:1480,c:156739,base:137490,u:2,w:40,d:42.3,t:'duet',g:'Duets — Per Side'},
+  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,base:365446,u:3,w:66,d:33.7,t:'mf',g:'Multifamily & Mini'},
+  {n:'Dayton Townhomes (1 unit)',sf:1385,c:159359,base:139789,u:1,w:21.7,d:40,t:'th',g:'Multifamily & Mini'},
+  {n:'Franklin Townhomes (1 unit)',sf:1549,c:162238,base:142314,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
+  {n:'Dunkirk (mini home)',sf:702,c:104434,base:91609,u:1,w:27,d:34,t:'sfh',g:'Multifamily & Mini'},
 ];
 PLANS.forEach(p=>{p.val=`${p.n}|${p.sf}|${p.c}|${p.u}|${p.w}|${p.d}`;});
 const PLAN_KEY_MAP={};PLANS.forEach(p=>{PLAN_KEY_MAP[p.n]=p.val;});
 // Backward-compat positional array: [name, sf, cost, units, fpW, fpD]
 const PLANS_FP=PLANS.map(p=>[p.n,p.sf,p.c,p.u,p.w,p.d]);
+// Build cost = Slate Base Cost (col B of the One Sheet) × (1 + GC fee%). Default fee 14%
+// reproduces the legacy "Cost Plus 14" numbers exactly. Fee is set on Step 5 (#gc-build-fee).
+let GC_BUILD_FEE=14;
+function recomputePlanCosts(feePct){
+  const f=isNaN(feePct)?14:feePct;
+  GC_BUILD_FEE=f;
+  const mult=1+f/100;
+  PLANS.forEach((p,i)=>{
+    p.c=Math.round((p.base||0)*mult);
+    p.val=`${p.n}|${p.sf}|${p.c}|${p.u}|${p.w}|${p.d}`;
+    if(typeof PLAN_KEY_MAP!=='undefined')PLAN_KEY_MAP[p.n]=p.val;
+    if(typeof PLANS_FP!=='undefined'&&PLANS_FP[i])PLANS_FP[i][2]=p.c;
+  });
+}
+recomputePlanCosts(14); // lock costs to base-derived values at load (matches legacy 14%)
+function applyGcBuildFee(){
+  const fee=pv('gc-build-fee');
+  recomputePlanCosts(isNaN(fee)?14:fee);
+  const sel=$('plan-sel');
+  const curName=(sel&&sel.value)?sel.value.split('|')[0]:'';
+  buildPlanDropdown();
+  if(curName&&sel){
+    const opt=Array.from(sel.options).find(o=>((o.value||'').split('|')[0])===curName);
+    if(opt)sel.value=opt.value;
+  }
+  onPlanChange();        // refreshes plan-info, currentPlanCost, overlay; calls calcAll
+  renderFitCheck();
+}
 function buildPlanDropdown(){
   const sel=$('plan-sel');if(!sel)return;
   while(sel.options.length>1)sel.remove(1); // keep placeholder
@@ -1379,7 +1413,7 @@ function goTo(n){
     }
   }
   if(n===4)updateSummaryBar();
-  if(n===5){applyRankedPlanDefault();calcAll();}
+  if(n===5){applyRankedPlanDefault();applyTapDefaults();calcAll();}
   if(n===6){calcAll();calcFinancing();}
   if(n===7){calcAll();calcFinancing();calcScenarios();}
 }
@@ -1476,7 +1510,7 @@ function onCountyChange(){
   if(county&&COUNTY_ZONES[county])
     COUNTY_ZONES[county].forEach(z=>{const o=document.createElement('option');o.value=`${county}|${z}`;o.textContent=z;sel.appendChild(o);});
   $('meck-context').style.display=county==='Mecklenburg'?'':'none';
-  if(county==='Mecklenburg')$('tap-muni').value='17340';
+  applyTapDefaults();
   updateLinks();
   $('zone-info').style.display='none';
   $('zone-udo-link').style.display='none';
@@ -2649,23 +2683,21 @@ function updateTopoLinks(){
 // ═══════════════════ LOT FACTOR ═══════════════════
 function calcLF(){
   const demo=pv('demo-sqft')*pv('demo-rate');
-  const heritage=pv('her-trees')*750;
+  const herRate=parseFloat(($('her-timing')||{}).value)||750;
+  const heritage=pv('her-trees')*herRate;
   const rowCount=pv('row-count'),rowDiam=pv('row-diam'),rowLabor=pv('row-labor');
   const rowCity=rowCount*rowDiam*200,rowLaborTotal=rowCount*rowLabor;
   const clearing=parseFloat(($('clearing')||{value:'0'}).value)||0;
   const dirt=pv('dirt-loads')*pv('dirt-rate');
   const grading=pv('grading'),sitePrep=pv('site-prep'),util=pv('utilities'),framing=pv('framing'),culverts=pv('culverts'),land=pv('landscaping');
-  const gcPct=pv('gc-markup')/100;
   const raw=demo+heritage+rowCity+rowLaborTotal+clearing+dirt+grading+sitePrep+util+framing+culverts+land;
-  const gcFee=raw*gcPct;
-  lotFactor=raw+gcFee;
+  lotFactor=raw; // GC fee now lives on Plan & Build (applied to the home build only)
   const items=[
-    {l:'Demo / Teardown',v:demo},{l:`Heritage Trees (${pv('her-trees')} × $750)`,v:heritage},
+    {l:'Demo / Teardown',v:demo},{l:`Heritage Trees (${pv('her-trees')} × $${herRate.toLocaleString()})`,v:heritage},
     {l:`ROW City Fee (${rowCount}×${rowDiam}"×$200/in)`,v:rowCity},{l:'ROW Removal Labor',v:rowLaborTotal},
     {l:'Clearing',v:clearing},{l:`Dirt (${pv('dirt-loads')} loads)`,v:dirt},
     {l:'Grading',v:grading},{l:'Site Prep / Driveway',v:sitePrep},
     {l:'Utilities',v:util},{l:'Framing Labor',v:framing},{l:'Culverts',v:culverts},{l:'Landscaping',v:land},
-    {l:`GC Markup (${pv('gc-markup')}%)`,v:gcFee},
   ].filter(i=>i.v>0);
   const bd=$('lf-breakdown');
   if(bd)bd.innerHTML=items.map(i=>`<div class="lf-row"><span class="lf-lbl">${i.l}</span><span class="lf-val">${fmt(i.v)}</span></div>`).join('')||'<div class="lf-row"><span class="lf-lbl" style="color:var(--text-dim)">No costs entered</span></div>';
@@ -2735,7 +2767,48 @@ function onPlanChange(){
     drawDiagram();
   }
 }
-function onTapChange(){$('custom-tap-f').style.display=$('tap-muni').value==='custom'?'':'none';calcAll();}
+// ── Utility tap fees (source: Patricia's "Tap Fees" sheet, Drive · Jun 2026) ──
+// County-level defaults keyed to Step-1 county-sel value. null = not on file (Enzo to backfill).
+const COUNTY_TAP={
+  'Mecklenburg':{w:5819,s:11521},
+  'Gaston':{w:4363,s:3640},
+  'Lincoln':{w:5137.80,s:4988.41},
+  'Cabarrus':{w:2500,s:null},
+  'Iredell':{w:2500,s:null},
+  'Kannapolis':{w:4600,s:5250},
+  'Catawba':{w:null,s:null},
+  'Shelby':{w:null,s:null},
+  'Monroe':{w:null,s:null},
+  'Rowan':{w:null,s:null},
+};
+// City-level overrides — applied only when the Step-1 city matches.
+const CITY_TAP={
+  'statesville':{w:4086,s:3611},
+  'kannapolis':{w:4600,s:5250},
+  'mt holly':{w:1200,s:1200},
+  'mount holly':{w:1200,s:1200},
+};
+let _tapSig=null;
+function titleCase(s){return String(s||'').replace(/\b\w/g,m=>m.toUpperCase());}
+function setTapHint(msg){const h=$('tap-hint');if(!h)return;if(msg){h.innerHTML='\u26a0 '+msg;h.style.display='';}else{h.style.display='none';h.innerHTML='';}}
+function applyTapDefaults(force){
+  const wf=$('tap-water'),sf=$('tap-sewer');if(!wf||!sf)return;
+  const county=($('county-sel')||{}).value||'';
+  const city=(($('addr-city')||{}).value||'').toLowerCase().trim();
+  const sig=county+'|'+city;
+  if(!force&&sig===_tapSig)return;   // respect manual overrides until the jurisdiction changes
+  _tapSig=sig;
+  let rec=null,label='';
+  if(CITY_TAP[city]){rec=CITY_TAP[city];label=titleCase(city);}
+  else if(COUNTY_TAP[county]){rec=COUNTY_TAP[county];label=county;}
+  if(!rec){wf.value=0;sf.value=0;setTapHint(county?('No tap fees on file for '+county+' \u2014 enter manually, confirm fee schedule (Enzo).'):'');calcAll();return;}
+  wf.value=(rec.w!=null)?rec.w:0;
+  sf.value=(rec.s!=null)?rec.s:0;
+  const gaps=[];if(rec.w==null)gaps.push('water');if(rec.s==null)gaps.push('sewer');
+  setTapHint(gaps.length?('No '+gaps.join(' & ')+' fee on file for '+label+' \u2014 left at $0, confirm fee schedule (Enzo).'):'');
+  calcAll();
+}
+function onSewerSkip(){const f=$('septic-f');if(f)f.style.display=($('skip-sewer')&&$('skip-sewer').checked)?'':'none';calcAll();}
 
 function calcAll(){
   const val=($('plan-sel')||{}).value||'';
@@ -2745,10 +2818,13 @@ function calcAll(){
   const buildTotal=currentPlanCost*units;
   const upgPerUnit=Array.from(selectedUpgrades).reduce((s,id)=>{const u=UPGRADES.find(x=>x.id===id);return s+(u?u.cost:0);},0);
   const upgTotal=upgPerUnit*units;
-  const tapMuni=$('tap-muni').value;
-  const tapPerUnit=tapMuni==='custom'?pv('custom-tap'):parseInt(tapMuni)||17340;
-  const existingTaps=$('existing-taps')&&$('existing-taps').checked;
-  tapTotal=existingTaps?0:(tapPerUnit*units); // existing taps = $0 new cost
+  const skipW=$('skip-water')&&$('skip-water').checked;
+  const skipS=$('skip-sewer')&&$('skip-sewer').checked;
+  const tapWaterU=pv('tap-water'),tapSewerU=pv('tap-sewer'),septicLot=pv('septic-cost');
+  const tapWaterTot=skipW?0:tapWaterU*units;
+  const tapSewerTot=skipS?0:tapSewerU*units;
+  const septicTot=skipS?septicLot:0;   // per lot, replaces sewer when going septic
+  tapTotal=tapWaterTot+tapSewerTot+septicTot;
   const softFixed=pv('survey')+pv('appraisal')+pv('insurance');
   // allInExLand = everything except land and financing
   allInExLand=buildTotal+upgTotal+lotFactor+tapTotal+softFixed;
@@ -2757,7 +2833,7 @@ function calcAll(){
   if(cs){
     const items=[
       {l:'Build Cost (all units)',v:buildTotal},{l:'Upgrades (all units)',v:upgTotal},
-      {l:'Lot Factor',v:lotFactor},{l:'Tap Fees',v:tapTotal},
+      {l:'Lot Factor',v:lotFactor},{l:'Water Tap',v:tapWaterTot},{l:'Sewer Tap',v:tapSewerTot},{l:'Septic Install',v:septicTot},
       {l:'Survey',v:pv('survey')},{l:'Appraisal',v:pv('appraisal')},{l:'Insurance',v:pv('insurance')},
     ].filter(i=>i.v>0);
     cs.innerHTML=items.map(i=>`<div class="sb-stat"><span class="sb-stat-lbl">${i.l}</span><span class="sb-stat-val">${fmt(i.v)}</span></div>`).join('');
@@ -2766,8 +2842,9 @@ function calcAll(){
   const ut=$('upg-total');if(ut)ut.textContent=fmt(upgTotal);
   const tapmsg=$('tap-msg');
   if(tapmsg){
-    if(existingTaps)tapmsg.innerHTML=`<div class="ok">✓ Existing taps — no new tap fees ($0)</div>`;
-    else tapmsg.innerHTML=`<div style="font-size:11px;color:var(--text-dim)">$${tapPerUnit.toLocaleString()} × ${units} = ${fmt(tapTotal)} total</div>`;
+    const parts=[skipW?'Water: skipped':'Water '+fmt(tapWaterU)+'/unit',
+                 skipS?('Sewer: septic '+fmt(septicLot)+'/lot'):'Sewer '+fmt(tapSewerU)+'/unit'];
+    tapmsg.innerHTML=`<div style="font-size:11px;color:var(--text-dim)">${parts.join(' \u00b7 ')} &nbsp;\u2192&nbsp; Total ${fmt(tapTotal)}</div>`;
   }
   calcFinancing();
 }
@@ -3011,6 +3088,18 @@ function getReportData(){
   const cost={land:landCost,lotFactor:lotFactor||0,tap:tapTotal||0,
     buildTotal:(currentPlanCost||0)*u,upgrades:upgPerUnit*u,soft:softFixed,
     allInExLand:allInExLand||0,total:(allInExLand||0)+landCost};
+  // Build cost = base × (1 + GC fee); break out for the memo
+  {const selName=(($('plan-sel')||{}).value||'').split('|')[0];
+   const po=PLANS.find(p=>p.n===selName);
+   cost.gcFeePct=(typeof GC_BUILD_FEE!=='undefined'?GC_BUILD_FEE:(pv('gc-build-fee')||14));
+   cost.baseBuild=po?Math.round(po.base||0)*u:0;
+   cost.gcFee=Math.max(0,cost.buildTotal-cost.baseBuild);}
+  // Tap breakout (water / sewer / septic) for the memo
+  {const skipW=$('skip-water')&&$('skip-water').checked;
+   const skipS=$('skip-sewer')&&$('skip-sewer').checked;
+   cost.tapWater=skipW?0:(pv('tap-water')*u);
+   cost.tapSewer=skipS?0:(pv('tap-sewer')*u);
+   cost.septic=skipS?pv('septic-cost'):0;}
 
   // Scenario economics computed directly (not read from DOM text)
   const loanPerUnit=fin.loan/u;
@@ -3107,9 +3196,14 @@ function buildReportHTML(canvasDataUrl){
   /* ── SHEET 2: COST BUILD-UP + FINANCING DETAIL ── */
   const c=d.cost;
   const costRows=[
-    ['Land Cost',c.land],['Lot Factor (site work)',c.lotFactor],['Tap / Utility Fees',c.tap],
-    ['Build Cost ('+d.units+' × plan)',c.buildTotal],['Upgrades',c.upgrades],['Soft Costs (survey/appraisal/ins.)',c.soft],
+    ['Land Cost',c.land],['Lot Factor (site work)',c.lotFactor],
+    ['Water Tap',c.tapWater],['Sewer Tap',c.tapSewer],
   ];
+  if(c.septic>0)costRows.push(['Septic Install (per lot)',c.septic]);
+  costRows.push(['Base Build Cost ('+d.units+' × plan)',c.baseBuild]);
+  costRows.push(['Slate GC Fee ('+c.gcFeePct+'%)',c.gcFee]);
+  costRows.push(['Upgrades',c.upgrades]);
+  costRows.push(['Soft Costs (survey/appraisal/ins.)',c.soft]);
   const costBuild=secHdr('COST BUILD-UP')
     +'<table class="kv avoid">'
       +costRows.map(r=>'<tr><td>'+r[0]+'</td><td>'+F(r[1])+'</td></tr>').join('')
@@ -3603,12 +3697,13 @@ function fitStatus(fpW,fpD){
 function dealForPlan(plan,psf){
   const landCost=pv('land-cost');
   const softFixed=pv('survey')+pv('appraisal')+pv('insurance');
-  const tapMuni=$('tap-muni').value;
-  const tapPerUnit=tapMuni==='custom'?pv('custom-tap'):(parseInt(tapMuni)||17340);
-  const existingTaps=$('existing-taps')&&$('existing-taps').checked;
+  const skipW=$('skip-water')&&$('skip-water').checked;
+  const skipS=$('skip-sewer')&&$('skip-sewer').checked;
+  const tapWaterU=pv('tap-water'),tapSewerU=pv('tap-sewer'),septicLot=pv('septic-cost');
   const upgPerUnit=Array.from(selectedUpgrades).reduce((acc,id)=>{const u=UPGRADES.find(x=>x.id===id);return acc+(u?u.cost:0);},0);
   const u=Math.max(1,plan.u||1);
-  const buildTotal=plan.c*u, upgTotal=upgPerUnit*u, tapTot=existingTaps?0:tapPerUnit*u;
+  const buildTotal=plan.c*u, upgTotal=upgPerUnit*u;
+  const tapTot=(skipW?0:tapWaterU*u)+(skipS?0:tapSewerU*u)+(skipS?septicLot:0);
   const allInExL=buildTotal+upgTotal+lotFactor+tapTot+softFixed;
   const ltcPct=pv('ltc-pct')/100;
   const loan=ltcPct*(landCost+allInExL)/(1-ltcPct*0.01);
