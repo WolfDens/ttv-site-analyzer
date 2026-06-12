@@ -413,6 +413,30 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
   .fr2,.fr3{grid-template-columns:1fr}
 }
 
+/* release notes modal */
+.rn-overlay{display:none;position:fixed;inset:0;background:rgba(8,16,24,0.78);z-index:9990;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.rn-overlay.show{display:flex}
+.rn-panel{background:linear-gradient(180deg,var(--navy-mid),#13283d);border:1px solid rgba(94,128,149,0.4);border-radius:14px;max-width:560px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.55);animation:pageIn .22s ease}
+.rn-head{display:flex;align-items:center;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--border-bright)}
+.rn-head img{width:36px;height:36px;border-radius:8px;background:var(--cream);padding:2px}
+.rn-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--cream);line-height:1.1}
+.rn-sub{font-size:10.5px;color:var(--text-dim);margin-top:2px}
+.rn-body{padding:6px 22px 8px;overflow-y:auto}
+.rn-entry{padding:14px 0;border-bottom:1px solid var(--border)}
+.rn-entry:last-child{border-bottom:none}
+.rn-vrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.rn-chip{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal-light);background:var(--teal-dim);border:1px solid rgba(94,128,149,0.35);padding:2px 9px;border-radius:20px}
+.rn-entry:first-child .rn-chip{color:#0e2418;background:var(--green);border-color:var(--green)}
+.rn-name{font-size:13px;font-weight:600;color:var(--text)}
+.rn-date{font-size:10px;color:var(--text-dim);margin-left:auto}
+.rn-items{list-style:none;margin:0;padding:0}
+.rn-items li{position:relative;padding:3px 0 3px 16px;font-size:12px;color:var(--text-mid);line-height:1.5}
+.rn-items li::before{content:'';position:absolute;left:2px;top:10px;width:5px;height:5px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--brand-green))}
+.rn-foot{padding:14px 22px 18px;border-top:1px solid var(--border-bright);display:flex;justify-content:flex-end}
+.hdr-badge{cursor:pointer;transition:all .15s}
+.hdr-badge:hover{background:rgba(94,128,149,0.3);color:var(--teal-light)}
+@media (max-width:640px){.rn-panel{max-height:92vh}.rn-head{padding:14px 16px 12px}.rn-body{padding:4px 16px 6px}.rn-foot{padding:12px 16px 14px}}
+
 
 /* Plan comparison (#3) */
 .cmp-pickers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -486,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge">V7.4 &middot; Jun 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.5 &middot; Jun 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -4000,6 +4024,7 @@ document.addEventListener('keydown',function(e){
   try{closePlanImg();}catch(_){ }
   try{if(($('compare-modal')||{}).style&&$('compare-modal').style.display!=='none')closeCompare();}catch(_){ }
   try{if(($('offer-letter-modal')||{}).style&&$('offer-letter-modal').style.display!=='none')closeOfferLetter();}catch(_){ }
+  try{if(($('relnotes-modal')||{}).classList&&$('relnotes-modal').classList.contains('show'))closeReleaseNotes();}catch(_){ }
 });
 
 // Deal pulse — display-only; reads the same pure pipeline the report uses
@@ -4149,6 +4174,50 @@ function checkResumeBanner(){
   }catch(_){ }
 }
 checkResumeBanner();
+
+// ── Release notes ("What's New") ────────────────────────────────────────
+// To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
+// its `v` in sync with the header badge. The modal shows the top 3 entries and
+// auto-opens once per user when the version changes (badge click reopens it).
+const APP_VERSION='7.5', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const RELEASE_NOTES=[
+ {v:'7.5',date:'Jun 2026',name:'Release notes',items:[
+   'This popup \u2014 appears once after each update so the team knows what changed.',
+   'Reopen it anytime by clicking the version badge in the header.']},
+ {v:'7.4',date:'Jun 2026',name:'Mobile, autosave & live deal pulse',items:[
+   'Works properly on phones now \u2014 usable standing on the lot.',
+   'Autosaves as you work; reopening the tool offers to resume where you left off.',
+   'Save / load deals as files (\ud83d\udcbe \ud83d\udcc2 in the header) \u2014 share with the team or archive in Drive.',
+   'Deal Pulse bar on Steps 4\u20137: live All-In, Loan, Cash Required, and Base Profit while you tweak inputs.',
+   'Excel export (live-formula workbook) is back on Step 7.',
+   'Cleaner notifications, Esc closes popups, sharper small text throughout.']},
+ {v:'7.3',date:'Jun 2026',name:'County GIS auto-fill',items:[
+   '\ud83d\udef0 One click on Step 1 pulls the parcel straight from Charlotte/Mecklenburg GIS.',
+   'Auto-fills zoning (still editable) and loads the real lot shape into the lot editor with exact area.',
+   'Flags the watershed & BUA rule, SWIM buffer overlap, and historic-district status.',
+   'Reminds you that easements live on the recorded plat \u2014 GIS can\u2019t see those.']},
+ {v:'7.2',date:'Jun 2026',name:'Taps, septic & heritage trees',items:[
+   'Water and sewer taps split out and auto-filled by county/city from the Tap Fees sheet.',
+   'Skip either tap independently; skipping sewer adds a per-lot Septic Install (default $8,000 \u2014 confirm).',
+   'Heritage tree timing toggle: $750/tree before house demo, $1,500 after demo begins.']},
+];
+function renderReleaseNotes(){
+  const b=$('relnotes-body');if(!b)return;
+  b.innerHTML=RELEASE_NOTES.slice(0,3).map(e=>
+    '<div class="rn-entry"><div class="rn-vrow"><span class="rn-chip">V'+e.v+'</span>'
+    +'<span class="rn-name">'+e.name+'</span><span class="rn-date">'+e.date+'</span></div>'
+    +'<ul class="rn-items">'+e.items.map(i=>'<li>'+i+'</li>').join('')+'</ul></div>').join('');
+}
+function openReleaseNotes(){renderReleaseNotes();const m=$('relnotes-modal');if(m)m.classList.add('show');}
+function closeReleaseNotes(){
+  const m=$('relnotes-modal');if(m)m.classList.remove('show');
+  try{localStorage.setItem(RELNOTES_KEY,APP_VERSION);}catch(_){ }
+}
+(function(){
+  try{
+    if(localStorage.getItem(RELNOTES_KEY)!==APP_VERSION)setTimeout(openReleaseNotes,450);
+  }catch(_){/* storage unavailable: no auto-popup; badge still opens it */}
+})();
 updateDealPulse();
 </script>
 
@@ -4197,6 +4266,17 @@ updateDealPulse();
   <button class="dp-go" onclick="goTo(7)">Offer &rarr;</button>
 </div>
 <div class="toast-wrap" id="toast-wrap"></div>
+
+<div class="rn-overlay" id="relnotes-modal">
+  <div class="rn-panel">
+    <div class="rn-head">
+      <img src="assets/ttv-emblem.png" alt="">
+      <div><div class="rn-title">What&rsquo;s New</div><div class="rn-sub">TTV Site Analyzer &mdash; last three updates</div></div>
+    </div>
+    <div class="rn-body" id="relnotes-body"></div>
+    <div class="rn-foot"><button class="btn btn-primary" onclick="closeReleaseNotes()">Got it</button></div>
+  </div>
+</div>
 
 <div id="planimg-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:24px" onclick="closePlanImg()">
   <div style="max-width:1100px;width:100%" onclick="event.stopPropagation()">
