@@ -106,7 +106,8 @@ export default async function handler(req, res){
         const item = await aj(`https://www.arcgis.com/sharing/rest/content/items/${WQ_BUFFER_ITEM}?f=json`);
         raw.wqItem = debug?{url:item.url,type:item.type}:undefined;
         if(item && item.url){
-          const b = await spatialAt(`${item.url}/0`, pt);
+          const layerUrl = /\/\d+$/.test(item.url) ? item.url : item.url + '/0'; // item.url may already include /0
+          const b = await spatialAt(layerUrl, pt);
           out.swim_buffer = { intersects:b.hit, types: b.feats.map(f=>(findAttr(f.attributes,/type|buffer|swim|class|name/i)||{}).value).filter(Boolean), service:item.url, attrs:b.attrs };
           raw.swim=debug?b:undefined;
         } else out.notes.push('Could not resolve Water Quality Buffer service URL from AGO item');
