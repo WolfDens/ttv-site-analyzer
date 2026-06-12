@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TTV Site Analyzer — Tide & Timber Ventures</title>
+<link rel="icon" type="image/png" href="assets/ttv-emblem.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -14,9 +15,9 @@
   --red:#ef5d57;--red-dim:rgba(239,93,87,0.14);
   --green:#46c08a;--green-dim:rgba(70,192,138,0.14);
   --brand-green:#648370;
-  --text:#eef2f6;--text-mid:#a6b8c6;--text-dim:#647a8e;
+  --text:#eef2f6;--text-mid:#a6b8c6;--text-dim:#7e93a6;
   --border:rgba(255,255,255,0.09);--border-bright:rgba(255,255,255,0.17);
-  --card:rgba(255,255,255,0.05);--input-bg:rgba(255,255,255,0.065);
+  --card:rgba(255,255,255,0.05);--card-hover:rgba(255,255,255,0.06);--input-bg:rgba(255,255,255,0.065);
   --radius:10px;--radius-sm:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -83,7 +84,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 .fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .fr4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
-.note{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.4}
+.note{font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.45}
 .warn{font-size:11px;color:var(--amber);padding:8px 10px;background:var(--amber-dim);border-left:2px solid var(--amber);border-radius:4px;margin-top:8px;line-height:1.4}
 .err{font-size:11px;color:var(--red);padding:8px 10px;background:var(--red-dim);border-left:2px solid var(--red);border-radius:4px;margin-top:8px}
 .ok{font-size:11px;color:var(--green);padding:8px 10px;background:var(--green-dim);border-left:2px solid var(--green);border-radius:4px;margin-top:8px}
@@ -113,7 +114,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 .area-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
 .area-item{text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:6px}
 .area-item-val{font-family:'DM Mono',monospace;font-size:15px;color:var(--text)}
-.area-item-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
+.area-item-lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
 
 .bua-block{border:1px solid var(--border-bright);border-radius:var(--radius-sm);padding:14px;margin-top:12px;background:rgba(255,255,255,0.02)}
 .bua-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-mid);margin-bottom:10px}
@@ -171,8 +172,8 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 .lot-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
 .lot-stat-box{text-align:center;padding:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--radius-sm)}
 .lot-stat-val{font-family:'DM Mono',monospace;font-size:16px;color:var(--teal-light)}
-.lot-stat-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
-.hint-text{font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.5}
+.lot-stat-lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px}
+.hint-text{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5}
 .lot-mode-btn{flex:1;padding:9px 12px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;background:transparent;color:var(--text-dim);border:none;font-family:'DM Sans',sans-serif;transition:all 0.15s}
 .lot-mode-btn.active{background:var(--teal);color:#fff}
 .lot-mode-btn:hover:not(.active){background:var(--card-hover);color:var(--text-mid)}
@@ -230,7 +231,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 .loan-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .loan-stat{text-align:center;padding:12px;background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);border:1px solid var(--border)}
 .loan-stat-val{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);line-height:1}
-.loan-stat-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px}
+.loan-stat-lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px}
 .loan-stat.highlight .loan-stat-val{color:var(--amber)}
 .loan-stat.cash .loan-stat-val{color:var(--green)}
 
@@ -298,7 +299,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 .sc-line-val.hi{color:var(--amber);font-size:12px}
 .sc-profit{margin-top:12px;padding:12px;border-radius:var(--radius-sm);text-align:center}
 .worst .sc-profit{background:var(--red-dim)}.base .sc-profit{background:var(--teal-dim)}.best .sc-profit{background:var(--green-dim)}
-.profit-lbl{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin-bottom:3px}
+.profit-lbl{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin-bottom:3px}
 .profit-val{font-family:'DM Serif Display',serif;font-size:24px}
 .worst .profit-val{color:var(--red)}.base .profit-val{color:var(--teal-light)}.best .profit-val{color:var(--green)}
 .profit-sub{font-size:9px;color:var(--text-dim);margin-top:2px}
@@ -328,6 +329,89 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
 
 .print-report-wrap { display: none; }
 .print-report-wrap.visible { display: block; }
+
+/* ════════ V7.4 UI PASS ════════ */
+/* step entrance */
+@keyframes pageIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.page.active{animation:pageIn .22s ease}
+@media (prefers-reduced-motion:reduce){.page.active{animation:none}}
+/* keyboard focus */
+.btn:focus-visible,.step-btn:focus-visible,.lot-mode-btn:focus-visible,.topo-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.field input:focus-visible,.field select:focus-visible{border-color:var(--teal)}
+
+/* deal pulse (bottom dock, steps 4–7) */
+.deal-pulse{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;align-items:center;gap:20px;padding:9px 22px;background:linear-gradient(180deg,rgba(13,26,38,0.95),rgba(10,20,30,0.98));backdrop-filter:blur(10px);border-top:1px solid var(--border-bright);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.deal-pulse::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--brand-green) 45%,transparent 85%)}
+body[data-step="4"] .deal-pulse,body[data-step="5"] .deal-pulse,body[data-step="6"] .deal-pulse,body[data-step="7"] .deal-pulse{display:flex}
+body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,body[data-step="7"] .page{padding-bottom:108px}
+.dp-item{display:flex;flex-direction:column;min-width:max-content}
+.dp-lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap}
+.dp-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);margin-top:1px;white-space:nowrap}
+.dp-val.pos{color:var(--green)}.dp-val.neg{color:var(--red)}.dp-val.amb{color:var(--amber)}
+.dp-sub{font-size:9px;color:var(--text-dim)}
+.dp-go{margin-left:auto;font-size:11px;color:var(--teal);background:var(--teal-dim);border:1px solid rgba(94,128,149,0.3);border-radius:5px;padding:5px 11px;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.dp-go:hover{background:rgba(94,128,149,0.28)}
+
+/* toasts */
+.toast-wrap{position:fixed;right:16px;bottom:78px;z-index:9997;display:flex;flex-direction:column;gap:8px;max-width:330px}
+.toast{padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.45;border:1px solid var(--border-bright);background:rgba(13,26,38,0.97);color:var(--text);box-shadow:0 8px 28px rgba(0,0,0,0.45);animation:toastIn .2s ease}
+.toast.ok{border-color:rgba(70,192,138,0.45)}.toast.ok::before{content:'✓ ';color:var(--green)}
+.toast.warn{border-color:rgba(240,169,60,0.5)}.toast.warn::before{content:'⚠ ';color:var(--amber)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.toast.out{opacity:0;transform:translateY(6px);transition:all .25s}
+
+/* resume bar */
+.resume-bar{display:none;align-items:center;gap:12px;padding:8px 24px;background:rgba(240,169,60,0.08);border-bottom:1px solid rgba(240,169,60,0.3);font-size:12px;color:var(--text-mid);flex-wrap:wrap}
+.resume-bar.show{display:flex}
+.resume-bar b{color:var(--amber);font-weight:600}
+.resume-btn{font-size:11px;border-radius:5px;padding:4px 12px;cursor:pointer;border:1px solid rgba(240,169,60,0.45);background:rgba(240,169,60,0.14);color:var(--amber);font-family:'DM Sans',sans-serif}
+.resume-btn:hover{background:rgba(240,169,60,0.26)}
+.resume-btn.ghost{border-color:var(--border-bright);background:transparent;color:var(--text-dim)}
+.resume-btn.ghost:hover{color:var(--text-mid)}
+
+/* header tools */
+.hdr-right{display:flex;align-items:center;gap:7px}
+.hdr-tool{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);border:1px solid var(--border-bright);border-radius:7px;color:var(--text-mid);cursor:pointer;font-size:13px;padding:0;transition:all .15s}
+.hdr-tool:hover{color:var(--cream);border-color:var(--teal);background:var(--teal-dim)}
+
+/* busy buttons */
+.btn[data-busy="1"],.hdr-tool[data-busy="1"]{opacity:.55;pointer-events:none}
+
+/* ── responsive ── */
+@media (max-width:900px){
+  .page{padding:22px 16px 60px}
+  .fr4,.loan-stat-grid{grid-template-columns:1fr 1fr}
+  .sc-grid,.scenario-holding-grid{grid-template-columns:1fr 1fr}
+  .cmp-pickers{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .hdr{padding:10px 14px}
+  .hdr-title{font-size:16px}
+  .hdr-sub{display:none}
+  .hdr-logo{width:36px;height:36px}
+  .step-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .step-nav::-webkit-scrollbar{display:none}
+  .step-btn{flex:0 0 auto;min-width:92px;padding:10px 10px;font-size:10px}
+  .fr3,.fr4{grid-template-columns:1fr 1fr}
+  .sc-grid,.scenario-holding-grid,.max-offer-bar,.upg-grid,.cmp-pickers{grid-template-columns:1fr}
+  .area-big{font-size:32px}
+  .land-input-big input{font-size:22px}
+  .land-input-big .pfx{font-size:17px}
+  .profit-val{font-size:21px}
+  .loan-stat-val{font-size:17px}
+  .card{padding:16px 14px}
+  .nav-btns{flex-wrap:wrap}
+  .nav-btns .btn{flex:1 1 auto;min-width:150px}
+  /* prevent iOS focus zoom */
+  .field input,.field select,.side-input,.comps-table input,.lot-editor-toolbar input[type=number]{font-size:16px}
+  .deal-pulse{gap:14px;padding:8px 14px}
+  .dp-val{font-size:13px}
+  .toast-wrap{left:12px;right:12px;max-width:none}
+}
+@media (max-width:420px){
+  .fr2,.fr3,.fr4,.loan-stat-grid,.area-grid,.lot-stats{grid-template-columns:1fr 1fr}
+  .fr2,.fr3{grid-template-columns:1fr}
+}
 
 
 /* Plan comparison (#3) */
@@ -402,7 +486,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-badge">V7.3 &middot; Jun 2026</div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge">V7.4 &middot; Jun 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -413,6 +497,12 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
   <button class="step-btn" id="nav-5" onclick="goTo(5)"><span class="step-num">05</span>Plan &amp; Build</button>
   <button class="step-btn" id="nav-6" onclick="goTo(6)"><span class="step-num">06</span>Financing</button>
   <button class="step-btn" id="nav-7" onclick="goTo(7)"><span class="step-num">07</span>Exit &amp; Offer</button>
+</div>
+
+<div class="resume-bar" id="resume-bar">
+  <span>&#128190; Unsaved session found: <b id="resume-addr">saved deal</b> <span id="resume-when" style="color:var(--text-dim)"></span></span>
+  <button class="resume-btn" onclick="resumeAutosave()">Resume</button>
+  <button class="resume-btn ghost" onclick="dismissResume()">Dismiss</button>
 </div>
 
 <!-- ═══ PAGE 1: ADDRESS & ZONING ═══ -->
@@ -985,6 +1075,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       <button class="btn btn-primary" onclick="generateReportPackage()" style="background:var(--amber);color:#1a2535;font-size:13px;padding:10px 20px">
         📦 Generate Report Package (PDF + CSV)
       </button>
+      <button class="btn btn-primary" onclick="generateSheet()" style="background:var(--brand-green);color:#fff;font-size:13px;padding:10px 20px">&#128202; Excel Model (live formulas)</button>
       <button class="btn btn-primary" onclick="generateOfferLetter()" style="background:var(--teal);color:#fff;font-size:13px;padding:10px 20px">&#9993;&#65039; Generate Offer Letter</button>
     </div>
 </div>
@@ -1399,12 +1490,13 @@ const pv=id=>{const e=$(id);if(!e)return 0;const v=parseFloat((e.value||'').repl
 // ═══════════════════ NAVIGATION ═══════════════════
 function goTo(n){
   try{document.body.setAttribute('data-step',n);}catch(e){}
+  (window._visitedSteps=window._visitedSteps||new Set([1])).add(n);
   for(let i=1;i<=7;i++){
     $(`page-${i}`).classList.toggle('active',i===n);
     const nb=$(`nav-${i}`);
     nb.classList.remove('active','done');
     if(i===n)nb.classList.add('active');
-    else if(i<n)nb.classList.add('done');
+    else if(i<n&&window._visitedSteps&&window._visitedSteps.has(i))nb.classList.add('done');
   }
   window.scrollTo(0,0);
   if(n===2)updateGISLink();
@@ -3892,7 +3984,174 @@ function renderCompare(){
   h+='</tbody></table>';
   body.innerHTML=h;
 }
+/* ════════ V7.4 UX LAYER (additive — no math functions modified) ════════ */
+// Toasts (also absorbs legacy alert())
+function showToast(msg,type){
+  const w=$('toast-wrap');if(!w){console.log('[toast]',msg);return;}
+  const t=document.createElement('div');t.className='toast '+(type||'');t.textContent=String(msg);
+  w.appendChild(t);
+  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300);},4200);
+}
+window.alert=function(m){showToast(m,'warn');};
+
+// Esc closes any open modal
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  try{closePlanImg();}catch(_){ }
+  try{if(($('compare-modal')||{}).style&&$('compare-modal').style.display!=='none')closeCompare();}catch(_){ }
+  try{if(($('offer-letter-modal')||{}).style&&$('offer-letter-modal').style.display!=='none')closeOfferLetter();}catch(_){ }
+});
+
+// Deal pulse — display-only; reads the same pure pipeline the report uses
+function updateDealPulse(){
+  const bar=$('deal-pulse');if(!bar)return;
+  try{
+    const d=getReportData();
+    const F=v=>(v||v===0)&&!isNaN(v)?'$'+Math.round(v).toLocaleString():'\u2014';
+    $('dp-allin').textContent=F(d.cost.total);
+    $('dp-loan').textContent=F(d.fin.loan);
+    $('dp-cash').textContent=F(d.fin.cash);
+    const b=d.scenarios&&d.scenarios.find(s=>s.key==='b');
+    const pEl=$('dp-profit'),cEl=$('dp-coc');
+    if(b&&b.hasArv){
+      pEl.textContent=F(b.profit);
+      pEl.className='dp-val '+(b.profit>0?'pos':b.profit<0?'neg':'');
+      cEl.textContent='CoC '+b.coc.toFixed(1)+'%';
+    }else{pEl.textContent='\u2014';pEl.className='dp-val';cEl.textContent='set ARV';}
+  }catch(_){/* pulse must never break the app */}
+}
+// hook recalcs by rebinding (originals untouched)
+(function(){
+  const _ca=calcAll,_cs=calcScenarios;
+  calcAll=function(){_ca();try{updateDealPulse();}catch(_){ } try{scheduleAutosave();}catch(_){ }};
+  calcScenarios=function(){_cs();try{updateDealPulse();}catch(_){ } try{scheduleAutosave();}catch(_){ }};
+})();
+
+// Busy states on heavy exports (rebind; originals untouched)
+function _busyWrap(fnName,label,ms){
+  const orig=window[fnName];if(typeof orig!=='function')return;
+  window[fnName]=function(){
+    const b=(document.activeElement&&document.activeElement.classList&&document.activeElement.classList.contains('btn'))?document.activeElement:null;
+    let prev;if(b){prev=b.innerHTML;b.dataset.busy='1';b.innerHTML=label;}
+    try{return orig.apply(this,arguments);}finally{
+      setTimeout(()=>{if(b){b.dataset.busy='';b.innerHTML=prev;}},ms||1400);
+    }
+  };
+}
+_busyWrap('generateReportPackage','\u23f3 Building report\u2026',1600);
+_busyWrap('generateSheet','\u23f3 Building Excel\u2026',2400);
+
+// Favicon (uses the same emblem asset; harmless if missing)
+(function(){try{var l=document.querySelector('link[rel="icon"]');if(!l){l=document.createElement('link');l.rel='icon';l.href='assets/ttv-emblem.png';document.head.appendChild(l);}}catch(_){}})();
+
+// ── Save / Load / Autosave ──────────────────────────────────────────────
+const DEAL_VERSION=1, AUTOSAVE_KEY='ttv-analyzer-autosave';
+function serializeDeal(){
+  const fields={};
+  document.querySelectorAll('.page input[id], .page select[id]').forEach(e=>{
+    if(e.type==='file')return;
+    fields[e.id]=e.type==='checkbox'?{t:'checkbox',c:e.checked}:{t:e.type||'text',v:e.value};
+  });
+  const planName=(($('plan-sel')||{}).value||'').split('|')[0]||null;
+  return {v:DEAL_VERSION,ts:Date.now(),
+    address:[($('addr-street')||{}).value,($('addr-city')||{}).value].filter(Boolean).join(', '),
+    fields,lotMode,plan:planName,
+    polyPoints:polyPoints.map(p=>({x:p.x,y:p.y})),
+    edges:edgeDesignations.slice(),
+    choices:CHOICES.slice(),
+    upgrades:Array.from(selectedUpgrades),
+    comps:COMPS.map(c=>Object.assign({},c))};
+}
+function restoreDeal(d){
+  if(!d||!d.fields){showToast('That file doesn\u2019t look like a saved deal.','warn');return;}
+  try{
+    const vals=d.fields;
+    const setV=id=>{const f=vals[id],e=$(id);if(f&&e){if(f.t==='checkbox')e.checked=!!f.c;else e.value=f.v;}};
+    // 1) jurisdiction first (rebuilds zones, autofills taps)
+    setV('addr-city');setV('county-sel');
+    onCountyChange();
+    // 2) blanket restore (overwrites any autofill with saved values)
+    Object.keys(vals).forEach(id=>{const f=vals[id],e=$(id);if(!e)return;if(f.t==='checkbox')e.checked=!!f.c;else e.value=f.v;});
+    // saved zone may be a GIS-added option not in the default list
+    if(vals['zone-sel']&&vals['zone-sel'].v&&$('zone-sel').value!==vals['zone-sel'].v){
+      const sel=$('zone-sel'),o=document.createElement('option');
+      o.value=vals['zone-sel'].v;o.textContent=(vals['zone-sel'].v.split('|')[1]||vals['zone-sel'].v)+' (saved)';
+      sel.appendChild(o);sel.value=vals['zone-sel'].v;
+    }
+    onZoneChange();
+    // 3) lock tap signature so step-5 entry doesn't clobber restored taps
+    _tapSig=($('county-sel').value||'')+'|'+(($('addr-city').value||'').toLowerCase().trim());
+    // 4) lot geometry
+    if(d.lotMode==='poly'&&d.polyPoints&&d.polyPoints.length>=3){
+      polyPoints=d.polyPoints.map(p=>({x:p.x,y:p.y}));
+      edgeDesignations=(d.edges||[]).slice();
+      setLotMode('poly');redrawEditor();
+    }else{setLotMode('rect');}
+    // 5) plan library at saved GC fee, then re-select plan by name
+    const fee=parseFloat(vals['gc-build-fee']?vals['gc-build-fee'].v:14);
+    recomputePlanCosts(isNaN(fee)?14:fee);
+    buildPlanDropdown();
+    if(d.plan){const o=Array.from($('plan-sel').options).find(x=>(x.value||'').split('|')[0]===d.plan);if(o)$('plan-sel').value=o.value;}
+    // 6) collections
+    CHOICES[0]=(d.choices||[])[0]||null;CHOICES[1]=(d.choices||[])[1]||null;CHOICES[2]=(d.choices||[])[2]||null;
+    selectedUpgrades.clear();(d.upgrades||[]).forEach(u=>selectedUpgrades.add(u));
+    COMPS.length=0;(d.comps||[]).forEach(c=>COMPS.push(Object.assign({},c)));
+    // 7) re-render + recalc through the existing pipeline only
+    if(typeof renderUpgrades==='function')renderUpgrades();
+    renderComps();renderShortlist();
+    onPlanChange();
+    // onPlanChange auto-sets units from the plan default — re-apply the saved value
+    if(vals['units']&&$('units')){$('units').value=vals['units'].v;}
+    if($('skip-sewer'))onSewerSkip();
+    calcLF();calcBuildable();calcAll();calcFinancing();
+    if(typeof renderFitCheck==='function')renderFitCheck();
+    updateDealPulse();
+    showToast('Deal restored: '+(d.address||'saved deal'),'ok');
+  }catch(e){console.error('restore',e);showToast('Restore failed: '+e.message,'warn');}
+}
+function downloadDealJSON(){
+  try{
+    const d=serializeDeal();
+    const slug=(d.address||'TTV_Deal').replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_').substring(0,40)||'TTV_Deal';
+    const blob=new Blob([JSON.stringify(d,null,1)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slug+'_deal.json';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    showToast('Deal saved to file \u2014 drop it in the project\u2019s Drive folder to share.','ok');
+  }catch(e){showToast('Save failed: '+e.message,'warn');}
+}
+function loadDealFile(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{restoreDeal(JSON.parse(r.result));}catch(e){showToast('Couldn\u2019t read that file: '+e.message,'warn');}};
+  r.readAsText(f);inp.value='';
+}
+// autosave (silent, opt-in restore via banner; storage may be unavailable — degrade quietly)
+let _autosaveTimer=null;
+function scheduleAutosave(){
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(serializeDeal()));}catch(_){ }},900);
+}
+document.addEventListener('input',scheduleAutosave);
+document.addEventListener('change',scheduleAutosave);
+function resumeAutosave(){
+  try{const d=JSON.parse(localStorage.getItem(AUTOSAVE_KEY)||'null');if(d)restoreDeal(d);}catch(e){showToast('Couldn\u2019t restore the session.','warn');}
+  dismissResume();
+}
+function dismissResume(){const b=$('resume-bar');if(b)b.classList.remove('show');}
+function checkResumeBanner(){
+  try{
+    const raw=localStorage.getItem(AUTOSAVE_KEY);if(!raw)return;
+    const d=JSON.parse(raw);if(!d||!d.address)return;
+    $('resume-addr').textContent=d.address;
+    const mins=Math.max(1,Math.round((Date.now()-(d.ts||Date.now()))/60000));
+    $('resume-when').textContent='\u00b7 '+(mins<60?mins+' min ago':Math.round(mins/60)+' hr ago');
+    $('resume-bar').classList.add('show');
+  }catch(_){ }
+}
+checkResumeBanner();
+updateDealPulse();
 </script>
+
 
 <!-- STANDARD INCLUSIONS MODAL (#9) -->
 <div id="incl-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9998;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px" onclick="closeInclusions()">
@@ -3930,6 +4189,15 @@ function renderCompare(){
 </div>
 
 <!-- PLAN DRAWING LIGHTBOX -->
+<div class="deal-pulse" id="deal-pulse">
+  <div class="dp-item"><span class="dp-lbl">All-In Total</span><span class="dp-val" id="dp-allin">&mdash;</span></div>
+  <div class="dp-item"><span class="dp-lbl">Loan</span><span class="dp-val" id="dp-loan">&mdash;</span></div>
+  <div class="dp-item"><span class="dp-lbl">Cash Req.</span><span class="dp-val amb" id="dp-cash">&mdash;</span></div>
+  <div class="dp-item"><span class="dp-lbl">Base Profit / Unit</span><span class="dp-val" id="dp-profit">&mdash;</span><span class="dp-sub" id="dp-coc"></span></div>
+  <button class="dp-go" onclick="goTo(7)">Offer &rarr;</button>
+</div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
 <div id="planimg-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:24px" onclick="closePlanImg()">
   <div style="max-width:1100px;width:100%" onclick="event.stopPropagation()">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
