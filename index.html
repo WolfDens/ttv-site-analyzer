@@ -402,7 +402,7 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-badge">V7.2 &middot; Jun 2026</div>
+  <div class="hdr-badge">V7.3 &middot; Jun 2026</div>
 </div>
 
 <div class="step-nav">
@@ -427,6 +427,11 @@ body[data-step]:not([data-step="1"]) .bg-art::before{opacity:0.45}
         <div class="field"><label>ZIP</label><input type="text" id="addr-zip" placeholder="28205" oninput="onAddrChange()"></div>
       </div>
       <div id="addr-validation"></div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="topo-btn" id="gis-btn" onclick="gisLookup()">🛰 Auto-fill from County GIS</button>
+        <span id="gis-status" style="font-size:12px;color:var(--text-dim)"></span>
+      </div>
+      <div id="gis-result" style="display:none;margin-top:10px;border:1px solid rgba(94,128,149,0.35);border-radius:8px;padding:10px 12px;background:rgba(94,128,149,0.08);font-size:12.5px"></div>
       <div class="link-card" id="link-card" style="display:none">
         <div class="link-card-title">🔗 External Resources</div>
         <div id="link-rows"></div>
@@ -1534,6 +1539,89 @@ function onZoneChange(){
   }
 }
 function fullAddr(){return[$('addr-street').value,$('addr-city').value,$('addr-state').value,$('addr-zip').value].map(s=>(s||'').trim()).filter(Boolean).join(', ');}
+
+// ── GIS AUTO-FILL (Charlotte / Mecklenburg via the /api/gis proxy) ──────────
+function setGisStatus(msg){const e=$('gis-status');if(e)e.textContent=msg||'';}
+async function gisLookup(){
+  const addr=fullAddr();
+  if(!addr){setGisStatus('Enter a street address first.');return;}
+  const btn=$('gis-btn');if(btn)btn.disabled=true;
+  setGisStatus('Looking up parcel\u2026');
+  try{
+    const res=await fetch('/api/gis?address='+encodeURIComponent(addr));
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    applyGisData(await res.json());
+  }catch(e){
+    setGisStatus('Lookup failed \u2014 '+e.message+'. (Auto-fill needs the deployed site; it won\u2019t run from a local file.)');
+  }finally{ if(btn)btn.disabled=false; }
+}
+function setGisZoning(zoneVal){
+  const sel=$('zone-sel');if(!sel||!zoneVal)return false;
+  const county=$('county-sel').value||'Mecklenburg';
+  const Z=String(zoneVal).toUpperCase().trim();
+  let opt=Array.from(sel.options).find(o=>((o.value.split('|')[1]||'').toUpperCase())===Z);
+  if(!opt){opt=document.createElement('option');opt.value=county+'|'+zoneVal;opt.textContent=zoneVal+' (from GIS)';sel.appendChild(opt);}
+  sel.value=opt.value;onZoneChange();return true;
+}
+function loadParcelPolygon(rings){
+  if(!rings||!rings.length)return false;
+  let ring=rings[0].slice();
+  if(ring.length>2){const a=ring[0],b=ring[ring.length-1];if(a[0]===b[0]&&a[1]===b[1])ring=ring.slice(0,-1);}
+  if(ring.length<3)return false;
+  const xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const spanX=maxX-minX,spanY=maxY-minY;
+  const canvas=$('lot-editor-canvas');if(!canvas)return false;
+  const W=canvas.width,H=canvas.height;
+  const ftPerPx=Math.max(spanX/(W*0.82),spanY/(H*0.82))||1;
+  const canvasWidthFt=Math.max(20,Math.round(ftPerPx*W));
+  const sc=$('canvas-scale-ft');if(sc)sc.value=canvasWidthFt;
+  const fpp=canvasWidthFt/W;
+  const offX=(W-spanX/fpp)/2, offY=(H-spanY/fpp)/2;
+  polyPoints=ring.map(p=>({
+    x:Math.round(offX+(p[0]-minX)/fpp),
+    y:Math.round(offY+(spanY-(p[1]-minY))/fpp)   // flip Y so north is up on screen
+  }));
+  setLotMode('poly');           // polyPoints already set, so it won't re-seed a default
+  initEdgeDesignations();
+  redrawEditor();
+  calcBuildable();
+  return true;
+}
+function applyGisData(d){
+  if(!d||(!d.ok&&!d.parcel&&!d.zoning)){
+    setGisStatus((d&&d.errors&&d.errors[0])?('No match \u2014 '+d.errors[0]):'No parcel found for that address.');
+    return;
+  }
+  if(!$('county-sel').value){
+    const city=($('addr-city').value||'').toLowerCase().trim();
+    const det=(typeof CITY_COUNTY!=='undefined'&&CITY_COUNTY[city])||(/charlotte/i.test(d.address||'')?'Mecklenburg':'');
+    if(det){$('county-sel').value=det;onCountyChange();}
+  }
+  const filled=[];
+  if(d.zoning&&d.zoning.value&&setGisZoning(d.zoning.value))filled.push('zoning '+d.zoning.value);
+  if(d.parcel&&d.parcel.geometry&&d.parcel.geometry.rings&&loadParcelPolygon(d.parcel.geometry.rings))filled.push('lot polygon + area');
+  setGisStatus(filled.length?('Filled: '+filled.join(', ')+'. Review & adjust below.'):'Lookup complete.');
+  renderGisResult(d);
+}
+function renderGisResult(d){
+  const box=$('gis-result');if(!box)return;
+  const dim='var(--text-dim)',amber='#f0a93c',red='#ef5d57',green='#46c08a',teal='#5e8095';
+  const row=(lbl,val,col)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid rgba(94,128,149,0.18)"><span style="color:${dim}">${lbl}</span><span style="text-align:right${col?';color:'+col:''}">${val}</span></div>`;
+  const p=d.parcel||{},z=d.zoning||{},w=d.watershed||{},b=d.swim_buffer||{};
+  let h='<div style="font-weight:bold;color:'+teal+';margin-bottom:6px">🛰 County GIS \u2014 '+(p.matched_address||d.address||'')+'</div>';
+  if(p.area_sf)h+=row('Lot area',p.area_sf.toLocaleString()+' sf ('+p.area_ac+' ac)');
+  if(p.is_likely_parent)h+=row('\u26a0 Parcel note','Parent parcel \u2014 draw the intended sublot',amber);
+  if(z.value)h+=row('Zoning',z.value+(z.class?' \u00b7 '+z.class:''));
+  if(w.pco_district)h+=row('Watershed',w.pco_district);
+  if(w.bua_rule)h+=row('BUA rule',w.bua_rule,amber);
+  if(b&&typeof b.intersects==='boolean')h+=row('SWIM buffer',b.intersects?('\u26a0 Intersects'+(b.types&&b.types.length?' ('+b.types.join(', ')+')':'')):'\u2713 None on parcel',b.intersects?red:green);
+  if(d.historic)h+=row('Historic district',d.historic.in_district?('\u26a0 '+(d.historic.name||'Yes')):'\u2713 No',d.historic.in_district?amber:'');
+  h+=row('Easements','Verify on recorded plat',dim);
+  if(d.errors&&d.errors.length)h+=row('Errors',d.errors.join('; '),red);
+  h+='<div style="font-size:11px;color:'+dim+';margin-top:6px">Zoning &amp; lot loaded into the form above \u2014 override anything off-benchmark. Parcel shown is the current GIS shape; for a subdivision, draw the intended sublot.</div>';
+  box.innerHTML=h;box.style.display='';
+}
 
 // ═══════════════════ PAGE 2 — LOT MODE ═══════════════════
 function setLotMode(mode){
