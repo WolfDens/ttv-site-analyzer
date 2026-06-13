@@ -4352,7 +4352,7 @@ const APP_VERSION='7.7', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
  {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
    'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
-   'Corner and alley lots (more than one street-facing edge) get an amber flag \u2014 front defaults to the edge nearest the address point; confirm it.',
+   'The front is matched to your address\u2019s named street centerline (e.g. \u201cfacing Dellinger Dr\u201d); corner and alley lots get an amber flag to confirm.',
    'As always, click any edge in the lot editor to cycle Front \u2192 Rear \u2192 Side. Requires the updated /api/gis on Vercel.']},
  {v:'7.6',date:'Jun 2026',name:'Report & Excel overhaul',items:[
    'Excel workbook reformatted \u2014 opens on a branded Cover with Loan & Cash Required, color-coded tabs, scenario columns tinted worst/base/best.',
