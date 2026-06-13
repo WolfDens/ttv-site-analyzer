@@ -1,4 +1,9 @@
-// api/gis.js — TTV GIS auto-fill proxy (Charlotte / Mecklenburg)  v2
+// api/gis.js — TTV GIS auto-fill proxy (Charlotte / Mecklenburg)  v3
+// v3: right-of-way edge detection — classifies each parcel edge as facing a
+// neighboring parcel (interior lot line) or no parcel (street/alley ROW), and
+// picks the front edge (ROW edge nearest the address point). Edge indices are
+// aligned to the de-duplicated outer ring (closing point removed), matching the
+// client lot editor's edge order.
 // Server-side fetch avoids the browser CORS block. Deploy on Vercel at /api/gis.js,
 // push to main, then hit  /api/gis?address=2723%20Dellinger%20Dr&debug=1
 //
@@ -29,6 +34,40 @@ async function pickField(id, rx, prefer){
 }
 function shoelaceSqft(g){ if(!g||!g.rings||!g.rings.length) return null; let t=0; g.rings.forEach((r,ri)=>{ let a=0; for(let i=0;i<r.length-1;i++){ a+=r[i][0]*r[i+1][1]-r[i+1][0]*r[i][1]; } a=Math.abs(a/2); t+=(ri===0?a:-a); }); return t; }
 function centroid(g){ const r=g&&g.rings&&g.rings[0]; if(!r) return null; let x=0,y=0; r.forEach(p=>{x+=p[0];y+=p[1];}); return {x:x/r.length,y:y/r.length}; }
+function pointInRing(px,py,ring){ // ray cast; ring = [[x,y],...] (closing dup ok)
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function stripClose(ring){ if(ring.length>2){const a=ring[0],b=ring[ring.length-1]; if(a[0]===b[0]&&a[1]===b[1]) return ring.slice(0,-1);} return ring.slice(); }
+// Classify each edge of `ring0` (closed dup removed) by offsetting its midpoint
+// outward ~OFFSET ft and testing containment in any neighbor ring.
+function classifyEdges(ring0, neighborRings, addrPt){
+  const OFFSET=10, ring=stripClose(ring0), n=ring.length;
+  const edges=[];
+  for(let i=0;i<n;i++){
+    const a=ring[i], b=ring[(i+1)%n];
+    const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+    const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.hypot(dx,dy)||1;
+    const nx=dy/len, ny=-dx/len; // unit normal
+    // outward = the offset point that lands OUTSIDE the subject ring
+    let ox=mx+nx*OFFSET, oy=my+ny*OFFSET;
+    if(pointInRing(ox,oy,ring)){ ox=mx-nx*OFFSET; oy=my-ny*OFFSET; }
+    const inNeighbor = neighborRings.some(r=>pointInRing(ox,oy,r));
+    const distAddr = addrPt? Math.hypot(mx-addrPt.x,my-addrPt.y) : null;
+    edges.push({ i, len_ft:Math.round(len), row:!inNeighbor, mid:[Math.round(mx),Math.round(my)], dist_addr_ft:distAddr!=null?Math.round(distAddr):null });
+  }
+  const rowEdges=edges.filter(e=>e.row && e.len_ft>=8);
+  let front=null;
+  if(rowEdges.length){
+    front=(addrPt? rowEdges.slice().sort((a,b)=>a.dist_addr_ft-b.dist_addr_ft)
+                 : rowEdges.slice().sort((a,b)=>b.len_ft-a.len_ft))[0].i;
+  }
+  return { edges, row:edges.map(e=>e.row), front_index:front, row_count:rowEdges.length };
+}
 function bboxWxD(g){ const r=g&&g.rings&&g.rings[0]; if(!r) return null; const xs=r.map(p=>p[0]),ys=r.map(p=>p[1]); return { w:Math.round(Math.max(...xs)-Math.min(...xs)), d:Math.round(Math.max(...ys)-Math.min(...ys)) }; }
 function findAttr(a, rx){ if(!a) return null; for(const [k,v] of Object.entries(a)){ if(rx.test(k)&&v!=null&&v!=='') return {field:k,value:v}; } return null; }
 async function spatialAt(layerUrl, pt, outFields='*'){
@@ -87,6 +126,28 @@ export default async function handler(req, res){
         attrs: parcelFeat.attributes
       };
       if(!pt) pt=centroid(g);
+      // v3: right-of-way edge classification via neighboring parcels
+      try{
+        const ring0=g.rings&&g.rings[0];
+        if(ring0&&ring0.length>=4){
+          const xs=ring0.map(p=>p[0]), ys=ring0.map(p=>p[1]), PAD=40;
+          const env={xmin:Math.min(...xs)-PAD,ymin:Math.min(...ys)-PAD,xmax:Math.max(...xs)+PAD,ymax:Math.max(...ys)+PAD,spatialReference:{wkid:SR}};
+          const url=`${BASE}/${LAYER.parcels}/query?geometry=${encodeURIComponent(JSON.stringify(env))}&geometryType=esriGeometryEnvelope&inSR=${SR}&spatialRel=esriSpatialRelIntersects&outFields=PID&returnGeometry=true&outSR=${SR}&f=json`;
+          const nj=await aj(url); raw.neighbors=debug?{count:(nj.features||[]).length}:undefined;
+          const selfPid=out.parcel.pid, selfOID=parcelFeat.attributes&&parcelFeat.attributes.OBJECTID;
+          const neighborRings=[];
+          (nj.features||[]).forEach(f=>{
+            const isSelf=(f.attributes&&((selfPid&&f.attributes.PID===selfPid)||(selfOID&&f.attributes.OBJECTID===selfOID)));
+            if(!isSelf&&f.geometry&&f.geometry.rings) f.geometry.rings.forEach(r=>neighborRings.push(r));
+          });
+          const info=classifyEdges(ring0,neighborRings,pt);
+          out.parcel.edges={ row:info.row, front_index:info.front_index, row_count:info.row_count,
+            detail:info.edges, neighbors_checked:neighborRings.length,
+            note: info.row_count===0?'No street-facing edge detected - front left unset, assign in the editor.'
+                 :info.row_count>1?'Multiple street/alley-facing edges (corner or alley lot) - front set nearest the address point; confirm in the editor.'
+                 :'Front edge set facing right-of-way.' };
+        }
+      }catch(e){ out.errors.push('edges: '+e.message); }
     } else if(pt){ out.notes.push('No parcel polygon at the geocoded point'); }
 
     // 3) overlays at the parcel point
