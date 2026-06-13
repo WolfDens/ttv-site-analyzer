@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.5 &middot; Jun 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.7 &middot; Jun 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -1097,7 +1097,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
   <div class="nav-btns" style="flex-wrap:wrap;gap:10px">
       <button class="btn btn-ghost" onclick="goTo(6)">← Back to Financing</button>
       <button class="btn btn-primary" onclick="generateReportPackage()" style="background:var(--amber);color:#1a2535;font-size:13px;padding:10px 20px">
-        📦 Generate Report Package (PDF + CSV)
+        📦 Generate Report Package (PDF + Excel)
       </button>
       <button class="btn btn-primary" onclick="generateSheet()" style="background:var(--brand-green);color:#fff;font-size:13px;padding:10px 20px">&#128202; Excel Model (live formulas)</button>
       <button class="btn btn-primary" onclick="generateOfferLetter()" style="background:var(--teal);color:#fff;font-size:13px;padding:10px 20px">&#9993;&#65039; Generate Offer Letter</button>
@@ -1679,7 +1679,7 @@ function setGisZoning(zoneVal){
   if(!opt){opt=document.createElement('option');opt.value=county+'|'+zoneVal;opt.textContent=zoneVal+' (from GIS)';sel.appendChild(opt);}
   sel.value=opt.value;onZoneChange();return true;
 }
-function loadParcelPolygon(rings){
+function loadParcelPolygon(rings,edgeInfo){
   if(!rings||!rings.length)return false;
   let ring=rings[0].slice();
   if(ring.length>2){const a=ring[0],b=ring[ring.length-1];if(a[0]===b[0]&&a[1]===b[1])ring=ring.slice(0,-1);}
@@ -1699,7 +1699,29 @@ function loadParcelPolygon(rings){
     y:Math.round(offY+(spanY-(p[1]-minY))/fpp)   // flip Y so north is up on screen
   }));
   setLotMode('poly');           // polyPoints already set, so it won't re-seed a default
-  initEdgeDesignations();
+  initEdgeDesignations();        // baseline (also the fallback when no edge data)
+  // v7.7: data-driven designations from ROW detection (proxy v3). Edge i = pts[i]->pts[i+1],
+  // same order as the proxy's classification (indices unaffected by the Y-flip).
+  if(edgeInfo&&Array.isArray(edgeInfo.row)&&edgeInfo.row.length===polyPoints.length){
+    const n=polyPoints.length;
+    edgeDesignations=Array(n).fill('side');
+    const fi=(typeof edgeInfo.front_index==='number')?edgeInfo.front_index:null;
+    if(fi!=null&&fi>=0&&fi<n){
+      edgeDesignations[fi]='front';
+      // rear = non-ROW edge whose midpoint lies most opposite the front midpoint through the centroid
+      const cx=polyPoints.reduce((s,p)=>s+p.x,0)/n, cy=polyPoints.reduce((s,p)=>s+p.y,0)/n;
+      const fa=polyPoints[fi],fb=polyPoints[(fi+1)%n];
+      const fdx=(fa.x+fb.x)/2-cx, fdy=(fa.y+fb.y)/2-cy;
+      let best=-Infinity,rearIdx=-1;
+      for(let i=0;i<n;i++){
+        if(i===fi||edgeInfo.row[i])continue;
+        const a=polyPoints[i],b=polyPoints[(i+1)%n];
+        const score=-(((a.x+b.x)/2-cx)*fdx+((a.y+b.y)/2-cy)*fdy);
+        if(score>best){best=score;rearIdx=i;}
+      }
+      if(rearIdx>=0)edgeDesignations[rearIdx]='rear';
+    }
+  }
   redrawEditor();
   calcBuildable();
   return true;
@@ -1716,8 +1738,16 @@ function applyGisData(d){
   }
   const filled=[];
   if(d.zoning&&d.zoning.value&&setGisZoning(d.zoning.value))filled.push('zoning '+d.zoning.value);
-  if(d.parcel&&d.parcel.geometry&&d.parcel.geometry.rings&&loadParcelPolygon(d.parcel.geometry.rings))filled.push('lot polygon + area');
+  if(d.parcel&&d.parcel.geometry&&d.parcel.geometry.rings&&loadParcelPolygon(d.parcel.geometry.rings,d.parcel.edges))filled.push('lot polygon + area'+(d.parcel.edges&&d.parcel.edges.front_index!=null?' + front edge':''));
   setGisStatus(filled.length?('Filled: '+filled.join(', ')+'. Review & adjust below.'):'Lookup complete.');
+  try{window._lastGis={ts:Date.now(),
+    pid:d.parcel&&d.parcel.pid||null,nc_pin:d.parcel&&d.parcel.nc_pin||null,
+    matched:d.parcel&&d.parcel.matched_address||null,
+    area_sf:d.parcel&&d.parcel.area_sf||null,area_ac:d.parcel&&d.parcel.area_ac||null,
+    zoning:d.zoning&&d.zoning.value||null,zclass:d.zoning&&d.zoning.class||null,
+    watershed:d.watershed&&d.watershed.pco_district||null,bua:d.watershed&&d.watershed.bua_rule||null,
+    swim:d.swim_buffer?{i:!!d.swim_buffer.intersects,t:(d.swim_buffer.types||[]).slice(0,3)}:null,
+    historic:d.historic?{i:!!d.historic.in_district,n:d.historic.name||null}:null};}catch(_){ }
   renderGisResult(d);
 }
 function renderGisResult(d){
@@ -1728,6 +1758,7 @@ function renderGisResult(d){
   let h='<div style="font-weight:bold;color:'+teal+';margin-bottom:6px">🛰 County GIS \u2014 '+(p.matched_address||d.address||'')+'</div>';
   if(p.area_sf)h+=row('Lot area',p.area_sf.toLocaleString()+' sf ('+p.area_ac+' ac)');
   if(p.is_likely_parent)h+=row('\u26a0 Parcel note','Parent parcel \u2014 draw the intended sublot',amber);
+  if(p.edges)h+=row('Front edge',p.edges.note||'\u2014',(p.edges.row_count===1?'':amber));
   if(z.value)h+=row('Zoning',z.value+(z.class?' \u00b7 '+z.class:''));
   if(w.pco_district)h+=row('Watershed',w.pco_district);
   if(w.bua_rule)h+=row('BUA rule',w.bua_rule,amber);
@@ -2903,6 +2934,7 @@ function calcLF(){
     {l:'Grading',v:grading},{l:'Site Prep / Driveway',v:sitePrep},
     {l:'Utilities',v:util},{l:'Framing Labor',v:framing},{l:'Culverts',v:culverts},{l:'Landscaping',v:land},
   ].filter(i=>i.v>0);
+  try{window._lfItems=items.map(i=>({l:i.l,v:i.v}));}catch(_){ }
   const bd=$('lf-breakdown');
   if(bd)bd.innerHTML=items.map(i=>`<div class="lf-row"><span class="lf-lbl">${i.l}</span><span class="lf-val">${fmt(i.v)}</span></div>`).join('')||'<div class="lf-row"><span class="lf-lbl" style="color:var(--text-dim)">No costs entered</span></div>';
   const td=$('lf-total-display');if(td)td.textContent=fmt(lotFactor);
@@ -3236,14 +3268,21 @@ function generateReportPackage(){
 }
 
 function generatePDF(){
-  const sbCanvas=$('sb-canvas');
-  const canvasDataUrl=sbCanvas?sbCanvas.toDataURL('image/png'):null;
-  const html=buildReportHTML(canvasDataUrl);
-  const w=window.open('','_blank','width=960,height=750');
-  if(!w){alert('Pop-up blocked — please allow pop-ups for this page, then try again.');return;}
-  w.document.write(html);
-  w.document.close();
-  w.onload=()=>{setTimeout(()=>{w.focus();w.print();},600);};
+  // refresh the site diagram first so the memo never exports a blank canvas
+  try{
+    if(lotMode==='poly'&&typeof snapshotLotEditor==='function')snapshotLotEditor();
+    else if(typeof drawDiagram==='function'){calcBuildable();drawDiagram();}
+  }catch(_){ }
+  setTimeout(()=>{
+    const sbCanvas=$('sb-canvas');
+    const canvasDataUrl=sbCanvas?sbCanvas.toDataURL('image/png'):null;
+    const html=buildReportHTML(canvasDataUrl);
+    const w=window.open('','_blank','width=960,height=750');
+    if(!w){alert('Pop-up blocked — please allow pop-ups for this page, then try again.');return;}
+    w.document.write(html);
+    w.document.close();
+    w.onload=()=>{setTimeout(()=>{w.focus();w.print();},600);};
+  },360);
 }
 
 // ── Plan comparison builder: ranked slots first, then next-best fitting plans ──
@@ -3332,6 +3371,8 @@ function getReportData(){
     date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),
     fin,cost,scenarios,psf,terms,
     maxLand:($('max-land-display')||{}).textContent||'—',
+    gis:(typeof window!=='undefined'&&window._lastGis)||null,
+    lfItems:((typeof window!=='undefined'&&window._lfItems)||[]).slice(),
     planComp:buildPlanComparison(psf),
     comps:COMPS.map(c=>({addr:c.addr||'',sqft:c.sqft||'',sold:c.sold||'',adj:c.adj||'',
       ppsf:compPPSF(c),date:c.date||'',dist:c.dist||'',mom:c.mom||'',notes:c.notes||'',url:c.url||''})),
@@ -3353,9 +3394,9 @@ function buildReportHTML(canvasDataUrl){
     +'<div class="hdr-l">'+emblem+'<div><div class="hdr-title">TIDE &amp; TIMBER VENTURES</div>'
     +'<div class="hdr-sub">New Construction Underwriting Memo</div></div></div>'
     +'<div class="hdr-r">'+label+'</div></div>';
-  const foot='<div class="footer"><span>Tide &amp; Timber Ventures, LLC &nbsp;|&nbsp; management@tidetimberventures.com &nbsp;|&nbsp; Charlotte, NC</span>'
-    +'<span>Confidential — internal use only</span></div>';
-  const sheet=(label,inner)=>'<div class="sheet">'+head(label)+'<div class="body">'+inner+'</div>'+foot+'</div>';
+  const foot=(n,t)=>'<div class="footer"><span>Tide &amp; Timber Ventures, LLC &nbsp;|&nbsp; management@tidetimberventures.com &nbsp;|&nbsp; Charlotte, NC</span>'
+    +'<span>Confidential \u2014 internal use only &nbsp;\u00b7&nbsp; Sheet '+n+' of '+t+'</span></div>';
+  const sheet=(label,inner,n,t)=>'<div class="sheet">'+head(label)+'<div class="body">'+inner+'</div>'+foot(n,t)+'</div>';
   const secHdr=(t,cls)=>'<div class="sec-hdr'+(cls?' '+cls:'')+'">'+t+'</div>';
 
   /* ── SHEET 1: COVER / DEAL SUMMARY + SITE DIAGRAM ── */
@@ -3369,6 +3410,7 @@ function buildReportHTML(canvasDataUrl){
     +'<div class="metric-row">'
       +metric('Base-Case Profit / Unit',baseProfit,base.hasArv?('CoC '+base.coc.toFixed(1)+'%'):'',true)
       +metric('Total All-In',F(d.cost.total),d.units>1?(d.units+' units'):'',true)
+      +metric('Cash Required',F(d.fin.cash),'at close',true)
       +metric('Max Land (Base, $50K target)',d.maxLand,'per $50K/unit goal',true)
     +'</div>'
     +'<div class="two-col">'
@@ -3390,6 +3432,17 @@ function buildReportHTML(canvasDataUrl){
           +'<tr><td>Cash Required</td><td>'+F(d.fin.cash)+'</td></tr>'
           +'<tr><td>Rate / Points</td><td>'+d.fin.rate+'% / '+d.fin.points+'%</td></tr>'
         +'</table>'
+        +(d.gis?(secHdr('SITE INTELLIGENCE (GIS)','green')
+          +'<table class="kv avoid">'
+          +(d.gis.pid?'<tr><td>Parcel (PID / NC-PIN)</td><td>'+esc(d.gis.pid)+(d.gis.nc_pin?' / '+esc(d.gis.nc_pin):'')+'</td></tr>':'')
+          +(d.gis.area_sf?'<tr><td>GIS Lot Area</td><td>'+d.gis.area_sf.toLocaleString()+' sf ('+d.gis.area_ac+' ac)</td></tr>':'')
+          +(d.gis.zoning?'<tr><td>GIS Zoning</td><td>'+esc(d.gis.zoning)+(d.gis.zclass?' \u00b7 '+esc(d.gis.zclass):'')+'</td></tr>':'')
+          +(d.gis.watershed?'<tr><td>Watershed (PCSO)</td><td>'+esc(d.gis.watershed)+'</td></tr>':'')
+          +(d.gis.swim?'<tr><td>SWIM / WQ Buffer</td><td><span style="color:'+(d.gis.swim.i?PR:PG)+';font-weight:bold">'+(d.gis.swim.i?('\u26a0 Intersects'+(d.gis.swim.t&&d.gis.swim.t.length?' ('+d.gis.swim.t.join(', ')+')':'')):'\u2713 None on parcel')+'</span></td></tr>':'')
+          +(d.gis.historic?'<tr><td>Historic District</td><td>'+(d.gis.historic.i?('\u26a0 '+esc(d.gis.historic.n||'Yes')):'\u2713 No')+'</td></tr>':'')
+          +'</table>'
+          +(d.gis.bua?'<div class="diagram-cap">'+esc(d.gis.bua)+'</div>':'')
+          +'<div class="diagram-cap">Pulled from county GIS '+new Date(d.gis.ts||Date.now()).toLocaleDateString()+' \u2014 verify before closing. Easements: recorded plat.</div>'):'')
       +'</div>'
       +'<div>'+secHdr('SITE DIAGRAM')
         +(canvasDataUrl?'<img class="canvas-img" src="'+canvasDataUrl+'">':'<div class="no-diagram">No diagram — define the lot on Step 2 to populate.</div>')
@@ -3401,8 +3454,9 @@ function buildReportHTML(canvasDataUrl){
   const c=d.cost;
   const costRows=[
     ['Land Cost',c.land],['Lot Factor (site work)',c.lotFactor],
-    ['Water Tap',c.tapWater],['Sewer Tap',c.tapSewer],
   ];
+  (d.lfItems||[]).forEach(it=>costRows.push(['\u2514 '+it.l,it.v,'sub']));
+  costRows.push(['Water Tap',c.tapWater]);costRows.push(['Sewer Tap',c.tapSewer]);
   if(c.septic>0)costRows.push(['Septic Install (per lot)',c.septic]);
   costRows.push(['Base Build Cost ('+d.units+' × plan)',c.baseBuild]);
   costRows.push(['Slate GC Fee ('+c.gcFeePct+'%)',c.gcFee]);
@@ -3410,7 +3464,7 @@ function buildReportHTML(canvasDataUrl){
   costRows.push(['Soft Costs (survey/appraisal/ins.)',c.soft]);
   const costBuild=secHdr('COST BUILD-UP')
     +'<table class="kv avoid">'
-      +costRows.map(r=>'<tr><td>'+r[0]+'</td><td>'+F(r[1])+'</td></tr>').join('')
+      +costRows.map(r=>'<tr'+(r[2]==='sub'?' class="subrow"':'')+'><td>'+r[0]+'</td><td>'+F(r[1])+'</td></tr>').join('')
       +'<tr class="subtotal"><td>All-In (excl. land)</td><td>'+F(c.allInExLand)+'</td></tr>'
       +'<tr class="total"><td>TOTAL ALL-IN</td><td>'+F(c.total)+'</td></tr>'
     +'</table>';
@@ -3453,7 +3507,25 @@ function buildReportHTML(canvasDataUrl){
       +scRow('Total Profit ('+d.units+' u)',s=>s.hasArv?sign(s.total):'—','rowhi')
       +scRow('Cash-on-Cash',s=>s.hasArv?signPct(s.coc):'—','rowhi')
     +'</tbody></table>'
-    +'<div class="legend"><span class="lg" style="background:'+PG+'"></span> Positive &nbsp;&nbsp; <span class="lg" style="background:'+PR+'"></span> Negative &nbsp;&nbsp; Worst/Best auto-derive ±10% off base ARV when not entered.</div>';
+    +'<div class="legend"><span class="lg" style="background:'+PG+'"></span> Positive &nbsp;&nbsp; <span class="lg" style="background:'+PR+'"></span> Negative &nbsp;&nbsp; Worst/Best auto-derive ±10% off base ARV when not entered.</div>'
+    +(function(){
+      if(!base.hasArv)return '';
+      const tB=base.term, terms=[Math.max(1,tB-3),tB,Math.max(1,tB+3)];
+      const deltas=[-20,-10,0,10,20];
+      const allIn=base.allInPerUnit, salePct=d.fin.salePct/100;
+      const cell=(arvPSF,t)=>{
+        const arv=arvPSF*d.sf; if(!(arv>0))return '—';
+        const hh=holdingCost(d.fin.loan,t);
+        const p=arv-(allIn+(hh.total+d.fin.purchaseClosing)/d.units+arv*salePct);
+        return sign(p);
+      };
+      let m='<table class="sc avoid" style="margin-top:6px"><thead><tr><th>Profit/Unit</th>'
+        +deltas.map(da=>'<th style="background:#33576e;color:#fff">$'+Math.round(d.psf.b+da)+'/sf'+(da===0?' \u2605':'')+'</th>').join('')+'</tr></thead><tbody>'
+        +terms.map(t=>'<tr><td>'+t+' mo'+(t===tB?' \u2605':'')+'</td>'+deltas.map(da=>'<td>'+cell(d.psf.b+da,t)+'</td>').join('')+'</tr>').join('')
+        +'</tbody></table>'
+        +'<div class="legend">\u2605 = current base assumptions. ARV $/sf across, hold term down \u2014 same loan, costs, and sale % as above.</div>';
+      return secHdr('SENSITIVITY \u2014 ARV \u00d7 HOLD TERM')+m;
+    })();
 
   /* ── SHEET 4: PLAN COMPARISON ── */
   const fitTxt=f=>f.status==='fits'?(f.rotated?'Fits (rotated)':'✓ Fits'):f.status==='tight'?'⚠ Tight':f.status==='no'?'✗ Too large':'—';
@@ -3526,7 +3598,7 @@ function buildReportHTML(canvasDataUrl){
     +'.addr-bar{background:#f5f0e7;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid #5e8095;margin:12px 0}'
     +'.addr-text{font-size:12pt;font-weight:bold;color:#102538}'
     +'.date-text{font-size:9pt;color:#647a8e}'
-    +'.metric-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}'
+    +'.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}'
     +'.mcard{border:1px solid #d9d2c4;border-top:3px solid #648370;border-radius:4px;padding:9px 11px;background:#faf8f3}'
     +'.mcard-lbl{font-size:7.5pt;text-transform:uppercase;letter-spacing:.4px;color:#647a8e}'
     +'.mcard-val{font-size:13pt;font-weight:bold;color:#102538;margin-top:3px}'
@@ -3539,6 +3611,8 @@ function buildReportHTML(canvasDataUrl){
     +'.kv tr:nth-child(even){background:#f7f5f0}'
     +'.kv td{padding:3.5px 9px;font-size:9pt;border-bottom:1px solid #eceae3}'
     +'.kv td:last-child{text-align:right;font-weight:bold}'
+    +'.kv .subrow td{font-size:8pt;color:#647a8e;padding:2px 9px 2px 20px;background:transparent!important}'
+    +'.kv .subrow td:last-child{font-weight:normal}'
     +'.kv .subtotal td{background:#eef2f0!important;border-top:1px solid #648370;color:#3c5547}'
     +'.kv .total td{background:#e6edf1!important;border-top:2px solid #5e8095;border-bottom:2px solid #5e8095;font-weight:bold;font-size:10pt;color:#33576e;padding:5px 9px}'
     +'.canvas-img{width:100%;max-height:3.0in;object-fit:contain;border:1px solid #d9d2c4;border-radius:3px;background:#fff;margin-top:4px}'
@@ -3582,11 +3656,11 @@ function buildReportHTML(canvasDataUrl){
 
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TTV Underwriting Memo — '+esc(d.address)+'</title>'
     +'<style>'+css+'</style></head><body>'
-    +sheet('Deal Summary',cover)
-    +sheet('Cost &amp; Financing',costBuild+finDetail)
-    +sheet('Scenario Analysis',scTable)
-    +sheet('Plan Comparison',planComp)
-    +sheet('Comps &amp; Notes',compsSheet)
+    +sheet('Deal Summary',cover,1,5)
+    +sheet('Cost &amp; Financing',costBuild+finDetail,2,5)
+    +sheet('Scenario Analysis',scTable,3,5)
+    +sheet('Plan Comparison',planComp,4,5)
+    +sheet('Comps &amp; Notes',compsSheet,5,5)
     +'<\/body><\/html>';
 }
 
@@ -3603,20 +3677,38 @@ function generateSheet(){
     document.head.appendChild(sc);
   }
 }
-async function buildAndDownloadXLSX(d, slug){
+function collectModelInputs(d){
   const rawW=pv('arv-w'), rawBest=pv('arv-best');
   const upgUnit=Array.from(selectedUpgrades).reduce((s,id)=>{const u=UPGRADES.find(x=>x.id===id);return s+(u?u.cost:0);},0);
-  const M={
+  const planObj=PLANS.find(p=>p.n===d.plan)||null;
+  const skipW=$('skip-water')&&$('skip-water').checked, skipS=$('skip-sewer')&&$('skip-sewer').checked;
+  return {
     address:d.address,county:d.county,zone:d.zone,units:Math.max(1,units),
-    planName:d.plan,sf:sfPerUnit,buildUnit:currentPlanCost,upgUnit:upgUnit,
-    lotFactor:lotFactor||0,tapTotal:tapTotal||0,survey:pv('survey'),appraisal:pv('appraisal'),insurance:pv('insurance'),
+    planName:d.plan,sf:sfPerUnit,buildUnit:currentPlanCost,
+    baseUnit:planObj?(planObj.base||0):0,gcFeePct:(typeof GC_BUILD_FEE!=='undefined'?GC_BUILD_FEE:14)/100,
+    upgUnit:upgUnit,
+    lotFactor:lotFactor||0,
+    lf:{demoSqft:pv('demo-sqft'),demoRate:pv('demo-rate'),herTrees:pv('her-trees'),
+        herRate:parseFloat(($('her-timing')||{}).value)||750,
+        rowCount:pv('row-count'),rowDiam:pv('row-diam'),rowLabor:pv('row-labor'),
+        clearing:parseFloat(($('clearing')||{value:'0'}).value)||0,
+        dirtLoads:pv('dirt-loads'),dirtRate:pv('dirt-rate'),
+        grading:pv('grading'),sitePrep:pv('site-prep'),utilities:pv('utilities'),
+        framing:pv('framing'),culverts:pv('culverts'),landscaping:pv('landscaping')},
+    tapWaterU:skipW?0:pv('tap-water'),tapSewerU:skipS?0:pv('tap-sewer'),septicLot:skipS?pv('septic-cost'):0,
+    tapTotal:tapTotal||0,survey:pv('survey'),appraisal:pv('appraisal'),insurance:pv('insurance'),
     land:pv('land-cost'),ltc:(pv('ltc-pct')||93)/100,rate:(pv('fin-rate')||10)/100,points:(pv('fin-points')||1)/100,
     docFee:pv('fin-doc-fee')||0,annTax:pv('fin-tax')||0,salePct:(pv('sale-cost-pct')||5)/100,
     arvBase:pv('arv-b'),arvWorst:rawW>0?rawW:'',arvBest:rawBest>0?rawBest:'',
     termW:pv('term-w')||12,termB:pv('term-b')||9,termBest:pv('term-best')||6,
+    gis:(typeof window!=='undefined'&&window._lastGis)||null,
+    dateStr:new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
     comps:(typeof COMPS!=='undefined'?COMPS:[]).filter(c=>compNum(c.sqft)>0&&compNum(c.sold)>0)
-      .map(c=>({addr:c.addr||'',sqft:compNum(c.sqft),sold:compNum(c.sold),adj:compNum(c.adj),date:c.date||'',dist:c.dist||'',mom:c.mom||'',notes:c.notes||''}))
+      .map(c=>({addr:c.addr||'',sqft:compNum(c.sqft),sold:compNum(c.sold),adj:compNum(c.adj),date:c.date||'',dist:c.dist||'',mom:c.mom||'',notes:c.notes||'',url:c.url||''}))
   };
+}
+async function buildAndDownloadXLSX(d, slug){
+  const M=collectModelInputs(d);
   let logoBuf=null;
   try{ const r=await fetch('assets/ttv-logo.png'); if(r.ok) logoBuf=await r.arrayBuffer(); }catch(e){}
   try{
@@ -3638,13 +3730,35 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   // ---------- Inputs ----------
   const wsI=wb.addWorksheet('Inputs'); wsI.getColumn(1).width=30; wsI.getColumn(2).width=22; wsI.getColumn(3).width=16;
   titleBar(wsI,1,'C','TIDE & TIMBER VENTURES — Underwriting Inputs');
-  wsI.getCell('A2').value='Blue cells are inputs — change any of them and every sheet recalculates.'; wsI.getCell('A2').font={italic:true,size:9,color:{argb:'FF566B82'}}; wsI.mergeCells('A2:C2');
+  wsI.getCell('A2').value='Blue cells = inputs (edit these). Cream cells = calculated — every sheet recalculates live.'; wsI.getCell('A2').font={italic:true,size:9,color:{argb:'FF566B82'}}; wsI.mergeCells('A2:C2');
   let ir=2; const IN={};
   const sec=t=>{ir+=2;band(wsI,ir,'C',t);};
-  const inp=(key,label,val,fmt)=>{ir++;wsI.getCell('A'+ir).value=label;const c=wsI.getCell('B'+ir);if(val!==''&&val!=null)c.value=val;if(fmt)c.numFmt=fmt;c.font={color:{argb:BLUE},name:'Arial'};IN[key]='B'+ir;};
+  const inp=(key,label,val,fmt)=>{ir++;wsI.getCell('A'+ir).value=label;const c=wsI.getCell('B'+ir);if(val!==''&&val!=null)c.value=val;if(fmt)c.numFmt=fmt;c.font={color:{argb:BLUE},name:'Arial'};c.fill=fill('FFEAF2F8');IN[key]='B'+ir;};
+  const der=(key,label,formula,fmt)=>{ir++;wsI.getCell('A'+ir).value=label;wsI.getCell('A'+ir).font={italic:true,color:{argb:'FF566B82'},name:'Arial'};const c=wsI.getCell('B'+ir);c.value={formula};if(fmt)c.numFmt=fmt;c.font={name:'Arial',bold:true};c.fill=fill(CREAM);if(key)IN[key]='B'+ir;return 'B'+ir;};
   sec('DEAL'); inp('addr','Property Address',M.address); inp('county','County',M.county); inp('zone','Zone',M.zone); inp('units','Units',M.units);
-  sec('PLAN'); inp('plan','Plan',M.planName); inp('sf','Sq Ft / Unit',M.sf,SF); inp('build','Build Cost / Unit (Cost+14)',M.buildUnit,MONEY);
-  sec('COSTS'); inp('upg','Upgrades / Unit',M.upgUnit,MONEY); inp('lot','Lot Factor',M.lotFactor,MONEY); inp('tap','Tap Fees (total)',M.tapTotal,MONEY); inp('survey','Survey',M.survey,MONEY); inp('appr','Appraisal',M.appraisal,MONEY); inp('ins','Insurance (carry)',M.insurance,MONEY);
+  sec('PLAN'); inp('plan','Plan',M.planName); inp('sf','Sq Ft / Unit',M.sf,SF);
+  inp('base','Slate Base Cost / Unit',M.baseUnit,MONEY); inp('gcfee','GC Fee % (on build)',M.gcFeePct,PCT);
+  der('build','Build Cost / Unit (= base \u00d7 (1+fee))',`ROUND(${IN['base']}*(1+${IN['gcfee']}),0)`,MONEY);
+  sec('LOT FACTOR (site work)');
+  inp('demoS','Demo Sq Ft',M.lf.demoSqft,SF); inp('demoR','Demo $/sf',M.lf.demoRate,MONEY2);
+  const dDemo=der(null,'\u2514 Demo / Teardown',`B${ir-1}*B${ir}`,MONEY);
+  inp('herT','Heritage Trees (#)',M.lf.herTrees); inp('herR','Removal $/tree ($750 pre-demo / $1,500 after)',M.lf.herRate,MONEY);
+  const dHer=der(null,'\u2514 Heritage Trees',`B${ir-1}*B${ir}`,MONEY);
+  inp('rowC','ROW Trees (#)',M.lf.rowCount); inp('rowD','ROW Avg Diameter (in)',M.lf.rowDiam); inp('rowL','ROW Labor $/tree',M.lf.rowLabor,MONEY);
+  const dRow=der(null,'\u2514 ROW (city $200/in + labor)',`B${ir-2}*B${ir-1}*200+B${ir-2}*B${ir}`,MONEY);
+  inp('clear','Clearing',M.lf.clearing,MONEY);const cClear=IN['clear'];
+  inp('dirtL','Dirt Loads (#)',M.lf.dirtLoads); inp('dirtR','Dirt $/load',M.lf.dirtRate,MONEY);
+  const dDirt=der(null,'\u2514 Dirt',`B${ir-1}*B${ir}`,MONEY);
+  inp('grad','Grading',M.lf.grading,MONEY); inp('sprep','Site Prep / Driveway',M.lf.sitePrep,MONEY);
+  inp('utilc','Utilities (site)',M.lf.utilities,MONEY); inp('fram','Framing Labor',M.lf.framing,MONEY);
+  inp('culv','Culverts',M.lf.culverts,MONEY); inp('lscape','Landscaping',M.lf.landscaping,MONEY);
+  der('lot','LOT FACTOR (sum)',`${dDemo}+${dHer}+${dRow}+${cClear}+${dDirt}+${IN['grad']}+${IN['sprep']}+${IN['utilc']}+${IN['fram']}+${IN['culv']}+${IN['lscape']}`,MONEY);
+  sec('UTILITY TAPS');
+  inp('tapw','Water Tap / Unit (0 if existing)',M.tapWaterU,MONEY);
+  inp('taps','Sewer Tap / Unit (0 if septic)',M.tapSewerU,MONEY);
+  inp('septic','Septic Install (per lot)',M.septicLot,MONEY);
+  der('tap','Tap Fees (total)',`(${IN['tapw']}+${IN['taps']})*${IN['units']}+${IN['septic']}`,MONEY);
+  sec('OTHER COSTS'); inp('upg','Upgrades / Unit',M.upgUnit,MONEY); inp('survey','Survey',M.survey,MONEY); inp('appr','Appraisal',M.appraisal,MONEY); inp('ins','Insurance (carry)',M.insurance,MONEY);
   sec('FINANCING'); inp('ltc','LTC %',M.ltc,PCT); inp('rate','Interest Rate',M.rate,PCT); inp('pts','Loan Points',M.points,PCT); inp('doc','Doc / Orig Fee',M.docFee,MONEY); inp('tax','Annual Property Tax',M.annTax,MONEY); inp('sale','Sale Costs %',M.salePct,PCT);
   sec('EXIT'); inp('land','Land Cost',M.land,MONEY); inp('arvB','ARV Base ($/sf)',M.arvBase,MONEY2); inp('arvW','ARV Worst ($/sf, blank=auto -10%)',M.arvWorst,MONEY2); inp('arvBest','ARV Best ($/sf, blank=auto +10%)',M.arvBest,MONEY2); inp('termW','Term Worst (mo)',M.termW); inp('termB','Term Base (mo)',M.termB); inp('termBest','Term Best (mo)',M.termBest);
   const I=k=>'Inputs!'+IN[k];
@@ -3663,6 +3777,7 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   ws.getCell('A9').value='Purchase Closing (1%)'; F('B9','B8*0.01',MONEY);
   ws.getCell('A10').value='Loan / Unit'; F('B10',`B8/${I('units')}`,MONEY);
   ws.getCell('A11').value='Build + Costs / Unit'; F('B11',`(B4+B5)/${I('units')}`,MONEY);
+  ws.getCell('A12').value='Cash Required (close)'; F('B12','B6-B8+B9',MONEY,true);
   // scenario header
   [['C','WORST',NAVY],['D','BASE',STEEL],['E','BEST',GREEN]].forEach(([col,lbl,c])=>{const cell=ws.getCell(col+13);cell.value=lbl;cell.font={bold:true,color:{argb:WHITE},name:'Arial'};cell.fill=fill(c);cell.alignment={horizontal:'center'};});
   ws.getCell('A14').value='ARV $/sf';
@@ -3687,6 +3802,10 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
     {type:'cellIs',operator:'greaterThan',formulae:['0'],priority:2,style:{font:{color:{argb:POS}}}}]});
   ['C','D','E'].forEach(c=>{ws.getCell(c+'13').border={bottom:{style:'thin',color:{argb:WHITE}}};});
   ws.getRow(21).height=17; ws.getRow(22).height=17;
+  // scenario column tints (worst/base/best) + divider above profit rows
+  {const TINT={C:'FFFAF1F0',D:'FFF0F4F7',E:'FFF0F5F2'};
+   ['C','D','E'].forEach(col=>{for(let r=14;r<=23;r++){ws.getCell(col+r).fill=fill(TINT[col]);}});
+   ['A','B','C','D','E'].forEach(col=>{ws.getCell(col+'21').border=Object.assign({},ws.getCell(col+'21').border,{top:{style:'thin',color:{argb:STEEL}}});});}
   band(ws,25,'E','MAX LAND — back-solve for $50k/unit base profit');
   ws.getCell('A26').value='k1'; F('B26','B7/(1-B7*0.01)','0.0000');
   ws.getCell('A27').value='loan factor'; F('B27',`${I('rate')}/12*${I('termB')}+${I('pts')}+0.01`,'0.0000');
@@ -3694,6 +3813,30 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   ws.getCell('A29').value='Base ARV ($)'; F('B29','D15',MONEY);
   ws.getCell('A30').value='Max Land Cost'; F('B30',`(B29*(1-${I('sale')})-50000-B4/${I('units')}-B28-B26*B4*B27/${I('units')})/(1/${I('units')}+B26*B27/${I('units')})`,MONEY,true);
   ws.pageSetup={printArea:'A1:E30'};
+
+  // ---------- Sensitivity ----------
+  const wsS=wb.addWorksheet('Sensitivity',{properties:{tabColor:{argb:'FFF0A93C'}}});
+  wsS.getColumn(1).width=22; for(let i=2;i<=6;i++)wsS.getColumn(i).width=14;
+  titleBar(wsS,1,'F','SENSITIVITY — BASE PROFIT / UNIT');
+  wsS.getCell('A2').value='ARV $/sf across × hold term (months) down. Live formulas — flexes with every input.';
+  wsS.getCell('A2').font={italic:true,size:9,color:{argb:'FF566B82'},name:'Arial'}; wsS.mergeCells('A2:F2');
+  {const hd=wsS.getCell('A4');hd.value='Term \\ ARV $/sf';hd.font={bold:true,size:9,color:{argb:WHITE},name:'Arial'};hd.fill=fill(NAVY);hd.alignment={horizontal:'center',vertical:'middle'};
+   const deltas=[-20,-10,0,10,20],offs=[-3,-1,0,1,3];
+   deltas.forEach((dv,i)=>{const c=wsS.getCell(4,2+i);c.value={formula:`${I('arvB')}${dv>=0?'+':''}${dv}`};c.numFmt=MONEY2;c.font={bold:true,color:{argb:WHITE},name:'Arial'};c.fill=fill(STEEL);c.alignment={horizontal:'center'};});
+   offs.forEach((o,r)=>{
+     const lc=wsS.getCell(5+r,1);lc.value={formula:`${I('termB')}${o>=0?'+':''}${o}`};lc.numFmt='0" mo"';lc.font={bold:true,name:'Arial'};lc.fill=fill(CREAM);lc.alignment={horizontal:'center'};
+     deltas.forEach((dv,ci)=>{
+       const arvU=`(${I('arvB')}${dv>=0?'+':''}${dv})*${I('sf')}`;
+       const term=`(${I('termB')}${o>=0?'+':''}${o})`;
+       const hold=`(Scenarios!$B$8*(${I('rate')}/12)*${term}+Scenarios!$B$8*${I('pts')}+${I('doc')}+(${I('tax')}/12)*${term}+Scenarios!$B$9)/${I('units')}`;
+       const cell=wsS.getCell(5+r,2+ci);cell.value={formula:`${arvU}-(Scenarios!$B$11+${hold}+${arvU}*${I('sale')})`};cell.numFmt=MONEY;cell.font={name:'Arial',size:9};
+     });
+   });
+   wsS.addConditionalFormatting({ref:'B5:F9',rules:[{type:'colorScale',priority:1,cfvo:[{type:'min'},{type:'num',value:0},{type:'max'}],color:[{argb:'FFE8B4B0'},{argb:'FFFFFFFF'},{argb:'FFB7D9C4'}]}]});
+   const bc=wsS.getCell('D7');bc.border={top:{style:'medium',color:{argb:NAVY}},bottom:{style:'medium',color:{argb:NAVY}},left:{style:'medium',color:{argb:NAVY}},right:{style:'medium',color:{argb:NAVY}}};bc.font={name:'Arial',size:9,bold:true};
+   wsS.getCell('A11').value='Boxed cell = current base case (equals Scenarios profit/unit).';
+   wsS.getCell('A11').font={italic:true,size:8.5,color:{argb:'FF566B82'},name:'Arial'};wsS.mergeCells('A11:F11');
+   wsS.pageSetup={printArea:'A1:F11'};}
 
   // ---------- Cover ----------
   const wc=wb.addWorksheet('Cover',{properties:{tabColor:{argb:NAVY}}});
@@ -3709,6 +3852,21 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   head(11,'Base Cash-on-Cash','Scenarios!D23',PCT,NAVY);
   head(13,'Total Project Profit (Base)','Scenarios!D22',MONEY,GREEN);
   head(15,'Max Land Cost ($50k/unit)','Scenarios!B30',MONEY,STEEL);
+  head(17,'Loan Amount','Scenarios!B8',MONEY,NAVY);
+  head(19,'Cash Required at Close','Scenarios!B12',MONEY,STEEL);
+  wc.mergeCells('C6:E6'); wc.getCell('C6').value=[M.county,M.zone,M.units+' unit'+(M.units>1?'s':''),M.planName].filter(Boolean).join('  \u00b7  ');
+  wc.getCell('C6').font={size:9.5,color:{argb:'FF566B82'},name:'Arial'};
+  if(M.gis){let gr=9;
+    const gh=wc.getCell('C'+gr);gh.value='SITE INTELLIGENCE (GIS)';gh.font={bold:true,size:9,color:{argb:STEEL},name:'Arial'};wc.mergeCells('C9:E9');
+    const gline=(lbl,val,warn)=>{if(val==null||val==='')return;gr++;const a=wc.getCell('C'+gr);a.value=lbl;a.font={size:8.5,color:{argb:'FF566B82'},name:'Arial'};const b=wc.getCell('D'+gr);b.value=val;b.font={size:8.5,bold:true,color:{argb:warn?'FFB45309':NAVY},name:'Arial'};wc.mergeCells('D'+gr+':E'+gr);};
+    gline('Parcel (PID)',M.gis.pid||null);
+    gline('GIS Lot Area',M.gis.area_sf?M.gis.area_sf.toLocaleString()+' sf ('+M.gis.area_ac+' ac)':null);
+    gline('Watershed (PCSO)',M.gis.watershed||null);
+    gline('SWIM / WQ Buffer',M.gis.swim?(M.gis.swim.i?'\u26a0 Intersects':'\u2713 None on parcel'):null,M.gis.swim&&M.gis.swim.i);
+    gline('Historic District',M.gis.historic?(M.gis.historic.i?('\u26a0 '+(M.gis.historic.n||'Yes')):'\u2713 No'):null,M.gis.historic&&M.gis.historic.i);
+    gr++;const cap=wc.getCell('C'+gr);cap.value='Verify before closing \u00b7 easements: recorded plat';cap.font={italic:true,size:7.5,color:{argb:'FF8A99A6'},name:'Arial'};wc.mergeCells('C'+gr+':E'+gr);}
+  wc.mergeCells('A21:B21'); wc.getCell('A21').value='Prepared '+M.dateStr;
+  wc.getCell('A21').font={size:9,italic:true,color:{argb:'FF566B82'},name:'Arial'};
   ['A','B','C','D','E'].forEach(c=>{wc.getCell(c+'23').border={bottom:{style:'thin',color:{argb:'FFB8AE9C'}}};});
   wc.mergeCells('A24:E24'); wc.getCell('A24').value='Tide & Timber Ventures, LLC   ·   management@tidetimberventures.com   ·   Charlotte, NC';
   wc.getCell('A24').font={size:9,italic:true,color:{argb:'FF566B82'},name:'Arial'};
@@ -3733,13 +3891,15 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
     const first=4; let rr=first;
     M.comps.forEach(cp=>{const row=wco.getRow(rr);
       const blue=cell=>{cell.font={color:{argb:BLUE},name:'Arial'};};
-      row.getCell(1).value=cp.addr||''; blue(row.getCell(1));
+      if(cp.url){row.getCell(1).value={text:cp.addr||cp.url,hyperlink:cp.url};row.getCell(1).font={color:{argb:'FF1155CC'},underline:true,name:'Arial'};}
+      else{row.getCell(1).value=cp.addr||''; blue(row.getCell(1));}
       const c2=row.getCell(2);c2.value=cp.sqft;c2.numFmt=SF;blue(c2);
       const c3=row.getCell(3);c3.value=cp.sold;c3.numFmt=MONEY;blue(c3);
       const c4=row.getCell(4);c4.value=cp.adj;c4.numFmt=MONEY;blue(c4);
       const c5=row.getCell(5);c5.value={formula:`IF(AND(B${rr}>0,(C${rr}+D${rr})>0),(C${rr}+D${rr})/B${rr},"")`};c5.numFmt=MONEY2;
       row.getCell(6).value=cp.date||''; row.getCell(7).value=cp.dist||''; row.getCell(8).value=cp.mom||''; row.getCell(9).value=cp.notes||'';
       const c10=row.getCell(10);c10.value={formula:`IF(E${rr}<>"",E${rr}*${I('sf')},"")`};c10.numFmt=MONEY;
+      if((rr-first)%2===1){for(let i=2;i<=10;i++){row.getCell(i).fill=fill('FFF7F5F0');}}
       rr++;});
     const last=rr-1, rng=`E${first}:E${last}`;
     rr++; const stat=(lbl,formula,hi)=>{const r=rr++;wco.mergeCells('C'+r+':D'+r);const lc=wco.getCell('C'+r);lc.value=lbl;lc.font={bold:true,name:'Arial'};lc.alignment={horizontal:'right'};const c=wco.getCell('E'+r);c.value={formula};c.numFmt=MONEY2;if(hi)c.font={bold:true,color:{argb:GREEN},name:'Arial'};};
@@ -3747,7 +3907,14 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
     const sr=rr++;wco.mergeCells('C'+sr+':D'+sr);const slc=wco.getCell('C'+sr);slc.value='Suggested ARV (median)';slc.font={bold:true,name:'Arial'};slc.alignment={horizontal:'right'};const c=wco.getCell('E'+sr);c.value={formula:`MEDIAN(${rng})*${I('sf')}`};c.numFmt=MONEY;c.font={bold:true,color:{argb:GREEN},name:'Arial'};
     wco.pageSetup={printArea:'A1:J'+(rr-1),orientation:'landscape'};
   }
-  wb.eachSheet(w=>{w.views=[{showGridLines:false}];w.pageSetup=Object.assign({fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.5,right:0.5,top:0.5,bottom:0.5,header:0.3,footer:0.3}},w.pageSetup||{});if(w.name==='Comps')w.pageSetup.orientation='landscape';});
+  const TABS={'Inputs':STEEL,'Scenarios':NAVY,'Sensitivity':'FFF0A93C','Cover':NAVY,'Cost Build-Up':GREEN,'Comps':'FF46C08A'};
+  wb.eachSheet(w=>{
+    const vw=(w.views&&w.views[0])||{}; vw.showGridLines=false; w.views=[vw];
+    if(TABS[w.name])w.properties.tabColor={argb:TABS[w.name]};
+    w.pageSetup=Object.assign({fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.5,right:0.5,top:0.5,bottom:0.5,header:0.3,footer:0.3}},w.pageSetup||{});
+    if(w.name==='Comps'){w.pageSetup.orientation='landscape';w.views=[{state:'frozen',ySplit:3,showGridLines:false}];w.pageSetup.printTitlesRow='3:3';}
+  });
+  {const ci=wb.worksheets.findIndex(w=>w.name==='Cover');if(ci>=0)wb.views=[{x:0,y:0,width:20000,height:20000,firstSheet:0,activeTab:ci,visibility:'visible'}];}
   return wb;
 }
 
@@ -3989,7 +4156,7 @@ function renderCompare(){
   h+=row('Finished SF / unit',c=>c.plan.sf>0?c.plan.sf.toLocaleString()+' sf':'\u2014');
   h+=row('Footprint (W\u00d7D)',c=>c.plan.w>0?c.plan.w+"'\u00d7"+c.plan.d+"'":'\u2014');
   h+=row('Fit',c=>fitTxt(c.plan));
-  h+=row('Build Cost (Cost+14%)',c=>fmt(c.plan.c));
+  h+=row('Build Cost (base + '+(typeof GC_BUILD_FEE!=='undefined'?GC_BUILD_FEE:14)+'% GC)',c=>fmt(c.plan.c));
   h+=row('All-In / unit',c=>fmt(c.deal.allInPerUnit));
   h+=row('Loan Amount',c=>fmt(c.deal.loan));
   h+=sect('ARV $/sf \u2014 editable');
@@ -4085,7 +4252,8 @@ function serializeDeal(){
     edges:edgeDesignations.slice(),
     choices:CHOICES.slice(),
     upgrades:Array.from(selectedUpgrades),
-    comps:COMPS.map(c=>Object.assign({},c))};
+    comps:COMPS.map(c=>Object.assign({},c)),
+    gis:(typeof window!=='undefined'&&window._lastGis)||null};
 }
 function restoreDeal(d){
   if(!d||!d.fields){showToast('That file doesn\u2019t look like a saved deal.','warn');return;}
@@ -4121,6 +4289,7 @@ function restoreDeal(d){
     CHOICES[0]=(d.choices||[])[0]||null;CHOICES[1]=(d.choices||[])[1]||null;CHOICES[2]=(d.choices||[])[2]||null;
     selectedUpgrades.clear();(d.upgrades||[]).forEach(u=>selectedUpgrades.add(u));
     COMPS.length=0;(d.comps||[]).forEach(c=>COMPS.push(Object.assign({},c)));
+    try{window._lastGis=d.gis||null;}catch(_){ }
     // 7) re-render + recalc through the existing pipeline only
     if(typeof renderUpgrades==='function')renderUpgrades();
     renderComps();renderShortlist();
@@ -4179,8 +4348,18 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.5', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.7', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
+   'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
+   'Corner and alley lots (more than one street-facing edge) get an amber flag \u2014 front defaults to the edge nearest the address point; confirm it.',
+   'As always, click any edge in the lot editor to cycle Front \u2192 Rear \u2192 Side. Requires the updated /api/gis on Vercel.']},
+ {v:'7.6',date:'Jun 2026',name:'Report & Excel overhaul',items:[
+   'Excel workbook reformatted \u2014 opens on a branded Cover with Loan & Cash Required, color-coded tabs, scenario columns tinted worst/base/best.',
+   'New Sensitivity sheet: live ARV \u00d7 hold-term profit grid, color-scaled, base case boxed.',
+   'Inputs sheet now flexes everything: Slate base cost + GC fee %, water/sewer/septic taps, and the full lot-factor component breakdown.',
+   'Comp addresses are clickable Zillow links in Excel; comps header stays frozen while you scroll.',
+   'PDF memo: Site Intelligence (GIS) block, lot-factor sub-rows, sensitivity matrix, and page numbers.']},
  {v:'7.5',date:'Jun 2026',name:'Release notes',items:[
    'This popup \u2014 appears once after each update so the team knows what changed.',
    'Reopen it anytime by clicking the version badge in the header.']},
