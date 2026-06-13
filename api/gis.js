@@ -14,6 +14,10 @@
 const BASE = 'https://gis.charlottenc.gov/arcgis/rest/services/Accela/Accela/MapServer';
 const SR = 2264;
 const LAYER = { parcels:0, address:1, zoning:10, historic:12, pcoDistrict:13, overlayWatershed:14, reviewArea:32 };
+// v4: street centerlines live in the SAME Accela service — 2 City Maintained, 3 State Maintained.
+const STREET_LAYERS=[2,3];
+const FRONT_MAX_ROW_FT=120;   // ROW edge must be within this of the named centerline
+const FRONT_MAX_ANY_FT=60;    // non-ROW rescue threshold (mis-flagged slivers)
 // Real SWIM / Water Quality Buffer geometry (City Open Data hosted feature layer),
 // resolved at runtime from its ArcGIS Online item so we don't hardcode the org URL.
 const WQ_BUFFER_ITEM = 'cf66446f36244e2498aa9b3f8e704b84';
@@ -68,6 +72,33 @@ function classifyEdges(ring0, neighborRings, addrPt){
   }
   return { edges, row:edges.map(e=>e.row), front_index:front, row_count:rowEdges.length };
 }
+function distPtToSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;
+  if(L2===0)return Math.hypot(px-ax,py-ay);
+  let t=((px-ax)*dx+(py-ay)*dy)/L2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
+}
+function distPtToPaths(px,py,paths){
+  let best=Infinity;
+  (paths||[]).forEach(path=>{for(let i=0;i<path.length-1;i++){const d=distPtToSeg(px,py,path[i][0],path[i][1],path[i+1][0],path[i+1][1]);if(d<best)best=d;}});
+  return best;
+}
+// Pure: refine classifyEdges() output with named-street centerlines.
+// centerPaths = array of polyline paths for the ADDRESSED street near the parcel.
+function applyCenterlineFront(info, centerPaths, streetLabel){
+  if(!info||!centerPaths||!centerPaths.length)return info;
+  const dists=info.edges.map(e=>({i:e.i,row:e.row,len:e.len_ft,d:distPtToPaths(e.mid[0],e.mid[1],centerPaths)}));
+  const rowNear=dists.filter(e=>e.row&&e.len>=8&&e.d<=FRONT_MAX_ROW_FT).sort((a,b)=>a.d-b.d);
+  const anyNear=dists.filter(e=>e.len>=8&&e.d<=FRONT_MAX_ANY_FT).sort((a,b)=>a.d-b.d);
+  let pick=null, rescued=false;
+  if(rowNear.length)pick=rowNear[0];
+  else if(anyNear.length){pick=anyNear[0];rescued=true;}
+  if(!pick)return info; // centerline too far — keep address-point result
+  info.front_index=pick.i;
+  info.method='centerline';
+  info.street={name:streetLabel,dist_ft:Math.round(pick.d),rescued};
+  return info;
+}
 function bboxWxD(g){ const r=g&&g.rings&&g.rings[0]; if(!r) return null; const xs=r.map(p=>p[0]),ys=r.map(p=>p[1]); return { w:Math.round(Math.max(...xs)-Math.min(...xs)), d:Math.round(Math.max(...ys)-Math.min(...ys)) }; }
 function findAttr(a, rx){ if(!a) return null; for(const [k,v] of Object.entries(a)){ if(rx.test(k)&&v!=null&&v!=='') return {field:k,value:v}; } return null; }
 async function spatialAt(layerUrl, pt, outFields='*'){
@@ -96,7 +127,8 @@ export default async function handler(req, res){
       const where = encodeURIComponent(`UPPER(${addrField}) LIKE '%${num}%' AND UPPER(${addrField}) LIKE '%${street}%'`);
       const url = `${BASE}/${LAYER.address}/query?where=${where}&outFields=*&returnGeometry=true&outSR=${SR}&f=json`;
       const j = await aj(url); raw.address = debug?j:undefined;
-      if(j.features&&j.features.length){ const f=j.features[0]; pt=f.geometry; matched = f.attributes.full_address || f.attributes.address || ((findAttr(f.attributes,/full_address|^address$/i)||{}).value) || null; }
+      if(j.features&&j.features.length){ const f=j.features[0]; pt=f.geometry; matched = f.attributes.full_address || f.attributes.address || ((findAttr(f.attributes,/full_address|^address$/i)||{}).value) || null;
+        out._street={name:(f.attributes.nme_street||'').trim(),type:(f.attributes.repl_txt_roadway_abbrev||f.attributes.cde_roadway_type||'').trim()}; }
       else out.notes.push(`No address-point match on ${addrField}`);
     }catch(e){ out.errors.push('geocode: '+e.message); }
 
@@ -140,12 +172,40 @@ export default async function handler(req, res){
             const isSelf=(f.attributes&&((selfPid&&f.attributes.PID===selfPid)||(selfOID&&f.attributes.OBJECTID===selfOID)));
             if(!isSelf&&f.geometry&&f.geometry.rings) f.geometry.rings.forEach(r=>neighborRings.push(r));
           });
-          const info=classifyEdges(ring0,neighborRings,pt);
+          let info=classifyEdges(ring0,neighborRings,pt);
+          info.method='address-point';
+          // v4: refine with the ADDRESSED street's centerline (Accela layers 2+3)
+          const stName=(out._street&&out._street.name)||'';
+          if(stName){
+            try{
+              const PAD2=160;
+              const env2={xmin:Math.min(...xs)-PAD2,ymin:Math.min(...ys)-PAD2,xmax:Math.max(...xs)+PAD2,ymax:Math.max(...ys)+PAD2,spatialReference:{wkid:SR}};
+              const safe=stName.toUpperCase().replace(/[^A-Z0-9 ]/g,'');
+              const centerPaths=[];const usedLayers=[];
+              for(const lid of STREET_LAYERS){
+                try{
+                  const fl=await fields(lid);
+                  const nameField=(fl.filter(f=>/string/i.test(f.type)).map(f=>f.name)
+                    .find(n=>/whole.?st.?name|^st(reet)?_?name$|^name$/i.test(n)))||null;
+                  if(!nameField)continue;
+                  const where=encodeURIComponent(`UPPER(${nameField}) LIKE '%${safe}%'`);
+                  const url=`${BASE}/${lid}/query?where=${where}&geometry=${encodeURIComponent(JSON.stringify(env2))}&geometryType=esriGeometryEnvelope&inSR=${SR}&spatialRel=esriSpatialRelIntersects&outFields=${nameField}&returnGeometry=true&outSR=${SR}&f=json`;
+                  const sj=await aj(url);
+                  (sj.features||[]).forEach(f=>{if(f.geometry&&f.geometry.paths){f.geometry.paths.forEach(p=>centerPaths.push(p));}});
+                  if(sj.features&&sj.features.length)usedLayers.push(lid);
+                }catch(e){/* per-layer non-fatal */}
+              }
+              raw.streets=debug?{name:safe,paths:centerPaths.length,layers:usedLayers}:undefined;
+              if(centerPaths.length)info=applyCenterlineFront(info,centerPaths,(stName+' '+((out._street&&out._street.type)||'')).trim());
+            }catch(e){ out.errors.push('centerline: '+e.message); }
+          }
+          const lbl=info.street?(' facing '+info.street.name+(info.street.rescued?' (edge not flagged ROW - verify)':'')):' facing right-of-way';
           out.parcel.edges={ row:info.row, front_index:info.front_index, row_count:info.row_count,
+            method:info.method, street:info.street||null,
             detail:info.edges, neighbors_checked:neighborRings.length,
-            note: info.row_count===0?'No street-facing edge detected - front left unset, assign in the editor.'
-                 :info.row_count>1?'Multiple street/alley-facing edges (corner or alley lot) - front set nearest the address point; confirm in the editor.'
-                 :'Front edge set facing right-of-way.' };
+            note: info.front_index==null?'No street-facing edge detected - front left unset, assign in the editor.'
+                 :info.row_count>1?('Corner/alley lot - front set'+lbl+'; confirm in the editor.')
+                 :('Front edge set'+lbl+'.') };
         }
       }catch(e){ out.errors.push('edges: '+e.message); }
     } else if(pt){ out.notes.push('No parcel polygon at the geocoded point'); }
