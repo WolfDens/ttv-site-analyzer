@@ -671,8 +671,8 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
     </div>
     <div class="card" id="sublot-card">
       <div class="card-title"><span class="dot"></span>Sub-Lotting Analysis <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--amber);background:rgba(240,169,60,0.12);border:1px solid rgba(240,169,60,0.3);padding:2px 7px;border-radius:20px;margin-left:6px;text-transform:uppercase;letter-spacing:0.05em">Proof of concept</span></div>
-      <p class="note" style="margin-bottom:12px">Can this parent parcel be carved into separate recorded lots? Screens the parent frontage &amp; area against the zone's UDO minimums. Feasibility screen only — a real subdivision needs a recombination/sublot plat + approved Development LDIRL.</p>
-      <div style="display:flex;gap:8px;margin-bottom:14px">
+      <p class="note" style="margin-bottom:12px">Detached lots: can this parcel be carved into separate recorded lots, each meeting the zone minimum? Pick a Slate <strong>townhome</strong> on Step 5 and this auto-switches to <strong>subplotting</strong> — attached units on sublots, where the zone minimum applies to the parent parcel only and +1 Units adds a unit to the row. Feasibility screen only — a real subdivision needs a recombination/sublot plat + approved Development LDIRL.</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px" id="sublot-split-row">
         <button class="lot-mode-btn active" id="sublot-n2" onclick="setSublotN(2)" style="flex:1">Split in 2</button>
         <button class="lot-mode-btn" id="sublot-n3" onclick="setSublotN(3)" style="flex:1">Split in 3</button>
       </div>
@@ -889,7 +889,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
           <p class="note" style="margin-top:4px">Enter a width &amp; depth to plot the footprint on the Step 3 diagram and run the fit check. Leave build cost blank to test the footprint only; the cost stack stays at $0 until you enter one.</p>
         </div>
         <div class="fr2" style="margin-top:14px">
-          <div class="field"><label>Units</label><input type="number" id="units" value="1" min="1" max="20" oninput="calcAll()"></div>
+          <div class="field"><label>Units</label><input type="number" id="units" value="1" min="1" max="20" oninput="onUnitsChange()"></div>
           <div class="field"><label>Slate GC Fee <span style="color:var(--text-dim);font-weight:normal">(on build)</span></label><div class="input-wrap"><input type="number" id="gc-build-fee" value="14" min="0" step="0.5" class="sfx-pad" oninput="applyGcBuildFee()"><span class="sfx">%</span></div></div>
         </div>
       </div>
@@ -1196,6 +1196,17 @@ const SETBACKS={
   'Monroe|RMD':{front:20,rear:10,sides:10,corner:15,minWidth:75,minSF:12000,garage:'20 ft'},
   'Monroe|RHD':{front:20,rear:10,sides:5,corner:15,minWidth:50,minSF:5000,garage:'20 ft'},
 };
+// ── Attached / townhouse "subplot" rules by county (backend-powered; UI stays simple) ──
+// maxBuildingLen = max length (ft) of a row of attached units — the cap that flags "too long".
+// sublotParentOnly = the zone min lot width/area apply to the PARENT parcel only, not each unit sublot.
+// null field = not yet researched for this county → warn, don't hard-flag. Backfill like tap fees.
+const ATTACHED_RULES={
+  'Mecklenburg':{maxBuildingLen:150,sublotParentOnly:true,
+    note:'Charlotte UDO: zone min lot width/area apply to the PARENT parcel only (Table 4-1 Note 1). Interior lot lines are party walls (0 setback); the 5-ft side + front/rear setbacks apply to the parcel perimeter. Each unit entry must face a street frontage OR common open space. Verify the zone permits attached / Multi-Family Attached.'},
+};
+const ATTACHED_DEFAULT={maxBuildingLen:null,sublotParentOnly:null,
+  note:'Attached / townhouse subplot rules not yet loaded for this county — verify the local max building length, whether unit lots are exempt from min lot width/area, and access/frontage rules with the jurisdiction.'};
+function attachedRules(county){return ATTACHED_RULES[county]||ATTACHED_DEFAULT;}
 const COUNTY_ZONES={
   'Mecklenburg':['N1-A','N1-B','N1-C','N1-D','N1-E','N1-F','N2-A','N2-B','N2-C','UR-2','UR-3','UR-4'],
   'Gaston':['R-1','R-2','R-3','RS-8','RS-12','RS-20','RMF-SF'],
@@ -3011,8 +3022,83 @@ function sublotSvg(n,frontage,area,minW){
   const front=`<text x="${(W/2).toFixed(1)}" y="${(y0+rh+16).toFixed(1)}" fill="rgba(94,128,149,0.9)" font-family="DM Mono,monospace" font-size="9" text-anchor="middle">◀ ${frontage.toFixed(0)} ft frontage (street) ▶</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:160px;background:#0d1a26;border-radius:6px;margin-top:4px">${cells}${front}</svg>`;
 }
+// ── Attached townhome "subplotting": +1 Units adds a unit to the row; flag past the county cap ──
+function currentPlanObj(){const val=($('plan-sel')||{}).value||'';if(!val||val==='__CUSTOM__')return null;return PLANS.find(p=>p.val===val)||null;}
+function isAttachedPlan(){const p=currentPlanObj();return !!(p&&p.t==='th');}
+function onUnitsChange(){
+  updateAttachedBuild();
+  calcAll();renderSublot();
+  if($('page-3')&&$('page-3').classList.contains('active')){if(lotMode==='poly')snapshotLotEditor();drawDiagram();}
+}
+function bumpUnits(delta){const u=$('units');if(!u)return;const cur=Math.max(1,parseInt(u.value)||1);u.value=Math.min(20,Math.max(1,cur+delta));onUnitsChange();}
+// For attached townhomes the plotted footprint is a ROW: width = per-unit width × units.
+function updateAttachedBuild(){
+  const p=currentPlanObj();
+  if(p&&p.t==='th'&&planOverlay.active){
+    const u=Math.max(1,pv('units'));
+    planOverlay.attached=true;planOverlay.unitW=p.w;
+    planOverlay.fpW=+(p.w*u).toFixed(2);planOverlay.fpH=p.d;
+    planOverlay.planName=p.n+(u>1?` ×${u} (attached row)`:'');
+    const ofn=$('ov-plan-name');if(ofn)ofn.textContent=planOverlay.planName;
+    const off=$('ov-footprint');if(off)off.textContent=`${planOverlay.fpW}'W×${p.d}'D  (${u}×${p.w}')`;
+  }else{planOverlay.attached=false;}
+}
+function subplotSvg(u,unitW,unitD,maxLen){
+  const totalW=unitW*u;
+  const W=440,H=150,pad=26;
+  const scale=Math.min((W-pad*2)/Math.max(totalW,1),(H-pad*2)/Math.max(unitD,1));
+  const rw=totalW*scale,rh=unitD*scale,x0=(W-rw)/2,y0=(H-rh)/2;
+  const over=maxLen&&totalW>maxLen;
+  const stroke=over?'rgba(239,93,87,0.9)':'rgba(70,192,138,0.9)';
+  const fill=over?'rgba(239,93,87,0.10)':'rgba(70,192,138,0.12)';
+  let cells='';
+  for(let i=0;i<u;i++){
+    const cx=x0+(rw/u)*i;
+    cells+=`<rect x="${cx.toFixed(1)}" y="${y0.toFixed(1)}" width="${(rw/u).toFixed(1)}" height="${rh.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    cells+=`<text x="${(cx+rw/u/2).toFixed(1)}" y="${(y0+rh/2+3).toFixed(1)}" fill="rgba(255,255,255,0.8)" font-family="DM Mono,monospace" font-size="9" text-anchor="middle">U${i+1}</text>`;
+  }
+  const lbl=`<text x="${(W/2).toFixed(1)}" y="${(y0+rh+16).toFixed(1)}" fill="${over?'#ef5d57':'rgba(94,128,149,0.9)'}" font-family="DM Mono,monospace" font-size="9" text-anchor="middle">◀ ${totalW.toFixed(0)} ft building length${maxLen?` / ${maxLen} ft max`:''} ▶</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:160px;background:#0d1a26;border-radius:6px;margin-top:4px">${cells}${lbl}</svg>`;
+}
+function renderSubplot(p){
+  const box=$('sublot-result');if(!box)return;
+  const county=($('county-sel')||{}).value||'';
+  const rules=attachedRules(county);
+  const u=Math.max(1,pv('units'));
+  const unitW=p.w,unitD=p.d,bldgLen=+(unitW*u).toFixed(1),maxLen=rules.maxBuildingLen;
+  const over=maxLen?bldgLen>maxLen:false;
+  const maxByLen=maxLen?Math.floor(maxLen/unitW):null;
+  const fit=buildableArea>0?fitStatus(bldgLen,unitD):null;
+  const {frontage,area}=getParentLot();
+  const zoneKey=($('zone-sel')||{}).value||'';
+  const sb=SETBACKS[zoneKey]||null;const minW=pv('sb-minw')||(sb?sb.minWidth:0)||0;const minSF=sb?(sb.minSF||0):0;
+  const parentOK=(rules.sublotParentOnly&&frontage&&area)?((minW>0?frontage>=minW:true)&&(minSF>0?area>=minSF:true)):null;
+  const chip=(ok,txt)=>`<span style="font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;color:${ok?'var(--teal-light)':'#ef5d57'};background:${ok?'rgba(70,192,138,0.12)':'rgba(239,93,87,0.12)'};border:1px solid ${ok?'rgba(70,192,138,0.3)':'rgba(239,93,87,0.3)'}">${ok?'✓':'✗'} ${txt}</span>`;
+  const stepper=`<div style="display:flex;align-items:center;gap:10px;margin:2px 0 8px">
+      <span style="font-size:11px;color:var(--text-mid)">Attached units</span>
+      <button class="btn btn-ghost" style="padding:1px 12px;font-size:17px;line-height:1.2" onclick="bumpUnits(-1)">−</button>
+      <span style="font-family:'DM Serif Display',serif;font-size:20px;min-width:24px;text-align:center">${u}</span>
+      <button class="btn btn-ghost" style="padding:1px 12px;font-size:17px;line-height:1.2" onclick="bumpUnits(1)">+</button>
+      <span style="font-size:10px;color:var(--text-dim)">(same Units as Step 5)</span></div>`;
+  const head=`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:${over?'#ef5d57':'var(--teal-light)'}">${bldgLen.toFixed(0)} ft</div>
+      <div style="font-size:11px;color:var(--text-dim)">building length${maxLen?` · ${maxLen} ft max (${county})`:''}</div></div>`;
+  const detail=`<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:2px">${p.n} · ${unitW}'/unit × ${unitD}' deep · row ${bldgLen.toFixed(0)}'×${unitD}'${maxByLen?` · ~${maxByLen} units max by length`:''}</div>`;
+  const chips=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+      ${maxLen?chip(!over,over?`over ${maxLen}' max`:`≤ ${maxLen}' max`):''}
+      ${fit?chip(fit.status!=='no',fit.status==='fits'?'fits envelope':fit.status==='tight'?'tight — verify':'exceeds envelope'):''}
+      ${parentOK!=null?chip(parentOK,parentOK?'parent meets zone min':'parent below zone min'):''}</div>`;
+  const note=`<p class="note" style="margin-top:8px">${rules.note}</p>`
+    +(maxLen?'':`<p class="warn" style="margin-top:6px">No researched max building length for ${county||'this county'} yet — length flag disabled; verify locally.</p>`);
+  box.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--amber);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Attached townhomes · subplotting</div>`
+    +stepper+head+detail+chips+subplotSvg(u,unitW,unitD,maxLen)+note;
+}
 function renderSublot(){
   const box=$('sublot-result'); if(!box)return;
+  const splitRow=$('sublot-split-row');
+  const attached=isAttachedPlan();
+  if(splitRow)splitRow.style.display=attached?'none':'';
+  if(attached){renderSubplot(currentPlanObj());return;}
   const zoneKey=($('zone-sel')||{}).value||'';
   const sb=SETBACKS[zoneKey]||null;
   const minW=pv('sb-minw')||(sb?sb.minWidth:0)||0;
@@ -3155,7 +3241,8 @@ function onPlanChange(){
     planOverlay.active=false;
     $('plan-overlay-controls').style.display='none';
   }
-  calcBUA();calcAll();renderFitCheck();
+  updateAttachedBuild();
+  calcBUA();calcAll();renderFitCheck();renderSublot();
   // If we're on step 3, refresh the diagram so overlay appears immediately
   if($('page-3').classList.contains('active')){
     if(lotMode==='poly')snapshotLotEditor();
@@ -4524,6 +4611,7 @@ const RELEASE_NOTES=[
    'Plan library fully re-synced to “Updated Slate Cost Plus Pricing for JUNE 2026 — FINALIZED” (Cost + 14%): every price/footprint refreshed, plus new plans — The Troy & Wheatley townhomes, Cuyahoga w/Sunroom, North Hampton, Athens 3.0, a now-priced Canton, Powell Duet, and the Yarmouth mini. Antioch & Dover are held until Slate prices them; Plumwood is off the current sheet.',
    'Multi-unit math: set Units to model N units on one lot — per-unit costs (build, upgrades, water/sewer taps) scale ×N while per-lot costs (lot factor: clearing, grading, demo, trees; plus septic, survey, appraisal, insurance) stay singular. The Arcadia Triplex is now priced per unit so Units×3 no longer triple-counts the build.',
    'Multi-unit exit now shows the revenue side too: each scenario lists ARV / Unit plus Gross Sale (all units), and the Total Project (All Units) card shows the gross sale (units × ARV) beneath the total profit — so you see all three units’ sale value, not just cost.',
+   'Townhome subplotting: pick a Slate townhome and the Sub-Lotting card auto-switches to attached mode — each +1 on Units adds a unit to the row and grows the plotted footprint; it flags when the building length exceeds the county cap (Charlotte 150 ft) and notes that the zone minimum applies to the parent parcel only. County rules are data-driven (unresearched counties warn instead of flagging).',
    'Triplex kept as its own dropdown group. Fixed a dropdown glitch where plan groups could double up after changing the GC fee.']},
  {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
    'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
