@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.7 &middot; Jun 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.8 &middot; Jul 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -668,6 +668,15 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       </div>
 
 
+    </div>
+    <div class="card" id="sublot-card">
+      <div class="card-title"><span class="dot"></span>Sub-Lotting Analysis <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--amber);background:rgba(240,169,60,0.12);border:1px solid rgba(240,169,60,0.3);padding:2px 7px;border-radius:20px;margin-left:6px;text-transform:uppercase;letter-spacing:0.05em">Proof of concept</span></div>
+      <p class="note" style="margin-bottom:12px">Can this parent parcel be carved into separate recorded lots? Screens the parent frontage &amp; area against the zone's UDO minimums. Feasibility screen only — a real subdivision needs a recombination/sublot plat + approved Development LDIRL.</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="lot-mode-btn active" id="sublot-n2" onclick="setSublotN(2)" style="flex:1">Split in 2</button>
+        <button class="lot-mode-btn" id="sublot-n3" onclick="setSublotN(3)" style="flex:1">Split in 3</button>
+      </div>
+      <div id="sublot-result"><div class="note">Enter lot width/area on this page and pick a zone on Step 1 to run the check.</div></div>
     </div>
     <div class="nav-btns">
       <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
@@ -863,6 +872,21 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
           </div>
           <div id="plan-fit-msg" style="margin-top:8px"></div>
           <div id="plan-info-img"></div>
+        </div>
+        <!-- CUSTOM DIMENSIONS — plot an arbitrary footprint with no Slate plan -->
+        <div id="custom-dim-panel" style="display:none;margin-top:12px;padding:12px;background:rgba(240,169,60,0.06);border:1px solid rgba(240,169,60,0.28);border-radius:var(--radius-sm)">
+          <div style="font-family:'DM Serif Display',serif;font-size:15px;color:var(--amber);margin-bottom:8px">Custom Footprint</div>
+          <div class="fr2">
+            <div class="field"><label>House Width (ft)</label><div class="input-wrap"><input type="number" id="cust-w" placeholder="e.g. 40" oninput="applyCustomDims()"><span class="sfx">ft</span></div></div>
+            <div class="field"><label>House Depth (ft)</label><div class="input-wrap"><input type="number" id="cust-d" placeholder="e.g. 55" oninput="applyCustomDims()"><span class="sfx">ft</span></div></div>
+          </div>
+          <div class="fr3" style="margin-top:2px">
+            <div class="field"><label>Finished SF <span style="color:var(--text-dim);font-weight:400;font-size:10px">(opt)</span></label><input type="number" id="cust-sf" placeholder="—" oninput="applyCustomDims()"></div>
+            <div class="field"><label>Units <span style="color:var(--text-dim);font-weight:400;font-size:10px">(opt)</span></label><input type="number" id="cust-u" value="1" min="1" oninput="applyCustomDims()"></div>
+            <div class="field"><label>Build Cost <span style="color:var(--text-dim);font-weight:400;font-size:10px">(opt)</span></label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="cust-c" placeholder="—" oninput="applyCustomDims()"></div></div>
+          </div>
+          <div id="cust-fit-msg" style="margin-top:6px"></div>
+          <p class="note" style="margin-top:4px">Enter a width &amp; depth to plot the footprint on the Step 3 diagram and run the fit check. Leave build cost blank to test the footprint only; the cost stack stays at $0 until you enter one.</p>
         </div>
         <div class="fr2" style="margin-top:14px">
           <div class="field"><label>Units</label><input type="number" id="units" value="1" min="1" max="20" oninput="calcAll()"></div>
@@ -1229,52 +1253,61 @@ const CITY_COUNTY={
 // t = type (sfh|duet|th|mf).  g = dropdown group.  The dropdown, fit-check grid, and
 // PLAN_KEY_MAP are all GENERATED from this list so they can never drift apart again.
 const PLANS=[
-  // Source: "Slate Cost Plus Pricing — FINAL One Sheet" (canonical, May 2026), Cost Plus 14 column.
-  // w=WIDTH ft, d=DEPTH ft (Slate lists D' x W'; corrected here). 0/0 = no published footprint.
-  // NOTE: Akron is NOT on the FINAL sheet — carried over from the prior sheet (price may be stale; footprint est.).
+  // Source: "Updated Slate Cost Plus Pricing for JUNE 2026 - FINALIZED" (Drive id 1IgkzinhjxVanNUVPrKiQv2Q6RFdH5f3E), Cost + 14% column.
+  // w = footprint WIDTH ft, d = footprint DEPTH ft.  Slate lists footprints as (D' x W'); stored here as w=W, d=D.
+  // Carryovers NOT on the FINALIZED sheet: Akron (documented 15-ft skinny plan — price/footprint est., verify) and
+  // Arcadia Triplex (from the Jun-10 "Duplex/Triplex" sheet).  Plumwood was dropped from the FINALIZED sheet.
+  // PENDING price on the sheet, omitted until priced: Antioch (1546 sf, 59x35.6), Dover (1219 sf, 50x30).
   {n:'Akron',sf:1533,c:188962,base:165756,u:1,w:15,d:102,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Arlington (Standard)',sf:1315,c:145277,base:127436,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Arlington (Modern)',sf:1315,c:163876,base:143751,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Aurora',sf:1156,c:137424,base:120547,u:1,w:30,d:20,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Bellville',sf:1627,c:180489,base:158324,u:1,w:28,d:37,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Centerville',sf:1904,c:195754,base:171714,u:1,w:22.5,d:53,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Columbus',sf:1311,c:148112,base:129923,u:1,w:46,d:34.5,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Cuyahoga',sf:2005,c:207307,base:181848,u:1,w:37,d:38,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin (Standard)',sf:1435,c:158865,base:139355,u:1,w:22,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin 1 Car',sf:1435,c:170951,base:149957,u:1,w:34,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Dublin 2 Car',sf:1435,c:181461,base:159176,u:1,w:46.5,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Grandview',sf:1528,c:161052,base:141274,u:1,w:30,d:27,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Granville',sf:1848,c:198406,base:174040,u:1,w:38,d:42,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Hampton',sf:2519,c:244759,base:214701,u:1,w:50.5,d:58.1,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Hilliard',sf:1573,c:175933,base:154327,u:1,w:25,d:41.7,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Muirfield',sf:1199,c:145088,base:127270,u:1,w:30,d:42.3,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Plumwood',sf:1485,c:178876,base:156909,u:1,w:34,d:58,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Seneca',sf:1985,c:204131,base:179062,u:1,w:30,d:43,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Westerville',sf:1108,c:134918,base:118349,u:1,w:25,d:48.4,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Worthington',sf:1405,c:170379,base:149455,u:1,w:48,d:46,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Worthington 2.0',sf:1640,c:181893,base:159555,u:1,w:48,d:51,t:'sfh',g:'Standard Spec — Single Family'},
-  {n:'Albany',sf:2726,c:327313,base:287117,u:1,w:40,d:45,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Galloway',sf:3203,c:379179,base:332613,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Linden',sf:2986,c:372424,base:326688,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
-  {n:'Arcadia (Budget)',sf:1278,c:139130,base:122044,u:1,w:22,d:30.6,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Hudson (Budget)',sf:1108,c:133065,base:116724,u:1,w:25,d:48.4,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Laurel (Budget)',sf:1528,c:150552,base:132063,u:1,w:30,d:27,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Powell (Budget)',sf:1323,c:140963,base:123652,u:1,w:20,d:42,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Powell One Car',sf:1323,c:151547,base:132936,u:1,w:32,d:42,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Wildwood (Budget)',sf:1315,c:138901,base:121843,u:1,w:31,d:50.4,t:'sfh',g:'Budget Spec — Single Family'},
-  {n:'Arcadia Duet (per side)',sf:1228,c:140636,base:123365,u:2,w:40,d:34,t:'duet',g:'Duets — Per Side'},
-  {n:'Bexley Duet (per side)',sf:1664,c:172093,base:150959,u:2,w:40,d:53,t:'duet',g:'Duets — Per Side'},
-  {n:'Findlay Duet (per side)',sf:1409,c:164462,base:144265,u:2,w:38,d:45,t:'duet',g:'Duets — Per Side'},
-  {n:'Logan Duet (per side)',sf:1186,c:135976,base:119277,u:2,w:39.5,d:62,t:'duet',g:'Duets — Per Side'},
-  {n:'Oxford Duet (per side)',sf:1690,c:177284,base:155512,u:2,w:34,d:60,t:'duet',g:'Duets — Per Side'},
-  {n:'Polaris Duet (Modern, per side)',sf:2227,c:332019,base:291245,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
-  {n:'Ashland Duet (Modern, per side)',sf:1747,c:295770,base:259447,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
-  {n:'Whitehall Duet (per side)',sf:1854,c:186398,base:163507,u:2,w:45,d:53,t:'duet',g:'Duets — Per Side'},
-  {n:'Winchester Duet (per side)',sf:1480,c:156739,base:137490,u:2,w:40,d:42.3,t:'duet',g:'Duets — Per Side'},
-  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,base:365446,u:3,w:66,d:33.7,t:'mf',g:'Multifamily & Mini'},
-  {n:'Dayton Townhomes (1 unit)',sf:1385,c:159359,base:139789,u:1,w:21.7,d:40,t:'th',g:'Multifamily & Mini'},
-  {n:'Franklin Townhomes (1 unit)',sf:1549,c:162238,base:142314,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
-  {n:'Dunkirk (mini home)',sf:702,c:104434,base:91609,u:1,w:27,d:34,t:'sfh',g:'Multifamily & Mini'},
+  {n:'Arlington (Standard)',sf:1315,c:143437,base:125822,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Arlington (Modern)',sf:1315,c:160033,base:140380,u:1,w:31,d:50.4,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Aurora',sf:1156,c:136335,base:119592,u:1,w:30,d:20,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Bellville',sf:1627,c:180128,base:158007,u:1,w:28,d:37,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Centerville',sf:1904,c:192915,base:169224,u:1,w:22.5,d:53,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Columbus',sf:1311,c:148560,base:130316,u:1,w:46,d:34.5,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Cuyahoga',sf:2005,c:202616,base:177733,u:1,w:37,d:38,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Cuyahoga w/Sunroom',sf:2263,c:225312,base:197642,u:1,w:37,d:48,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin (Standard)',sf:1435,c:155076,base:136032,u:1,w:22,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 1 Car',sf:1435,c:168172,base:147519,u:1,w:34,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Dublin 2 Car',sf:1435,c:179917,base:157822,u:1,w:46.5,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Grandview',sf:1528,c:160949,base:141183,u:1,w:30,d:27,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Granville',sf:1848,c:196335,base:172224,u:1,w:38,d:42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hampton',sf:2519,c:244740,base:214684,u:1,w:58.08,d:50.46,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'North Hampton',sf:2519,c:262187,base:229989,u:1,w:58.08,d:50.46,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Hilliard',sf:1573,c:170917,base:149927,u:1,w:25,d:41.7,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Muirfield',sf:1199,c:143441,base:125825,u:1,w:30,d:42.25,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Seneca',sf:1985,c:201109,base:176411,u:1,w:30,d:43,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Westerville',sf:1108,c:134462,base:117949,u:1,w:25,d:48.42,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington',sf:1405,c:170423,base:149494,u:1,w:48,d:46,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Worthington 2.0',sf:1640,c:182125,base:159759,u:1,w:48,d:51,t:'sfh',g:'Standard Spec — Single Family'},
+  {n:'Albany',sf:2726,c:326058,base:286016,u:1,w:40,d:45,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Athens 3.0',sf:2520,c:373969,base:328043,u:1,w:50,d:79,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Canton',sf:2492,c:363641,base:318983,u:1,w:46,d:85,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Galloway',sf:3203,c:374009,base:328078,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Linden',sf:2986,c:369327,base:323971,u:1,w:36,d:60,t:'sfh',g:'Upgrade Spec — Single Family'},
+  {n:'Arcadia (Budget)',sf:1278,c:137934,base:120995,u:1,w:22,d:30.6,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Hudson (Budget)',sf:1108,c:130508,base:114481,u:1,w:25,d:48.42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Laurel (Budget)',sf:1528,c:148442,base:130212,u:1,w:30,d:27,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell (Budget)',sf:1323,c:140023,base:122827,u:1,w:20,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Powell One Car',sf:1323,c:151508,base:132902,u:1,w:32,d:42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Wildwood (Budget)',sf:1315,c:138124,base:121161,u:1,w:31,d:50.42,t:'sfh',g:'Budget Spec — Single Family'},
+  {n:'Arcadia Duet (per side)',sf:1228,c:141244,base:123898,u:2,w:40,d:34,t:'duet',g:'Duets — Per Side'},
+  {n:'Bexley Duet (per side)',sf:1664,c:174215,base:152820,u:2,w:40,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Findlay Duet (per side)',sf:1409,c:164219,base:144052,u:2,w:38,d:45,t:'duet',g:'Duets — Per Side'},
+  {n:'Logan Duet (per side)',sf:1186,c:134600,base:118070,u:2,w:39.5,d:62,t:'duet',g:'Duets — Per Side'},
+  {n:'Powell Duet (per side)',sf:1468,c:146834,base:128802,u:2,w:39.25,d:38,t:'duet',g:'Duets — Per Side'},
+  {n:'Oxford Duet (per side)',sf:1690,c:178980,base:157000,u:2,w:34,d:60,t:'duet',g:'Duets — Per Side'},
+  {n:'Whitehall Duet (per side)',sf:1854,c:184518,base:161858,u:2,w:45,d:53,t:'duet',g:'Duets — Per Side'},
+  {n:'Winchester Duet (per side)',sf:1480,c:154902,base:135879,u:2,w:40,d:42.25,t:'duet',g:'Duets — Per Side'},
+  {n:'Ashland Duet (Modern, per side)',sf:1747,c:293674,base:257609,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
+  {n:'Polaris Duet (Modern, per side)',sf:2227,c:330797,base:290173,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
+  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,base:365446,u:3,w:66,d:33.7,t:'mf',g:'Triplex — All 3 Units'},
+  {n:'Dayton Townhomes (1 unit)',sf:1384,c:157579,base:138227,u:1,w:21.67,d:40,t:'th',g:'Multifamily & Mini'},
+  {n:'Franklin Townhomes (1 unit)',sf:1549,c:161530,base:141693,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
+  {n:'Troy Townhomes (1 unit)',sf:1892,c:190896,base:167453,u:1,w:22.75,d:55,t:'th',g:'Multifamily & Mini'},
+  {n:'Wheatley Townhomes (1 unit)',sf:1637,c:197138,base:172928,u:1,w:17.75,d:35,t:'th',g:'Multifamily & Mini'},
+  {n:'Dunkirk (mini home)',sf:702,c:103555,base:90838,u:1,w:27,d:26,t:'sfh',g:'Multifamily & Mini'},
+  {n:'Yarmouth (mini home)',sf:361,c:85117,base:74664,u:1,w:19,d:19,t:'sfh',g:'Multifamily & Mini'},
 ];
 PLANS.forEach(p=>{p.val=`${p.n}|${p.sf}|${p.c}|${p.u}|${p.w}|${p.d}`;});
 const PLAN_KEY_MAP={};PLANS.forEach(p=>{PLAN_KEY_MAP[p.n]=p.val;});
@@ -1310,7 +1343,9 @@ function applyGcBuildFee(){
 }
 function buildPlanDropdown(){
   const sel=$('plan-sel');if(!sel)return;
-  while(sel.options.length>1)sel.remove(1); // keep placeholder
+  while(sel.children.length>1)sel.removeChild(sel.lastChild); // keep placeholder; clears stale options AND optgroups
+  // Custom-footprint option — plot arbitrary house dimensions with no Slate plan
+  {const co=document.createElement('option');co.value='__CUSTOM__';co.textContent='✎  Custom dimensions (no Slate plan)';sel.appendChild(co);}
   const groups=[];PLANS.forEach(p=>{if(!groups.includes(p.g))groups.push(p.g);});
   groups.forEach(g=>{
     const og=document.createElement('optgroup');og.label=g;
@@ -1346,7 +1381,8 @@ const PLAN_IMG={
   'Arcadia (Budget)':'arcadia','Hudson (Budget)':'westerville','Laurel (Budget)':'grandview','Powell (Budget)':'powell','Powell One Car':'powell-one-car','Wildwood (Budget)':'arlington',
   'Bexley Duet (per side)':'bexley','Findlay Duet (per side)':'findlay','Logan Duet (per side)':'logan','Oxford Duet (per side)':'oxford',
   'Polaris Duet (Modern, per side)':'polaris','Ashland Duet (Modern, per side)':'ashland','Whitehall Duet (per side)':'whitehall','Winchester Duet (per side)':'winchester',
-  'Dayton Townhomes (1 unit)':'dayton','Franklin Townhomes (1 unit)':'franklin','Dunkirk (mini home)':'dunkirk'
+  'Dayton Townhomes (1 unit)':'dayton','Franklin Townhomes (1 unit)':'franklin','Dunkirk (mini home)':'dunkirk',
+  'Cuyahoga w/Sunroom':'cuyahoga','North Hampton':'hampton','Canton':'canton','Powell Duet (per side)':'powell'
 };
 const IMG_ICON='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>';
 function planImg(name){const f=PLAN_IMG[name];return f?('plans/'+f+'.webp'):'';}
@@ -1510,6 +1546,8 @@ const $=id=>document.getElementById(id);
 const fmt=n=>(!n&&n!==0)||isNaN(n)?'—':'$'+Math.round(n).toLocaleString();
 const fmtN=n=>isNaN(n)?'—':Math.round(n).toLocaleString();
 const pv=id=>{const e=$(id);if(!e)return 0;const v=parseFloat((e.value||'').replace(/,/g,''));return isNaN(v)?0:v;};
+// Readable plan name from a dropdown value (maps the custom-footprint sentinel).
+const planNameFromVal=v=>v==='__CUSTOM__'?'Custom footprint':((v||'').split('|')[0]||'');
 
 // ═══════════════════ NAVIGATION ═══════════════════
 function goTo(n){
@@ -2369,7 +2407,7 @@ function calcBuildable(){
       redrawEditor();
     }
   }
-  calcBUA();renderFitCheck();updateSummaryBar();
+  calcBUA();renderFitCheck();updateSummaryBar();renderSublot();
   // For poly mode, snapshotLotEditor handles the draw after image loads
   if(lotMode==='poly') snapshotLotEditor();
   else drawDiagram();
@@ -2473,8 +2511,9 @@ function calcBUA(){
   const lotSF=lotSFManual;if(!lotSF)return;
   const buaLimit=Math.min(lotSF*0.24,5000);
   const val=($('plan-sel')||{}).value||'';
-  const parts=val.split('|');
-  const fpW=parseFloat(parts[4])||0,fpD=parseFloat(parts[5])||0;
+  let fpW,fpD;
+  if(val==='__CUSTOM__'){fpW=pv('cust-w');fpD=pv('cust-d');}
+  else{const parts=val.split('|');fpW=parseFloat(parts[4])||0;fpD=parseFloat(parts[5])||0;}
   const footprint=fpW&&fpD?fpW*fpD:0;
   const hardscape=pv('bua-hardscape')||500;
   const estBUA=footprint+hardscape;
@@ -2915,6 +2954,98 @@ function updateTopoLinks(){
   if(addr){$('topo-usgs').href=`https://apps.nationalmap.gov/viewer/?basemap=USGSTopo&search=${enc}`;$('topo-earth').href=`https://earth.google.com/web/search/${enc}`;}
 }
 
+// ═══════════════════ SUB-LOTTING (proof of concept) ═══════════════════
+// Screens whether the parent parcel can be divided into N recorded lots by comparing
+// each resulting lot's frontage & area against the zone's UDO minimums (SETBACKS table).
+// Gross equal-division model — does NOT account for access/panhandle, easements, or
+// road dedication. Feasibility screen only.
+let sublotN=2;
+function setSublotN(n){
+  sublotN=n;
+  const b2=$('sublot-n2'),b3=$('sublot-n3');
+  if(b2)b2.classList.toggle('active',n===2);
+  if(b3)b3.classList.toggle('active',n===3);
+  renderSublot();
+}
+function getParentLot(){
+  if(lotMode==='poly'){
+    const sc=getScaleFtPerPx();
+    let area=0;
+    if(polyPoints.length>=3){
+      for(let i=0;i<polyPoints.length;i++){const a=polyPoints[i],b=polyPoints[(i+1)%polyPoints.length];area+=a.x*b.y-b.x*a.y;}
+      area=Math.abs(area)/2*sc*sc;
+    }
+    const manual=pv('lot-sf-poly'); if(manual>0)area=manual;
+    let front=0;
+    for(let i=0;i<polyPoints.length;i++){
+      if((edgeDesignations[i]||'')==='front'){const a=polyPoints[i],b=polyPoints[(i+1)%polyPoints.length];front+=Math.hypot(b.x-a.x,b.y-a.y)*sc;}
+    }
+    if(front<=0 && polyPoints.length){const xs=polyPoints.map(p=>p.x);front=(Math.max(...xs)-Math.min(...xs))*sc;}
+    return {frontage:front, area:area};
+  }
+  const w=pv('lot-w'),d=pv('lot-d');
+  const area=pv('lot-sf')||(w*d);
+  return {frontage:w, area:area};
+}
+function sublotSvg(n,frontage,area,minW){
+  const depth=frontage>0?area/frontage:0;
+  const W=440,H=150,pad=26;
+  const availW=W-pad*2,availH=H-pad*2;
+  const scale=Math.min(availW/Math.max(frontage,1),availH/Math.max(depth,1));
+  const rw=frontage*scale,rh=depth*scale;
+  const x0=(W-rw)/2,y0=(H-rh)/2;
+  const perF=frontage/n;
+  const okW=minW>0?perF>=minW:true;
+  const stroke=okW?'rgba(70,192,138,0.9)':'rgba(239,93,87,0.9)';
+  const fill=okW?'rgba(70,192,138,0.12)':'rgba(239,93,87,0.10)';
+  let cells='';
+  for(let i=0;i<n;i++){
+    const cx=x0+(rw/n)*i;
+    cells+=`<rect x="${cx.toFixed(1)}" y="${y0.toFixed(1)}" width="${(rw/n).toFixed(1)}" height="${rh.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    cells+=`<text x="${(cx+rw/n/2).toFixed(1)}" y="${(y0+rh/2-3).toFixed(1)}" fill="rgba(255,255,255,0.85)" font-family="DM Mono,monospace" font-size="10" text-anchor="middle">Lot ${i+1}</text>`;
+    cells+=`<text x="${(cx+rw/n/2).toFixed(1)}" y="${(y0+rh/2+11).toFixed(1)}" fill="rgba(255,255,255,0.55)" font-family="DM Mono,monospace" font-size="9" text-anchor="middle">${perF.toFixed(0)}' fr</text>`;
+  }
+  const front=`<text x="${(W/2).toFixed(1)}" y="${(y0+rh+16).toFixed(1)}" fill="rgba(94,128,149,0.9)" font-family="DM Mono,monospace" font-size="9" text-anchor="middle">◀ ${frontage.toFixed(0)} ft frontage (street) ▶</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:160px;background:#0d1a26;border-radius:6px;margin-top:4px">${cells}${front}</svg>`;
+}
+function renderSublot(){
+  const box=$('sublot-result'); if(!box)return;
+  const zoneKey=($('zone-sel')||{}).value||'';
+  const sb=SETBACKS[zoneKey]||null;
+  const minW=pv('sb-minw')||(sb?sb.minWidth:0)||0;
+  const minSF=sb?(sb.minSF||0):0;
+  const {frontage,area}=getParentLot();
+  if(!frontage||!area){box.innerHTML=`<div class="note">Enter lot width/area on this page and pick a zone on Step 1 to run the check.</div>`;return;}
+  const zoneLabel=zoneKey?zoneKey.replace('|',' · '):null;
+  const capW=minW>0?Math.floor(frontage/minW):Infinity;
+  const capA=minSF>0?Math.floor(area/minSF):Infinity;
+  let maxN=Math.min(capW,capA);
+  if(!isFinite(maxN))maxN=(isFinite(capW)?capW:(isFinite(capA)?capA:0));
+  const chip=(ok,txt)=>`<span style="font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;color:${ok?'var(--teal-light)':'#ef5d57'};background:${ok?'rgba(70,192,138,0.12)':'rgba(239,93,87,0.12)'};border:1px solid ${ok?'rgba(70,192,138,0.3)':'rgba(239,93,87,0.3)'}">${ok?'✓':'✗'} ${txt}</span>`;
+  const rows=[2,3].map(n=>{
+    const pf=frontage/n,pa=area/n;
+    const okW=minW>0?pf>=minW:true;
+    const okA=minSF>0?pa>=minSF:true;
+    const ok=okW&&okA;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)">
+      <div style="width:66px;font-family:'DM Serif Display',serif;font-size:14px;color:${ok?'var(--teal-light)':'var(--text-mid)'}">${n} lots</div>
+      <div style="flex:1;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-mid)">${pf.toFixed(0)} ft frontage · ${fmtN(pa)} sf each</div>
+      <div style="display:flex;gap:5px">${chip(okW,minW>0?`≥${minW}' W`:'W n/a')}${chip(okA,minSF>0?`≥${fmtN(minSF)} sf`:'area n/a')}</div>
+    </div>`;
+  }).join('');
+  let head;
+  if(!zoneLabel){
+    head=`<div class="warn" style="margin-bottom:8px">No zone selected — pick a county &amp; zone on Step 1 to screen against UDO minimums. Showing geometric division only.</div>`;
+  } else {
+    const okMax=maxN>=2;
+    head=`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:${okMax?'var(--teal-light)':'#ef5d57'}">${isFinite(maxN)?'≈ '+maxN:'—'} lot${maxN===1?'':'s'}</div>
+      <div style="font-size:11px;color:var(--text-dim)">max by UDO minimums · ${zoneLabel}</div></div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:6px">Parent: ${frontage.toFixed(0)} ft frontage · ${fmtN(area)} sf${minW>0?` · min ${minW}' W`:''}${minSF>0?` · min ${fmtN(minSF)} sf`:' · no min area in table (verify UDO)'}</div>`;
+  }
+  box.innerHTML=head+rows+sublotSvg(sublotN,frontage,area,minW)
+    +`<p class="note" style="margin-top:8px">Equal-division estimate. Interior lots need their own street frontage or a shared-access / panhandle (flag lot) arrangement — confirm access, easements, and BUA re-allocation before relying on the max. Corner lots may support more.</p>`;
+}
 // ═══════════════════ LOT FACTOR ═══════════════════
 function calcLF(){
   const demo=pv('demo-sqft')*pv('demo-rate');
@@ -2948,35 +3079,60 @@ function calcLF(){
 function onPlanChange(){
   const val=($('plan-sel')||{}).value||'';
   const info=$('plan-info');
-  if(!val||!info){if(info)info.style.display='none';calcAll();return;}
-  const [name,sfStr,costStr,duStr,fpWStr,fpDStr]=val.split('|');
-  sfPerUnit=parseInt(sfStr)||0;currentPlanCost=parseInt(costStr)||0;
-  const du=parseInt(duStr)||0,fpW=parseFloat(fpWStr)||0,fpD=parseFloat(fpDStr)||0;
-  $('plan-info-name').textContent=name;$('plan-info-cost').textContent=fmt(currentPlanCost);
-  $('plan-info-sf').textContent=sfPerUnit>0?sfPerUnit.toLocaleString()+' sf':'N/A';
-  $('plan-info-fp').textContent=fpW&&fpD?`${fpW}'W×${fpD}'D`:'N/A';
-  info.style.display='';
-  {const pii=$('plan-info-img');if(pii)pii.innerHTML=planImg(name)?`<button class="plan-img-btn" onclick="openPlanImg('${name}')">${IMG_ICON} View plan drawing</button>`:'';}
-  if(du>0){$('units').value=du;$('units').style.borderColor='var(--teal)';setTimeout(()=>$('units').style.borderColor='',1200);}
-  const pfm=$('plan-fit-msg');
-  if(pfm&&buildableArea>0&&fpW&&fpD){
-    if(lotMode==='poly'&&planOverlay.buildPolyFt&&planOverlay.buildPolyFt.length>=3){
-      // Use polygon-based fit check (same logic as the fit tiles)
-      const r=planFitsInPolyFt(fpW,fpD);
-      if(r==='fits')pfm.innerHTML=`<div class="ok">✓ This plan fits the buildable envelope.</div>`;
-      else if(r==='tight')pfm.innerHTML=`<div class="warn">⚠ Fits but within 5 ft of boundary — verify.</div>`;
-      else pfm.innerHTML=`<div class="err">✗ Footprint (${fpW}'W×${fpD}'D) exceeds buildable envelope.</div>`;
-    } else {
-      // Rect mode: dimension comparison
-      const isCorner=$('corner-lot')&&$('corner-lot').checked;
-      const bW=pv('lot-w')-((isCorner)?(pv('sb-sides')+pv('sb-corner')):(pv('sb-sides')*2));
-      const bD=pv('lot-d')-pv('sb-front')-pv('sb-rear');
-      if(bW>=fpW&&bD>=fpD)pfm.innerHTML=`<div class="ok">✓ This plan fits the buildable envelope.</div>`;
-      else if(bW>=fpD&&bD>=fpW)pfm.innerHTML=`<div class="warn">⚠ Fits if rotated 90°.</div>`;
-      else pfm.innerHTML=`<div class="err">✗ Footprint (${fpW}'W×${fpD}'D) exceeds buildable envelope.</div>`;
+  const cp=$('custom-dim-panel');
+  const isCustom=(val==='__CUSTOM__');
+  if(cp)cp.style.display=isCustom?'':'none';
+
+  let name,du,fpW,fpD;
+  if(isCustom){
+    if(info)info.style.display='none';
+    fpW=pv('cust-w');fpD=pv('cust-d');
+    sfPerUnit=pv('cust-sf')||0;currentPlanCost=pv('cust-c')||0;
+    du=pv('cust-u')||1;name='Custom footprint';
+    const u=$('units');if(u)u.value=du;
+  } else {
+    if(!val||!info){
+      if(info)info.style.display='none';
+      const pfm0=$('plan-fit-msg');if(pfm0)pfm0.innerHTML='';
+      planOverlay.active=false;const oc=$('plan-overlay-controls');if(oc)oc.style.display='none';
+      calcBUA();calcAll();renderFitCheck();
+      if($('page-3').classList.contains('active')){if(lotMode==='poly')snapshotLotEditor();drawDiagram();}
+      return;
     }
-  }else if(pfm)pfm.innerHTML='';
-  const isDuet=val.includes('Duet')||val.includes('Triplex');
+    const parts=val.split('|');
+    name=parts[0];
+    sfPerUnit=parseInt(parts[1])||0;currentPlanCost=parseInt(parts[2])||0;
+    du=parseInt(parts[3])||0;fpW=parseFloat(parts[4])||0;fpD=parseFloat(parts[5])||0;
+    $('plan-info-name').textContent=name;$('plan-info-cost').textContent=fmt(currentPlanCost);
+    $('plan-info-sf').textContent=sfPerUnit>0?sfPerUnit.toLocaleString()+' sf':'N/A';
+    $('plan-info-fp').textContent=fpW&&fpD?`${fpW}'W×${fpD}'D`:'N/A';
+    info.style.display='';
+    {const pii=$('plan-info-img');if(pii)pii.innerHTML=planImg(name)?`<button class="plan-img-btn" onclick="openPlanImg('${name}')">${IMG_ICON} View plan drawing</button>`:'';}
+    if(du>0){$('units').value=du;$('units').style.borderColor='var(--teal)';setTimeout(()=>$('units').style.borderColor='',1200);}
+  }
+  // Fit message → plan-fit-msg (Slate plan) or cust-fit-msg (custom footprint)
+  const pfm=isCustom?$('cust-fit-msg'):$('plan-fit-msg');
+  if(pfm){
+    if(buildableArea>0&&fpW>0&&fpD>0){
+      let r;
+      if(lotMode==='poly'&&planOverlay.buildPolyFt&&planOverlay.buildPolyFt.length>=3){
+        r=planFitsInPolyFt(fpW,fpD);
+      } else {
+        const isCorner=$('corner-lot')&&$('corner-lot').checked;
+        const bW=pv('lot-w')-((isCorner)?(pv('sb-sides')+pv('sb-corner')):(pv('sb-sides')*2));
+        const bD=pv('lot-d')-pv('sb-front')-pv('sb-rear');
+        if(bW>=fpW&&bD>=fpD)r='fits';
+        else if(bW>=fpD&&bD>=fpW)r='rot';
+        else r='no';
+      }
+      const noun=isCustom?'footprint':'plan';
+      if(r==='fits')pfm.innerHTML=`<div class="ok">✓ This ${noun} fits the buildable envelope.</div>`;
+      else if(r==='tight')pfm.innerHTML=`<div class="warn">⚠ Fits but within 5 ft of a boundary — verify.</div>`;
+      else if(r==='rot')pfm.innerHTML=`<div class="warn">⚠ Fits if rotated 90°.</div>`;
+      else pfm.innerHTML=`<div class="err">✗ Footprint (${fpW}'W×${fpD}'D) exceeds buildable envelope.</div>`;
+    } else pfm.innerHTML='';
+  }
+  const isDuet=(!isCustom)&&(val.includes('Duet')||val.includes('Triplex'));
   const county=$('county-sel').value;
   const dp=$('duet-prompt');if(dp)dp.style.display=(isDuet&&county==='Mecklenburg')?'':'none';
   // Activate plan overlay
@@ -3003,6 +3159,7 @@ function onPlanChange(){
     drawDiagram();
   }
 }
+function applyCustomDims(){ onPlanChange(); }
 // ── Utility tap fees (source: Patricia's "Tap Fees" sheet, Drive · Jun 2026) ──
 // County-level defaults keyed to Step-1 county-sel value. null = not on file (Enzo to backfill).
 const COUNTY_TAP={
@@ -3048,8 +3205,12 @@ function onSewerSkip(){const f=$('septic-f');if(f)f.style.display=($('skip-sewer
 
 function calcAll(){
   const val=($('plan-sel')||{}).value||'';
-  const parts=val.split('|');
-  sfPerUnit=parseInt(parts[1])||0;currentPlanCost=parseInt(parts[2])||0;
+  if(val==='__CUSTOM__'){
+    sfPerUnit=pv('cust-sf')||0;currentPlanCost=pv('cust-c')||0;
+  }else{
+    const parts=val.split('|');
+    sfPerUnit=parseInt(parts[1])||0;currentPlanCost=parseInt(parts[2])||0;
+  }
   units=Math.max(1,pv('units'));
   const buildTotal=currentPlanCost*units;
   const upgPerUnit=Array.from(selectedUpgrades).reduce((s,id)=>{const u=UPGRADES.find(x=>x.id===id);return s+(u?u.cost:0);},0);
@@ -3293,7 +3454,7 @@ function buildPlanComparison(psf){
     if(nm){const p=PLANS.find(x=>x.n===nm);if(p){slots.push({rank:i+1,source:'ranked',plan:p});used.add(p.n);}}
   });
   if(!slots.length){
-    const cur=($('plan-sel')||{}).value||'';const curName=cur.split('|')[0];
+    const cur=($('plan-sel')||{}).value||'';const curName=planNameFromVal(cur);
     const p=PLANS.find(x=>x.n===curName);
     if(p){slots.push({rank:null,source:'selected',plan:p});used.add(p.n);}
   }
@@ -3332,7 +3493,7 @@ function getReportData(){
     buildTotal:(currentPlanCost||0)*u,upgrades:upgPerUnit*u,soft:softFixed,
     allInExLand:allInExLand||0,total:(allInExLand||0)+landCost};
   // Build cost = base × (1 + GC fee); break out for the memo
-  {const selName=(($('plan-sel')||{}).value||'').split('|')[0];
+  {const selName=planNameFromVal(($('plan-sel')||{}).value||'');
    const po=PLANS.find(p=>p.n===selName);
    cost.gcFeePct=(typeof GC_BUILD_FEE!=='undefined'?GC_BUILD_FEE:(pv('gc-build-fee')||14));
    cost.baseBuild=po?Math.round(po.base||0)*u:0;
@@ -3363,7 +3524,7 @@ function getReportData(){
   });
 
   const planVal=($('plan-sel')||{}).value||'';
-  const planName=planVal.split('|')[0]||($('plan-info-name')||{}).textContent||'—';
+  const planName=planNameFromVal(planVal)||($('plan-info-name')||{}).textContent||'—';
 
   return {address,county,zone:zoneName||'—',units:u,plan:planName,sf:sfPerUnit||0,
     footprint:($('plan-info-fp')||{}).textContent||'—',buildable_sf:buildableArea||0,
@@ -4102,7 +4263,7 @@ const CMP=[null,null,null];
 const CMP_ARV=[{w:'',b:'',best:''},{w:'',b:'',best:''},{w:'',b:'',best:''}];
 function openCompare(){
   const cur=($('plan-sel')||{}).value||'';
-  const curName=cur?cur.split('|')[0]:'';
+  const curName=cur?planNameFromVal(cur):'';
   CMP[0]=CHOICES[0]||curName||PLANS[0].n;CMP[1]=CHOICES[1]||null;CMP[2]=CHOICES[2]||null;
   CMP_ARV.forEach(o=>{o.w='';o.b='';o.best='';});
   calcAll();
@@ -4244,7 +4405,7 @@ function serializeDeal(){
     if(e.type==='file')return;
     fields[e.id]=e.type==='checkbox'?{t:'checkbox',c:e.checked}:{t:e.type||'text',v:e.value};
   });
-  const planName=(($('plan-sel')||{}).value||'').split('|')[0]||null;
+  const planName=planNameFromVal(($('plan-sel')||{}).value||'')||null;
   return {v:DEAL_VERSION,ts:Date.now(),
     address:[($('addr-street')||{}).value,($('addr-city')||{}).value].filter(Boolean).join(', '),
     fields,lotMode,plan:planName,
@@ -4348,8 +4509,13 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.7', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.8', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.8',date:'Jul 2026',name:'Sub-lotting, custom footprints & full pricing refresh',items:[
+   'New Sub-Lotting Analysis on Step 2 (Lot Dimensions): screens whether the parent parcel can be carved into 2 or 3 recorded lots, checking each lot’s frontage and area against the zone’s UDO minimums — with a max-lots headline and a quick division diagram. Feasibility screen only; a real subdivision still needs a sublot plat + LDIRL.',
+   'Custom Dimensions on Step 5: pick “✎ Custom dimensions” in the plan selector to plot any house width × depth on the lot — no Slate plan required — with the same fit check and drag-to-position overlay. Optional finished SF / units / build cost flow into the cost stack.',
+   'Plan library fully re-synced to “Updated Slate Cost Plus Pricing for JUNE 2026 — FINALIZED” (Cost + 14%): every price/footprint refreshed, plus new plans — The Troy & Wheatley townhomes, Cuyahoga w/Sunroom, North Hampton, Athens 3.0, a now-priced Canton, Powell Duet, and the Yarmouth mini. Antioch & Dover are held until Slate prices them; Plumwood is off the current sheet.',
+   'Triplex (Arcadia, all 3 units) kept as its own dropdown group. Fixed a dropdown glitch where plan groups could double up after changing the GC fee.']},
  {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
    'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
    'The front is matched to your address\u2019s named street centerline (e.g. \u201cfacing Dellinger Dr\u201d); corner and alley lots get an amber flag to confirm.',
