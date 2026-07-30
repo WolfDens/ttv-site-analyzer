@@ -721,6 +721,13 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
             <input type="range" id="rot-slider" class="rot-slider" min="0" max="360" value="0" oninput="setRotation(this.value)">
             <span class="rot-val" id="rot-val">0°</span>
           </div>
+          <div class="rotation-controls" style="margin-top:8px">
+            <span style="font-size:11px;color:var(--text-dim)">Units:</span>
+            <button class="rot-preset" onclick="bumpUnits(-1)">−</button>
+            <span class="rot-val" id="ov-units" style="min-width:22px;text-align:center">1</span>
+            <button class="rot-preset" onclick="bumpUnits(1)">+</button>
+            <span id="ov-units-hint" style="font-size:10px;color:var(--text-dim)">synced with Step 5</span>
+          </div>
           <div class="overlay-stats">
             <div class="overlay-stat">Plan: <span id="ov-plan-name">—</span></div>
             <div class="overlay-stat">Footprint: <span id="ov-footprint">—</span></div>
@@ -3025,8 +3032,12 @@ function sublotSvg(n,frontage,area,minW){
 // ── Attached townhome "subplotting": +1 Units adds a unit to the row; flag past the county cap ──
 function currentPlanObj(){const val=($('plan-sel')||{}).value||'';if(!val||val==='__CUSTOM__')return null;return PLANS.find(p=>p.val===val)||null;}
 function isAttachedPlan(){const p=currentPlanObj();return !!(p&&p.t==='th');}
+function syncUnitsUI(){
+  const el=$('ov-units');if(el)el.textContent=Math.max(1,pv('units'));
+  const h=$('ov-units-hint');if(h)h.textContent=isAttachedPlan()?'attached row — grows footprint':'synced with Step 5';
+}
 function onUnitsChange(){
-  updateAttachedBuild();
+  updateAttachedBuild();syncUnitsUI();
   calcAll();renderSublot();
   if($('page-3')&&$('page-3').classList.contains('active')){if(lotMode==='poly')snapshotLotEditor();drawDiagram();}
 }
@@ -3241,7 +3252,7 @@ function onPlanChange(){
     planOverlay.active=false;
     $('plan-overlay-controls').style.display='none';
   }
-  updateAttachedBuild();
+  updateAttachedBuild();syncUnitsUI();
   calcBUA();calcAll();renderFitCheck();renderSublot();
   // If we're on step 3, refresh the diagram so overlay appears immediately
   if($('page-3').classList.contains('active')){
@@ -4612,6 +4623,7 @@ const RELEASE_NOTES=[
    'Multi-unit math: set Units to model N units on one lot — per-unit costs (build, upgrades, water/sewer taps) scale ×N while per-lot costs (lot factor: clearing, grading, demo, trees; plus septic, survey, appraisal, insurance) stay singular. The Arcadia Triplex is now priced per unit so Units×3 no longer triple-counts the build.',
    'Multi-unit exit now shows the revenue side too: each scenario lists ARV / Unit plus Gross Sale (all units), and the Total Project (All Units) card shows the gross sale (units × ARV) beneath the total profit — so you see all three units’ sale value, not just cost.',
    'Townhome subplotting: pick a Slate townhome and the Sub-Lotting card auto-switches to attached mode — each +1 on Units adds a unit to the row and grows the plotted footprint; it flags when the building length exceeds the county cap (Charlotte 150 ft) and notes that the zone minimum applies to the parent parcel only. County rules are data-driven (unresearched counties warn instead of flagging).',
+   'Units stepper added right on the Step 3 diagram (synced with Step 5), so you can add/remove units and watch the footprint and fit update without hopping between steps.',
    'Triplex kept as its own dropdown group. Fixed a dropdown glitch where plan groups could double up after changing the GC fee.']},
  {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
    'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
