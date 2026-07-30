@@ -1098,14 +1098,17 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div style="text-align:center;padding:16px;background:var(--red-dim);border-radius:var(--radius-sm);border:1px solid rgba(239,93,87,0.2)">
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Worst Total</div>
         <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--red)" id="proj-worst">—</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:4px;line-height:1.4" id="proj-arv-worst"></div>
       </div>
       <div style="text-align:center;padding:16px;background:var(--teal-dim);border-radius:var(--radius-sm);border:1px solid rgba(94,128,149,0.25)">
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Base Total</div>
         <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--teal-light)" id="proj-base">—</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:4px;line-height:1.4" id="proj-arv-base"></div>
       </div>
       <div style="text-align:center;padding:16px;background:var(--green-dim);border-radius:var(--radius-sm);border:1px solid rgba(70,192,138,0.2)">
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Best Total</div>
         <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--green)" id="proj-best">—</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:4px;line-height:1.4" id="proj-arv-best"></div>
       </div>
     </div>
   </div>
@@ -1301,7 +1304,7 @@ const PLANS=[
   {n:'Winchester Duet (per side)',sf:1480,c:154902,base:135879,u:2,w:40,d:42.25,t:'duet',g:'Duets — Per Side'},
   {n:'Ashland Duet (Modern, per side)',sf:1747,c:293674,base:257609,u:2,w:40,d:56,t:'duet',g:'Duets — Per Side'},
   {n:'Polaris Duet (Modern, per side)',sf:2227,c:330797,base:290173,u:2,w:40,d:68,t:'duet',g:'Duets — Per Side'},
-  {n:'Arcadia Triplex (all 3 units)',sf:3834,c:416608,base:365446,u:3,w:66,d:33.7,t:'mf',g:'Triplex — All 3 Units'},
+  {n:'Arcadia Triplex (per unit · 3-plex)',sf:1278,c:138869,base:121815,u:3,w:66,d:33.7,t:'mf',g:'Triplex — All 3 Units'}, // priced PER UNIT (all-3 $416,608 ÷ 3) so Units×3 scales build/taps correctly; sf/unit=3834÷3; footprint=whole 3-unit building
   {n:'Dayton Townhomes (1 unit)',sf:1384,c:157579,base:138227,u:1,w:21.67,d:40,t:'th',g:'Multifamily & Mini'},
   {n:'Franklin Townhomes (1 unit)',sf:1549,c:161530,base:141693,u:1,w:20,d:42.5,t:'th',g:'Multifamily & Mini'},
   {n:'Troy Townhomes (1 unit)',sf:1892,c:190896,base:167453,u:1,w:22.75,d:55,t:'th',g:'Multifamily & Mini'},
@@ -3331,11 +3334,12 @@ function calcScenarios(){
     const coc=loanPerUnit>0?profit/loanPerUnit*100:0;
 
     const lines=[
-      {l:'ARV',v:arv>0?fmt(arv):'Enter $/sf above',hi:true},
+      {l:units>1?'ARV / Unit':'ARV',v:arv>0?fmt(arv):'Enter $/sf above',hi:true},
+      ...(units>1?[{l:`Gross Sale (${units} units)`,v:arv>0?fmt(arv*units):'—',hi:true}]:[]),
       {l:'Build + Costs / Unit',v:fmt(allInPerUnit)},
       {l:`Holding Cost / Unit (${term}mo)`,v:fmt(holdPerUnit)},
       {l:`Sale Costs (${pv('sale-cost-pct')}% of ARV)`,v:fmt(saleCost)},
-      {l:'Total All-In',v:fmt(totalAllIn)},
+      {l:'Total All-In / Unit',v:fmt(totalAllIn)},
     ];
     const lc=document.getElementById(`sc-lines-${k}`);
     if(lc)lc.innerHTML=lines.map(l=>`<div class="sc-line"><span class="sc-line-lbl">${l.l}</span><span class="sc-line-val${l.hi?' hi':''}">${l.v}</span></div>`).join('');
@@ -3346,6 +3350,9 @@ function calcScenarios(){
     const projMap={w:'proj-worst',b:'proj-base',best:'proj-best'};
     const pe2=document.getElementById(projMap[k]);
     if(pe2)pe2.textContent=arv>0?fmt(profit*units):'—';
+    const arvSubMap={w:'proj-arv-worst',b:'proj-arv-base',best:'proj-arv-best'};
+    const arvSub=document.getElementById(arvSubMap[k]);
+    if(arvSub)arvSub.textContent=arv>0?`${units} unit${units>1?'s':''} × ${fmt(arv)} = ${fmt(arv*units)} gross sale`:'';
   });
 
   // Max land cost — back-solve for $50k base profit
@@ -4515,7 +4522,9 @@ const RELEASE_NOTES=[
    'New Sub-Lotting Analysis on Step 2 (Lot Dimensions): screens whether the parent parcel can be carved into 2 or 3 recorded lots, checking each lot’s frontage and area against the zone’s UDO minimums — with a max-lots headline and a quick division diagram. Feasibility screen only; a real subdivision still needs a sublot plat + LDIRL.',
    'Custom Dimensions on Step 5: pick “✎ Custom dimensions” in the plan selector to plot any house width × depth on the lot — no Slate plan required — with the same fit check and drag-to-position overlay. Optional finished SF / units / build cost flow into the cost stack.',
    'Plan library fully re-synced to “Updated Slate Cost Plus Pricing for JUNE 2026 — FINALIZED” (Cost + 14%): every price/footprint refreshed, plus new plans — The Troy & Wheatley townhomes, Cuyahoga w/Sunroom, North Hampton, Athens 3.0, a now-priced Canton, Powell Duet, and the Yarmouth mini. Antioch & Dover are held until Slate prices them; Plumwood is off the current sheet.',
-   'Triplex (Arcadia, all 3 units) kept as its own dropdown group. Fixed a dropdown glitch where plan groups could double up after changing the GC fee.']},
+   'Multi-unit math: set Units to model N units on one lot — per-unit costs (build, upgrades, water/sewer taps) scale ×N while per-lot costs (lot factor: clearing, grading, demo, trees; plus septic, survey, appraisal, insurance) stay singular. The Arcadia Triplex is now priced per unit so Units×3 no longer triple-counts the build.',
+   'Multi-unit exit now shows the revenue side too: each scenario lists ARV / Unit plus Gross Sale (all units), and the Total Project (All Units) card shows the gross sale (units × ARV) beneath the total profit — so you see all three units’ sale value, not just cost.',
+   'Triplex kept as its own dropdown group. Fixed a dropdown glitch where plan groups could double up after changing the GC fee.']},
  {v:'7.7',date:'Jun 2026',name:'Smarter front-edge detection',items:[
    'GIS lookups now detect which lot edges face street right-of-way by checking the neighboring parcels \u2014 the front edge is set from real data instead of assuming the street is to the south.',
    'The front is matched to your address\u2019s named street centerline (e.g. \u201cfacing Dellinger Dr\u201d); corner and alley lots get an amber flag to confirm.',
