@@ -81,10 +81,18 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   regression to bounding-box area.
 
 ### Domain-correctness (don't let geometry override the rulebook)
-- Don't reintroduce **pre-UDO Mecklenburg UR-2/UR-3/UR-4** (defunct) into `SETBACKS`/
-  `COUNTY_ZONES` — known data debt being removed, not added.
-- Townhome/attached plays must be gated by the **permitted-use matrix**, not geometry
-  alone (attached is not by-right in N1-A..E). Flag a recommendation that skips the gate.
+> These two rules describe the **target state**; the current code differs. Flag against
+> the target, but don't assume the target is already implemented — both are open items.
+- **UR-2/UR-3/UR-4 are defunct pre-UDO zones that are still PRESENT in the code today**
+  (in both `SETBACKS` and `COUNTY_ZONES`) — a known, not-yet-done cleanup target
+  (handoff §4.4, §12), *not* something already removed. Don't add them anywhere new, and
+  flag any change that reintroduces them **or that assumes they've already been deleted**.
+- Townhome/attached plays *should* be gated by the **permitted-use matrix**, not geometry
+  alone (attached is not by-right in N1-A..E). **That matrix is NOT wired into the app
+  yet** — today the attached flow runs on plan type + geometry/length checks and only
+  shows a "verify the zone permits" note (handoff §10, §12; it's a roadmap item). Flag any
+  change that hard-codes a townhome *recommendation* as if the gate already existed, and
+  treat wiring the use-matrix gate as still-to-do.
 
 ### Versioning & verification (compensates for no test suite)
 - Any user-facing change bumps **both** `APP_VERSION` and the header badge together, and
