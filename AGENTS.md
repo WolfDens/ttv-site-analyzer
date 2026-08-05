@@ -33,9 +33,13 @@ in the repo, version it with the code.
 Flag anything that violates these. They encode invariants a generic reviewer will miss.
 
 ### Pricing & scaling (highest-risk — these move real dollars)
-- **Build cost is derived, never hard-coded.** `p.c = round(p.base × (1 + GC_fee%))`,
-  default fee 14%. Flag any hard-coded plan cost, or any change that stores `c` instead
-  of recomputing it from `base` via `recomputePlanCosts()`.
+- **`base` is the source of truth for cost; `c` is derived.** At load,
+  `recomputePlanCosts()` sets `p.c = round(p.base × (1 + GC_fee%))` (default fee 14%),
+  overwriting whatever literal `c:` each `PLANS` entry already carries — so the per-entry
+  `c:` is a stale placeholder, not authoritative. Flag: reading or treating `c` as the
+  source of truth, hand-editing `c` to change pricing (edit `base` instead), or any
+  new/edited entry that bypasses `recomputePlanCosts()`. Do **not** flag the mere
+  presence of a `c:` value — that's the normal data shape.
 - **Footprint convention:** Slate publishes footprints as **(D′ × W′)**; `PLANS` store
   them **corrected** to `w=W, d=D`. Flag any new/edited plan whose width/depth looks
   transposed — a swap silently breaks every fit-check and BUA calc.
@@ -57,9 +61,12 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - **Stay single-file & buildless.** Flag any added framework, bundler, npm build step, or
   new runtime dependency. Export libs (`jsPDF`, `ExcelJS`) are **CDN, lazy-loaded only on
   export** — keep them that way.
-- **No browser storage** except the one existing `localStorage` key
-  `ttv-analyzer-last-seen-version` (release-notes gate). Flag any new
-  localStorage/sessionStorage use.
+- **Browser storage is limited to the two existing `localStorage` keys** — no others:
+  `ttv-analyzer-last-seen-version` (release-notes gate) and `ttv-analyzer-autosave`
+  (the v7.4 autosave/resume flow: `scheduleAutosave`, `resumeAutosave`,
+  `checkResumeBanner`; writes degrade quietly when storage is unavailable). Flag any
+  *new* storage key or any `sessionStorage` use, but do **not** flag routine maintenance
+  of those two existing keys.
 - **Don't hand-maintain derived data.** `p.val`, `PLAN_KEY_MAP`, `PLANS_FP` and all
   dropdowns are generated from the `const`s (`PLANS`, `SETBACKS`, `COUNTY_ZONES`…). Flag
   edits that set derived values by hand instead of regenerating them.
