@@ -1,0 +1,634 @@
+<!--
+  ============================================================================
+  TTV SITE ANALYZER — V2 REDESIGN PROTOTYPE (NOT PRODUCTION)
+  ============================================================================
+  Purpose: hosted design/UX prototype for team testing (Adam, Wendell, Pat, Eunice).
+  Status:  concept only. Lives on the `redesign-v2` branch. The live production app
+           is unchanged on `main` (index.html).
+
+  IMPORTANT FOR REVIEWERS (incl. Codex):
+  - The arithmetic in this file is a SIMPLIFIED ILLUSTRATIVE MODEL for demoing the
+    UI. It is deliberately NOT the production underwriting math and must not be
+    treated as such. Production math (LTC%% circular closing solve, base x (1+fee),
+    per-unit vs per-lot scaling) lives in index.html on `main`.
+  - Wiring these screens to the real engine is a LATER, separate step. Do not flag
+    the simplified model as a production math regression; DO flag genuine defects
+    (JS errors, broken interactions, a11y, division-by-zero, dead code).
+  - Decided 2026-08-05: compute from the app's math, borrow the Excel only for
+    output layout/simplicity. The Excel "60/100" loan formula is superseded.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Underwrite Output — Tide &amp; Timber Ventures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F6F1E7;
+    --cream-2:#FBF8F1;
+    --card:#FFFFFF;
+    --ink:#1E2A24;
+    --ink-soft:#4A5751;
+    --line:#E4DDCD;
+    --line-soft:#EFE9DC;
+    --forest:#2F4A3C;
+    --forest-2:#3B6B4A;
+    --navy:#24384B;
+    --gold:#B07A3C;
+    --gold-soft:#F2E4CE;
+    --slate:#5B6B72;
+    --pos:#2F6B45;
+    --neg:#A24C39;
+    --shadow:0 1px 2px rgba(30,42,36,.05),0 8px 24px rgba(30,42,36,.06);
+    --shadow-lg:0 2px 6px rgba(30,42,36,.06),0 20px 48px rgba(30,42,36,.10);
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #FCF9F2 0%, rgba(252,249,242,0) 60%),
+      var(--cream);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 28px 72px;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:24px;margin-bottom:22px;flex-wrap:wrap;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .eyebrow{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold);font-weight:600;
+  }
+  .brand h1{
+    font-family:var(--serif);font-weight:600;font-size:30px;
+    margin:0;color:var(--ink);letter-spacing:-.01em;
+  }
+  .brand .sub{color:var(--ink-soft);font-size:13px;margin-top:2px;}
+  .brand .sub b{color:var(--ink);font-weight:600;}
+
+  .export{
+    display:inline-flex;align-items:center;gap:9px;
+    background:var(--forest);color:#F7F3EA;border:none;
+    font-family:var(--sans);font-weight:600;font-size:14px;
+    padding:13px 22px;border-radius:12px;cursor:pointer;
+    box-shadow:var(--shadow);transition:transform .12s ease, background .15s ease;
+  }
+  .export:hover{background:#284034;transform:translateY(-1px);}
+  .export svg{width:17px;height:17px;}
+
+  /* ---------- Hero row ---------- */
+  .heroes{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px;
+  }
+  .hero{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:20px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .hero .label{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:8px;
+  }
+  .hero .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);}
+  .hero .val{
+    font-family:var(--serif);font-weight:600;font-size:44px;line-height:1.05;
+    margin-top:10px;letter-spacing:-.02em;
+  }
+  .hero .foot{font-size:12px;color:var(--ink-soft);margin-top:8px;}
+  .hero.gold{background:linear-gradient(160deg,#FFFDF8 0%, #FBF1DF 100%);border-color:var(--gold-soft);}
+  .hero.gold .val{color:var(--gold);}
+  .hero.gold .dot{background:var(--gold);}
+  .hero.profit .val{color:var(--forest-2);}
+  .hero.profit .dot{background:var(--forest-2);}
+  .hero.coc .val{color:var(--navy);}
+  .hero.coc .dot{background:var(--navy);}
+  .hero .ribbon{
+    position:absolute;top:14px;right:16px;font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-soft);font-weight:600;opacity:.7;
+  }
+
+  /* ---------- Lever strip ---------- */
+  .levers{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:22px;
+    display:grid;grid-template-columns:minmax(300px,1.5fr) repeat(4,1fr);gap:22px;align-items:end;
+  }
+  .lever-head{
+    grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:-4px;
+  }
+  .lever-head .tag{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600;
+  }
+  .lever-head .hint{font-size:12px;color:var(--ink-soft);}
+  .field label{
+    display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;margin-bottom:7px;
+  }
+  .field input, .field select{
+    width:100%;font-family:var(--sans);font-size:15px;font-weight:600;color:var(--ink);
+    background:var(--cream-2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;outline:none;transition:border .15s,box-shadow .15s;
+  }
+  .field input:focus, .field select:focus{
+    border-color:var(--forest-2);box-shadow:0 0 0 3px rgba(59,107,74,.12);background:#fff;
+  }
+  /* Land — the dominant lever */
+  .land-field{
+    background:linear-gradient(160deg,#FFFDF8, #F9F0DF);
+    border:1px solid var(--gold-soft);border-radius:14px;padding:14px 16px;
+  }
+  .land-field label{color:var(--gold);}
+  .land-top{display:flex;align-items:baseline;gap:10px;}
+  .land-big{font-family:var(--serif);font-weight:600;font-size:38px;letter-spacing:-.02em;color:var(--ink);}
+  .land-num{
+    width:120px;font-family:var(--sans);font-size:14px;font-weight:600;
+    background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 10px;color:var(--ink);
+  }
+  .land-num:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(176,122,60,.15);}
+  input[type=range].land-slider{
+    -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--gold) 0%,var(--gold) var(--pct,10%),#EADFC7 var(--pct,10%),#EADFC7 100%);
+    margin-top:14px;cursor:pointer;
+  }
+  input[type=range].land-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+    background:#fff;border:3px solid var(--gold);box-shadow:0 2px 6px rgba(176,122,60,.35);cursor:pointer;
+  }
+  input[type=range].land-slider::-moz-range-thumb{
+    width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--gold);cursor:pointer;
+  }
+  .land-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-top:6px;}
+
+  /* ---------- Board ---------- */
+  .board{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow-lg);overflow:hidden;
+  }
+  .grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;}
+  .grid > div{padding:0;}
+  .ghead{
+    padding:16px 18px 14px;border-bottom:1px solid var(--line);
+    background:var(--cream-2);
+  }
+  .ghead.label-h{display:flex;flex-direction:column;justify-content:flex-end;}
+  .ghead.label-h .t{font-family:var(--serif);font-size:18px;font-weight:600;}
+  .ghead.label-h .s{font-size:12px;color:var(--ink-soft);}
+  .scenario-h{text-align:right;}
+  .scenario-h .name{
+    font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:.01em;
+  }
+  .scenario-h .meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .worst-h .name{color:var(--slate);}
+  .base-h{background:linear-gradient(180deg,#FBF1DF,#F8ECD6);}
+  .base-h .name{color:var(--gold);}
+  .best-h .name{color:var(--forest-2);}
+  .base-col{background:linear-gradient(180deg, rgba(251,241,223,.55), rgba(251,241,223,.28));}
+
+  .row-cell{
+    padding:9px 18px;border-bottom:1px solid var(--line-soft);
+    display:flex;align-items:center;min-height:40px;font-variant-numeric:tabular-nums;
+  }
+  .row-cell.lbl{color:var(--ink-soft);font-weight:500;}
+  .row-cell.val{justify-content:flex-end;font-weight:600;color:var(--ink);}
+  .row-cell.val.sub{font-weight:500;color:var(--ink-soft);}
+  .lbl .lever-tag{
+    font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
+    border:1px solid var(--gold-soft);background:#FBF1DF;border-radius:5px;
+    padding:2px 6px;margin-left:8px;font-weight:600;
+  }
+  .grid .strong .lbl, .grid .strong .val{
+    font-weight:700;color:var(--ink);
+  }
+  .grid .strong .row-cell{background:rgba(47,74,60,.035);border-top:1px solid var(--line);}
+  .grid .strong.base-strong .row-cell.base-col{background:rgba(176,122,60,.12);}
+  .pos{color:var(--pos)!important;}
+  .neg{color:var(--neg)!important;}
+
+  .group-band{
+    grid-column:1/-1;background:var(--cream);padding:8px 18px;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);
+    font-weight:600;border-bottom:1px solid var(--line-soft);border-top:1px solid var(--line-soft);
+  }
+
+  /* inline editable cell inputs (Retail, Term) */
+  .cell-input{
+    width:82px;text-align:right;font-family:var(--sans);font-size:14px;font-weight:600;
+    color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;
+    padding:5px 8px;transition:all .12s;font-variant-numeric:tabular-nums;
+    border-bottom:1.5px dashed var(--gold);
+  }
+  .cell-input:hover{background:rgba(176,122,60,.08);}
+  .cell-input:focus{outline:none;background:#fff;border:1px solid var(--gold);box-shadow:0 0 0 3px rgba(176,122,60,.15);border-bottom:1px solid var(--gold);}
+  .cell-wrap{display:flex;align-items:center;justify-content:flex-end;gap:3px;}
+  .cell-wrap .pre{color:var(--ink-soft);font-weight:600;}
+  .cell-wrap .post{color:var(--ink-soft);font-size:11px;}
+
+  /* ---------- Collapsibles ---------- */
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;}
+  details.panel{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  details.panel > summary{
+    list-style:none;cursor:pointer;padding:16px 20px;
+    display:flex;align-items:center;justify-content:space-between;
+    font-family:var(--serif);font-size:16px;font-weight:600;color:var(--ink);
+  }
+  details.panel > summary::-webkit-details-marker{display:none;}
+  summary .chev{transition:transform .2s;color:var(--ink-soft);}
+  details[open] summary .chev{transform:rotate(180deg);}
+  .panel-body{padding:4px 20px 20px;border-top:1px solid var(--line-soft);}
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--ink-soft);}
+  .kv .v{font-weight:600;}
+  .adv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 18px;margin-top:6px;}
+  .adv-grid .field input{font-size:14px;padding:8px 10px;}
+  .adv-note{font-size:12px;color:var(--ink-soft);margin-top:14px;line-height:1.5;}
+  .adv summary .tag{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+    font-weight:600;font-family:var(--sans);margin-right:auto;
+  }
+  details.adv{margin-bottom:22px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;box-shadow:var(--shadow);}
+  details.adv > summary{list-style:none;cursor:pointer;padding:15px 20px;display:flex;
+    align-items:center;gap:12px;font-family:var(--serif);font-size:15px;font-weight:600;}
+  details.adv > summary::-webkit-details-marker{display:none;}
+
+  .footer-note{margin-top:26px;text-align:center;font-size:12px;color:var(--ink-soft);}
+
+  @media (max-width:920px){
+    .heroes{grid-template-columns:1fr;}
+    .levers{grid-template-columns:1fr 1fr;}
+    .land-field{grid-column:1/-1;}
+    .panels{grid-template-columns:1fr;}
+    .adv-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Tide &amp; Timber Ventures · Underwrite</div>
+      <h1>Deal Output</h1>
+      <div class="sub"><b id="planName">The Powell (Budget Spec)</b> · Iredell R-12 · <span id="unitLine">14 units</span></div>
+    </div>
+    <button class="export" onclick="stubExport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export to Excel
+    </button>
+  </header>
+
+  <!-- Heroes -->
+  <section class="heroes">
+    <div class="hero profit">
+      <div class="label"><span class="dot"></span>Base Profit / unit</div>
+      <div class="val" id="h-profit">$38,993</div>
+      <div class="foot" id="h-profit-foot">Total project profit <b>$545,902</b></div>
+    </div>
+    <div class="hero coc">
+      <div class="label"><span class="dot"></span>Base Cash-on-Cash</div>
+      <div class="val" id="h-coc">18.4%</div>
+      <div class="foot">Return on all-in basis</div>
+    </div>
+    <div class="hero gold">
+      <div class="ribbon">The Dirt</div>
+      <div class="label"><span class="dot"></span>Max Supportable Land</div>
+      <div class="val" id="h-maxland">$16,318</div>
+      <div class="foot" id="h-maxland-foot">per lot · <b>$228k</b> across 14 lots at 12% CoC floor</div>
+    </div>
+  </section>
+
+  <!-- Lever strip -->
+  <section class="levers">
+    <div class="lever-head">
+      <span class="tag">Live Levers</span>
+      <span class="hint">Edit anything — the whole board recomputes as you go.</span>
+    </div>
+
+    <div class="land-field">
+      <label>Land Cost / lot — the question</label>
+      <div class="land-top">
+        <span class="land-big" id="landBig">$5,000</span>
+        <input class="land-num" id="landNum" type="number" step="250" value="5000" oninput="onLandNum(this.value)">
+      </div>
+      <input type="range" class="land-slider" id="landSlider" min="0" max="40000" step="250" value="5000" oninput="onLandSlider(this.value)">
+      <div class="land-scale"><span>$0</span><span>$20k</span><span>$40k</span></div>
+    </div>
+
+    <div class="field">
+      <label>Plan</label>
+      <select id="planSel" onchange="setPlan(this.value)">
+        <option value="powell">The Powell — Budget Spec</option>
+        <option value="ashe">The Ashe — Standard</option>
+        <option value="linville">The Linville — Premium</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Tap Fees</label>
+      <input type="number" step="100" value="2500" oninput="setShared('tap',this.value)">
+    </div>
+
+    <div class="field">
+      <label>Lot Factor</label>
+      <input type="number" step="500" value="22071" oninput="setShared('lotFactor',this.value)">
+    </div>
+
+    <div class="field">
+      <label>Units</label>
+      <input type="number" step="1" value="14" oninput="setShared('units',this.value)">
+    </div>
+  </section>
+
+  <!-- Advanced disclosure -->
+  <details class="adv">
+    <summary>
+      <span class="tag">Advanced</span>
+      <span>Financing &amp; soft-cost assumptions</span>
+      <span class="chev" style="margin-left:auto;">▾</span>
+    </summary>
+    <div class="panel-body" style="border-top:1px solid var(--line-soft);">
+      <div class="adv-grid">
+        <div class="field"><label>Loan-to-Cost %</label><input type="number" step="1" value="82" oninput="setPct('LTC',this.value)"></div>
+        <div class="field"><label>Loan Points %</label><input type="number" step="0.25" value="1" oninput="setPct('pointsPct',this.value)"></div>
+        <div class="field"><label>Interest Rate %</label><input type="number" step="0.25" value="10.5" oninput="setPct('rate',this.value)"></div>
+        <div class="field"><label>Sale Cost % of ARV</label><input type="number" step="0.1" value="6.6" oninput="setPct('saleCostPct',this.value)"></div>
+        <div class="field"><label>Target CoC floor %</label><input type="number" step="0.5" value="12" oninput="setPct('targetCoC',this.value)"></div>
+        <div class="field"><label>Upgrades</label><input type="number" step="500" value="10000" oninput="setShared('upgrades',this.value)"></div>
+        <div class="field"><label>Survey</label><input type="number" step="100" value="1000" oninput="setShared('survey',this.value)"></div>
+        <div class="field"><label>Appraisal</label><input type="number" step="50" value="800" oninput="setShared('appraisal',this.value)"></div>
+        <div class="field"><label>Insurance</label><input type="number" step="100" value="1400" oninput="setShared('insurance',this.value)"></div>
+      </div>
+      <div class="adv-note">These are set-and-forget. They stay out of your way on the main board — surface them only when a deal needs them.</div>
+    </div>
+  </details>
+
+  <!-- Board -->
+  <section class="board">
+    <div class="grid" id="grid"><!-- built by JS --></div>
+  </section>
+
+  <!-- Side panels -->
+  <section class="panels">
+    <details class="panel" open>
+      <summary>Property Details <span class="chev">▾</span></summary>
+      <div class="panel-body">
+        <div class="kv"><span class="k">Address</span><span class="v">TBD — Iredell County, NC</span></div>
+        <div class="kv"><span class="k">County</span><span class="v">Iredell</span></div>
+        <div class="kv"><span class="k">Zone</span><span class="v">R-12 (Residential)</span></div>
+        <div class="kv"><span class="k">Setbacks</span><span class="v">Front 35' · Rear 35' · Side 12'</span></div>
+        <div class="kv"><span class="k">Footprint</span><span class="v">42' D × 20' W</span></div>
+        <div class="kv"><span class="k">Buildable (est.)</span><span class="v">1,323 sf / unit · 14 units</span></div>
+      </div>
+    </details>
+
+    <details class="panel">
+      <summary>Lot Factor Breakdown <span class="chev">▾</span></summary>
+      <div class="panel-body">
+        <div class="kv"><span class="k">Site work / grading</span><span class="v">$9,500.00</span></div>
+        <div class="kv"><span class="k">Driveway &amp; approach</span><span class="v">$4,200.00</span></div>
+        <div class="kv"><span class="k">Water / sewer lateral</span><span class="v">$3,850.00</span></div>
+        <div class="kv"><span class="k">Erosion control</span><span class="v">$1,621.43</span></div>
+        <div class="kv"><span class="k">Landscape / sod</span><span class="v">$2,900.00</span></div>
+        <div class="kv"><span class="k" style="font-weight:600;color:var(--ink)">Total Lot Factor</span><span class="v" id="lf-total">$22,071.43</span></div>
+      </div>
+    </details>
+  </section>
+
+  <div class="footer-note">Concept mockup · simplified model for demonstration · numbers recompute live from the levers above.</div>
+
+</div>
+
+<script>
+"use strict";
+
+const PLANS = {
+  powell:  {name:'The Powell (Budget Spec)', sf:1323, buildPerSf:106.55},
+  ashe:    {name:'The Ashe (Standard)',      sf:1650, buildPerSf:118.00},
+  linville:{name:'The Linville (Premium)',   sf:1980, buildPerSf:132.00},
+};
+
+let state = {
+  land:5000, planKey:'powell', tap:2500, lotFactor:22071.43, units:14,
+  upgrades:10000, survey:1000, appraisal:800, insurance:1400,
+  LTC:0.82, pointsPct:0.01, rate:0.105, saleCostPct:0.066, targetCoC:0.12,
+  cols:{
+    worst:{retail:180, term:10},
+    base :{retail:190, term:8},
+    best :{retail:200, term:6},
+  }
+};
+
+// Line-item definitions, in exact required order
+const LINES = [
+  {k:'land',        label:'Land Cost',        fmt:'money', lever:true},
+  {k:'lotFactor',   label:'Lot Factor',       fmt:'money', lever:true},
+  {k:'tap',         label:'Tap Fees',         fmt:'money', lever:true},
+  {k:'survey',      label:'Survey',           fmt:'money'},
+  {k:'appraisal',   label:'Appraisal',        fmt:'money'},
+  {k:'insurance',   label:'Insurance',        fmt:'money'},
+  {band:'Cost Stack — the build'},
+  {k:'sf',          label:'Sq Footage',       fmt:'int'},
+  {k:'buildPerSf',  label:'Build $/sf',       fmt:'psf'},
+  {k:'buildCost',   label:'Build Cost',       fmt:'money'},
+  {k:'upgrades',    label:'Upgrades',         fmt:'money'},
+  {k:'totalBuild',  label:'Total Build Cost', fmt:'money', strong:true},
+  {band:'Financing'},
+  {k:'loan',        label:'Loan Amount',      fmt:'loan'},
+  {k:'loanPoints',  label:'Loan Points',      fmt:'money'},
+  {k:'rate',        label:'Interest Rate',    fmt:'pct'},
+  {k:'term',        label:'Term (months)',    fmt:'edit-term'},
+  {k:'finance',     label:'Finance Cost',     fmt:'money'},
+  {band:'The Exit'},
+  {k:'saleCosts',   label:'Sale Costs',       fmt:'money'},
+  {k:'allIn',       label:'All-In Cost',      fmt:'money', strong:true},
+  {k:'allInPerSf',  label:'All-In $/sf',      fmt:'psf'},
+  {k:'arv',         label:'ARV',              fmt:'money'},
+  {k:'retail',      label:'Retail $/sf',      fmt:'edit-retail'},
+  {k:'profit',      label:'Profit',           fmt:'money', strong:true, signed:true},
+  {k:'coc',         label:'Cash-on-Cash',     fmt:'pct',   signed:true},
+  {k:'units',       label:'Units',            fmt:'int',   lever:true},
+  {k:'projectProfit',label:'Total Project Profit', fmt:'money', strong:true, base:true, signed:true},
+  {k:'totalOffer',  label:'Total Offer',      fmt:'money', strong:true},
+];
+
+const COLS = [
+  {id:'worst', name:'Worst', cls:'worst-h'},
+  {id:'base',  name:'Base',  cls:'base-h'},
+  {id:'best',  name:'Best',  cls:'best-h'},
+];
+
+/* ---------- Model ---------- */
+function calc(col){
+  const p = PLANS[state.planKey];
+  const buildCost  = Math.round(p.sf * p.buildPerSf);
+  const totalBuild = buildCost + state.upgrades;
+  const soft       = state.tap + state.survey + state.appraisal + state.insurance;
+  const costBasis  = state.land + state.lotFactor + soft + totalBuild;
+  const loan       = state.LTC * costBasis;
+  const c          = state.cols[col];
+  const finance    = loan * (state.pointsPct + state.rate * c.term / 12);
+  const loanPoints = loan * state.pointsPct;
+  const arv        = c.retail * p.sf;
+  const saleCosts  = arv * state.saleCostPct;
+  const allIn      = costBasis + finance + saleCosts;
+  const profit     = arv - allIn;
+  return {
+    land:state.land, lotFactor:state.lotFactor, tap:state.tap,
+    survey:state.survey, appraisal:state.appraisal, insurance:state.insurance,
+    sf:p.sf, buildPerSf:p.buildPerSf, buildCost, upgrades:state.upgrades, totalBuild,
+    loan, loanPoints, rate:state.rate, term:c.term, finance,
+    saleCosts, allIn, allInPerSf:allIn/p.sf, arv, retail:c.retail,
+    profit, coc:profit/allIn, units:state.units,
+    projectProfit:profit*state.units, totalOffer:state.land*state.units
+  };
+}
+
+function maxLand(){
+  const base = calc('base');
+  const c = state.cols.base;
+  const financeRate = state.pointsPct + state.rate * c.term / 12;
+  const allInTarget = base.arv / (1 + state.targetCoC);
+  const slope = 1 + state.LTC * financeRate;            // dAllIn / dLand
+  const dL = (allInTarget - base.allIn) / slope;
+  return state.land + dL;
+}
+
+/* ---------- Formatting ---------- */
+const money = n => (n<0?'-':'') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
+const psf   = n => '$' + n.toFixed(2);
+const pct   = n => (n*100).toFixed(1) + '%';
+const intf  = n => Math.round(n).toLocaleString('en-US');
+
+/* ---------- Build board once ---------- */
+function buildGrid(){
+  const g = document.getElementById('grid');
+  let html = '';
+  // header row
+  html += `<div class="ghead label-h"><span class="t">Line Item</span><span class="s">per unit unless noted</span></div>`;
+  COLS.forEach(c=>{
+    const meta = `Term ${state.cols[c.id].term} mo · Retail $${state.cols[c.id].retail}`;
+    html += `<div class="ghead scenario-h ${c.cls}"><div class="name">${c.name}</div><div class="meta" id="meta-${c.id}">${meta}</div></div>`;
+  });
+
+  LINES.forEach(line=>{
+    if(line.band){ html += `<div class="group-band">${line.band}</div>`; return; }
+    const strongCls = line.strong ? (line.base?'strong base-strong':'strong') : '';
+    // wrap the row in a contents grouping using classes on cells
+    const lbl = `<div class="row-cell lbl ${strongCls}">${line.label}${line.lever?'<span class="lever-tag">lever</span>':''}</div>`;
+    html += lbl.replace('row-cell lbl','row-cell lbl '); // label cell
+    COLS.forEach(c=>{
+      const base = c.id==='base' ? 'base-col' : '';
+      if(line.fmt==='edit-term'){
+        html += `<div class="row-cell val ${base} ${strongCls}"><div class="cell-wrap"><input class="cell-input" type="number" step="1" value="${state.cols[c.id].term}" oninput="setCol('${c.id}','term',this.value)"><span class="post">mo</span></div></div>`;
+      } else if(line.fmt==='edit-retail'){
+        html += `<div class="row-cell val ${base} ${strongCls}"><div class="cell-wrap"><span class="pre">$</span><input class="cell-input" type="number" step="1" value="${state.cols[c.id].retail}" oninput="setCol('${c.id}','retail',this.value)"></div></div>`;
+      } else {
+        html += `<div class="row-cell val ${base} ${strongCls}" id="cell-${c.id}-${line.k}">—</div>`;
+      }
+    });
+  });
+  g.innerHTML = html;
+}
+
+/* ---------- Compute + paint ---------- */
+function compute(){
+  COLS.forEach(c=>{
+    const r = calc(c.id);
+    // update scenario meta
+    const meta = document.getElementById('meta-'+c.id);
+    if(meta) meta.textContent = `Term ${r.term} mo · Retail $${r.retail}`;
+    LINES.forEach(line=>{
+      if(line.band || line.fmt==='edit-term' || line.fmt==='edit-retail') return;
+      const el = document.getElementById(`cell-${c.id}-${line.k}`);
+      if(!el) return;
+      let v = r[line.k], txt;
+      switch(line.fmt){
+        case 'money': txt = money(v); break;
+        case 'psf':   txt = psf(v);   break;
+        case 'pct':   txt = pct(v);   break;
+        case 'int':   txt = intf(v);  break;
+        case 'loan':  txt = money(v) + ' · ' + Math.round(state.LTC*100) + '% LTC'; break;
+        default:      txt = v;
+      }
+      el.textContent = txt;
+      el.classList.remove('pos','neg');
+      if(line.signed){ el.classList.add(v>=0?'pos':'neg'); }
+    });
+  });
+
+  // Heroes (Base)
+  const b = calc('base');
+  document.getElementById('h-profit').textContent = money(b.profit);
+  document.getElementById('h-profit').className = 'val ' + (b.profit>=0?'':'');
+  document.getElementById('h-profit-foot').innerHTML = 'Total project profit <b>'+money(b.projectProfit)+'</b>';
+  document.getElementById('h-coc').textContent = pct(b.coc);
+
+  const ml = maxLand();
+  document.getElementById('h-maxland').textContent = money(ml);
+  document.getElementById('h-maxland-foot').innerHTML =
+    'per lot · <b>'+money(ml*state.units)+'</b> across '+intf(state.units)+' lots at '+(state.targetCoC*100).toFixed(0)+'% CoC floor';
+
+  // Header summary
+  document.getElementById('planName').textContent = PLANS[state.planKey].name;
+  document.getElementById('unitLine').textContent = intf(state.units)+' units';
+  document.getElementById('lf-total').textContent = money(state.lotFactor);
+}
+
+/* ---------- Input handlers ---------- */
+function setShared(key,val){ state[key] = parseFloat(val)||0; compute(); }
+function setPct(key,val){ state[key] = (parseFloat(val)||0)/100; compute(); }
+function setCol(col,key,val){ state.cols[col][key] = parseFloat(val)||0; compute(); }
+function setPlan(v){ state.planKey = v; compute(); }
+
+function onLandNum(v){
+  state.land = parseFloat(v)||0;
+  const s = document.getElementById('landSlider');
+  if(state.land <= +s.max) s.value = state.land;
+  paintLand();
+  compute();
+}
+function onLandSlider(v){
+  state.land = parseFloat(v)||0;
+  document.getElementById('landNum').value = state.land;
+  paintLand();
+  compute();
+}
+function paintLand(){
+  document.getElementById('landBig').textContent = money(state.land);
+  const s = document.getElementById('landSlider');
+  const pct = Math.min(100, (state.land/ +s.max)*100);
+  s.style.setProperty('--pct', pct+'%');
+}
+
+function stubExport(){
+  const btn = document.querySelector('.export');
+  const original = btn.innerHTML;
+  btn.innerHTML = '✓ Exported (demo)';
+  setTimeout(()=>{ btn.innerHTML = original; }, 1600);
+}
+
+/* ---------- Init ---------- */
+buildGrid();
+paintLand();
+compute();
+</script>
+</body>
+</html>

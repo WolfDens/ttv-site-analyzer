@@ -1,0 +1,1184 @@
+<!--
+  ============================================================================
+  TTV SITE ANALYZER — V2 REDESIGN PROTOTYPE (NOT PRODUCTION)
+  ============================================================================
+  Purpose: hosted design/UX prototype for team testing (Adam, Wendell, Pat, Eunice).
+  Status:  concept only. Lives on the `redesign-v2` branch. The live production app
+           is unchanged on `main` (index.html).
+
+  IMPORTANT FOR REVIEWERS (incl. Codex):
+  - The arithmetic in this file is a SIMPLIFIED ILLUSTRATIVE MODEL for demoing the
+    UI. It is deliberately NOT the production underwriting math and must not be
+    treated as such. Production math (LTC%% circular closing solve, base x (1+fee),
+    per-unit vs per-lot scaling) lives in index.html on `main`.
+  - Wiring these screens to the real engine is a LATER, separate step. Do not flag
+    the simplified model as a production math regression; DO flag genuine defects
+    (JS errors, broken interactions, a11y, division-by-zero, dead code).
+  - Decided 2026-08-05: compute from the app's math, borrow the Excel only for
+    output layout/simplicity. The Excel "60/100" loan formula is superseded.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Intelligence — Tide &amp; Timber Ventures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F6F1E7;
+    --cream-2:#FBF8F1;
+    --card:#FFFFFF;
+    --ink:#1E2A24;
+    --ink-soft:#4A5751;
+    --line:#E4DDCD;
+    --line-soft:#EFE9DC;
+    --forest:#2F4A3C;
+    --forest-2:#3B6B4A;
+    --navy:#24384B;
+    --gold:#B07A3C;
+    --gold-soft:#F2E4CE;
+    --slate:#5B6B72;
+    --pos:#2F6B45;
+    --neg:#A24C39;
+    --shadow:0 1px 2px rgba(30,42,36,.05),0 8px 24px rgba(30,42,36,.06);
+    --shadow-lg:0 2px 6px rgba(30,42,36,.06),0 20px 48px rgba(30,42,36,.10);
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #FCF9F2 0%, rgba(252,249,242,0) 60%),
+      var(--cream);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 28px 72px;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:24px;margin-bottom:22px;flex-wrap:wrap;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .eyebrow{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold);font-weight:600;
+  }
+  .brand h1{
+    font-family:var(--serif);font-weight:600;font-size:30px;
+    margin:0;color:var(--ink);letter-spacing:-.01em;
+  }
+  .brand .sub{color:var(--ink-soft);font-size:13px;margin-top:2px;}
+  .brand .sub b{color:var(--ink);font-weight:600;}
+
+  .steps{display:flex;align-items:center;gap:8px;font-size:11px;
+    letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--ink-soft);}
+  .steps .s{
+    background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:8px 14px;box-shadow:var(--shadow);
+  }
+  .steps .s.on{background:var(--forest);border-color:var(--forest);color:#F7F3EA;}
+  .steps .arrow{color:var(--line);font-size:14px;}
+
+  /* ---------- Address panel ---------- */
+  .addr{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;
+  }
+  .addr-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .addr-head .tag{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600;
+  }
+  .verified{
+    display:inline-flex;align-items:center;gap:7px;margin-left:auto;
+    font-size:12px;font-weight:600;color:var(--pos);
+    background:rgba(47,107,69,.08);border:1px solid rgba(47,107,69,.18);
+    border-radius:999px;padding:5px 12px;
+  }
+  .verified svg{width:13px;height:13px;}
+  .ghost{
+    background:none;border:none;font-family:var(--sans);font-size:12px;font-weight:600;
+    color:var(--ink-soft);cursor:pointer;text-decoration:underline;
+    text-decoration-color:var(--line);text-underline-offset:3px;padding:4px 2px;
+  }
+  .ghost:hover{color:var(--gold);text-decoration-color:var(--gold-soft);}
+
+  .addr-row{display:grid;grid-template-columns:minmax(280px,2.4fr) 1fr 1fr;gap:16px;align-items:end;}
+  .field label{
+    display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;margin-bottom:7px;
+  }
+  .field input, .field select{
+    width:100%;font-family:var(--sans);font-size:15px;font-weight:600;color:var(--ink);
+    background:var(--cream-2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;outline:none;transition:border .15s,box-shadow .15s;
+  }
+  .field input:focus, .field select:focus{
+    border-color:var(--forest-2);box-shadow:0 0 0 3px rgba(59,107,74,.12);background:#fff;
+  }
+  .field.addr-main input{font-size:17px;}
+
+  .facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .fact{
+    display:inline-flex;align-items:baseline;gap:7px;
+    background:var(--cream-2);border:1px solid var(--line-soft);border-radius:9px;
+    padding:7px 12px;font-size:12px;
+  }
+  .fact .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+  .fact .v{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+
+  .parent-note{
+    display:flex;gap:11px;align-items:flex-start;margin-top:14px;
+    background:linear-gradient(160deg,#FFFDF8,#FBF1DF);
+    border:1px solid var(--gold-soft);border-radius:12px;padding:11px 14px;
+    font-size:12.5px;color:var(--ink-soft);line-height:1.5;
+  }
+  .parent-note b{color:var(--gold);font-weight:600;letter-spacing:.02em;}
+  .parent-note .ic{
+    flex:0 0 auto;width:18px;height:18px;border-radius:50%;background:var(--gold);
+    color:#FFFDF8;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    margin-top:1px;font-family:var(--serif);
+  }
+
+  /* ---------- Main layout ---------- */
+  .main{display:grid;grid-template-columns:1.72fr 1fr;gap:18px;align-items:start;}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow);
+  }
+  .card.big{box-shadow:var(--shadow-lg);}
+  .card-head{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:16px 20px 14px;border-bottom:1px solid var(--line-soft);
+  }
+  .card-head h2{
+    font-family:var(--serif);font-size:18px;font-weight:600;margin:0;letter-spacing:-.01em;
+  }
+  .card-head .why{font-size:12px;color:var(--ink-soft);}
+  .toolbar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 20px;background:var(--cream-2);border-bottom:1px solid var(--line-soft);
+  }
+  .orient{margin-left:auto;font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+
+  /* segmented toggle */
+  .seg{display:inline-flex;background:var(--cream);border:1px solid var(--line);
+    border-radius:11px;padding:3px;gap:3px;}
+  .seg button{
+    font-family:var(--sans);font-size:12px;font-weight:600;color:var(--ink-soft);
+    background:transparent;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;
+    transition:all .14s ease;white-space:nowrap;
+  }
+  .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(30,42,36,.10);}
+  .seg button:hover:not(.on){color:var(--ink);}
+
+  .tool{
+    display:inline-flex;align-items:center;gap:7px;
+    font-family:var(--sans);font-size:12px;font-weight:600;color:var(--ink);
+    background:var(--cream-2);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;cursor:pointer;transition:all .14s ease;
+  }
+  .tool:hover{background:#fff;border-color:var(--forest-2);}
+  .tool svg{width:14px;height:14px;}
+  .tool.on{background:var(--forest);border-color:var(--forest);color:#F7F3EA;}
+  .switch{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .switch input{display:none;}
+  .track{
+    width:36px;height:20px;border-radius:999px;background:#E3DBC9;position:relative;transition:background .16s;
+    flex:0 0 auto;
+  }
+  .track::after{
+    content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(30,42,36,.25);transition:transform .16s;
+  }
+  .switch input:checked + .track{background:var(--forest-2);}
+  .switch input:checked + .track::after{transform:translateX(16px);}
+  .switch.on-text{color:var(--ink);}
+
+  .fitpill{
+    margin-left:auto;display:inline-flex;align-items:center;gap:8px;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+    border-radius:999px;padding:7px 14px;border:1px solid transparent;
+    transition:all .18s ease;
+  }
+  .fitpill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .fitpill.fits{color:var(--pos);background:rgba(47,107,69,.09);border-color:rgba(47,107,69,.2);}
+  .fitpill.tight{color:var(--gold);background:#FBF1DF;border-color:var(--gold-soft);}
+  .fitpill.bad{color:var(--neg);background:rgba(162,76,57,.08);border-color:rgba(162,76,57,.22);}
+
+  /* diagram */
+  .plan{padding:10px 14px 4px;}
+  .plan svg{width:100%;height:auto;display:block;touch-action:none;user-select:none;}
+  .plan-foot{
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:2px 20px 16px;font-size:11.5px;color:var(--ink-soft);
+  }
+  .legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .lg{display:inline-flex;align-items:center;gap:7px;}
+  .sw{width:16px;height:11px;border-radius:3px;border:1px solid var(--line);}
+  .hint{margin-left:auto;font-style:italic;opacity:.85;}
+
+  /* readout strip */
+  .readout{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    border-top:1px solid var(--line-soft);background:var(--cream-2);
+    border-radius:0 0 17px 17px;overflow:hidden;
+  }
+  .ro{padding:16px 20px 18px;border-left:1px solid var(--line-soft);}
+  .ro:first-child{border-left:none;}
+  .ro .label{
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:7px;
+  }
+  .ro .label .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);}
+  .ro .val{
+    font-family:var(--serif);font-weight:600;font-size:27px;line-height:1.1;
+    margin-top:9px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  }
+  .ro .foot{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
+  .ro .foot b{color:var(--ink);font-weight:600;}
+  .ro.env .val{color:var(--navy);} .ro.env .dot{background:var(--navy);}
+  .ro.fp  .val{color:var(--ink);}
+  .ro.verdict .val{color:var(--pos);} .ro.verdict .dot{background:var(--pos);}
+  .ro.verdict.tight .val{color:var(--gold);} .ro.verdict.tight .dot{background:var(--gold);}
+  .ro.verdict.bad .val{color:var(--neg);} .ro.verdict.bad .dot{background:var(--neg);}
+
+  /* ---------- Feasibility cards ---------- */
+  .rail{display:flex;flex-direction:column;gap:14px;}
+  .rail-title{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
+    font-weight:600;padding:0 2px;
+  }
+  .fcard{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px 18px 17px;
+  }
+  .fhead{display:flex;align-items:center;gap:9px;margin-bottom:3px;}
+  .fhead .t{font-family:var(--serif);font-size:15.5px;font-weight:600;}
+  .badge{
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+    border-radius:6px;padding:3px 7px;border:1px solid var(--line);
+    color:var(--ink-soft);background:var(--cream-2);white-space:nowrap;
+  }
+  .fhead .badge{margin-left:auto;}
+  .badge.ok{color:var(--pos);background:rgba(47,107,69,.09);border-color:rgba(47,107,69,.2);}
+  .badge.warn{color:var(--gold);background:#FBF1DF;border-color:var(--gold-soft);}
+  .badge.bad{color:var(--neg);background:rgba(162,76,57,.08);border-color:rgba(162,76,57,.22);}
+  .fsub{font-size:11.5px;color:var(--ink-soft);}
+
+  .verdictline{
+    font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.01em;
+    margin:11px 0 3px;line-height:1.2;
+  }
+  .verdictline.ok{color:var(--pos);} .verdictline.warn{color:var(--gold);} .verdictline.bad{color:var(--neg);}
+  .verdictline .sm{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--ink-soft);letter-spacing:0;}
+
+  .meter{height:9px;border-radius:999px;background:#EDE6D6;overflow:hidden;margin:12px 0 8px;position:relative;}
+  .meter .fill{height:100%;border-radius:999px;transition:width .18s ease,background .18s ease;}
+  .meter .cap{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.35;border-radius:2px;}
+  .meter-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+  .meter-labels b{color:var(--ink);font-weight:600;}
+
+  .rule{
+    font-size:11.5px;color:var(--ink-soft);line-height:1.55;margin-top:11px;
+    padding-top:11px;border-top:1px solid var(--line-soft);
+  }
+  .rule .cite{color:var(--gold);font-weight:600;}
+
+  .stepper{display:flex;align-items:center;gap:10px;margin-top:12px;}
+  .stepper .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+  .stepper .grp{display:inline-flex;align-items:center;background:var(--cream-2);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-left:auto;}
+  .stepper button{
+    width:32px;height:34px;border:none;background:transparent;cursor:pointer;
+    font-size:17px;font-weight:600;color:var(--ink-soft);font-family:var(--sans);line-height:1;
+  }
+  .stepper button:hover{background:#fff;color:var(--gold);}
+  .stepper .n{
+    width:44px;text-align:center;font-family:var(--serif);font-size:18px;font-weight:600;
+    font-variant-numeric:tabular-nums;border-left:1px solid var(--line);border-right:1px solid var(--line);
+    padding:5px 0;background:#fff;
+  }
+
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+  .kv:last-of-type{border-bottom:none;}
+  .kv .k{color:var(--ink-soft);}
+  .kv .v{font-weight:600;font-variant-numeric:tabular-nums;}
+
+  /* H&BU card */
+  .fcard.hbu{background:linear-gradient(160deg,#FFFDF8 0%,#FBF1DF 100%);border-color:var(--gold-soft);}
+  .fcard.hbu .rec{
+    font-family:var(--serif);font-size:22px;font-weight:600;color:var(--gold);
+    letter-spacing:-.01em;margin:10px 0 2px;line-height:1.2;
+  }
+  .verify{
+    display:flex;gap:10px;align-items:flex-start;margin-top:13px;
+    background:rgba(162,76,57,.06);border:1px solid rgba(162,76,57,.2);
+    border-radius:11px;padding:10px 12px;font-size:11.5px;color:var(--ink-soft);line-height:1.55;
+  }
+  .verify .vb{
+    flex:0 0 auto;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    color:#fff;background:var(--neg);border-radius:5px;padding:3px 6px;margin-top:1px;
+  }
+
+  /* collapsibles */
+  details.sub{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  details.sub > summary{
+    list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:10px;
+    font-family:var(--serif);font-size:15.5px;font-weight:600;color:var(--ink);
+  }
+  details.sub > summary::-webkit-details-marker{display:none;}
+  summary .chev{margin-left:auto;transition:transform .2s;color:var(--ink-soft);font-family:var(--sans);}
+  details[open] > summary .chev{transform:rotate(180deg);}
+  .sub-body{padding:2px 18px 18px;}
+
+  details.adv{
+    margin-top:18px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;box-shadow:var(--shadow);
+  }
+  details.adv > summary{
+    list-style:none;cursor:pointer;padding:15px 20px;display:flex;align-items:center;gap:12px;
+    font-family:var(--serif);font-size:15px;font-weight:600;
+  }
+  details.adv > summary::-webkit-details-marker{display:none;}
+  details.adv > summary .tag{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+    font-weight:600;font-family:var(--sans);
+  }
+  .adv-body{padding:4px 20px 20px;border-top:1px solid var(--line-soft);}
+  .adv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px 18px;margin-top:14px;}
+  .adv-grid .field input{font-size:14px;padding:8px 10px;}
+  .adv-sec{
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);
+    font-weight:600;margin-top:18px;
+  }
+  .adv-note{font-size:12px;color:var(--ink-soft);margin-top:16px;line-height:1.55;}
+
+  /* handoff */
+  .handoff{
+    margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow-lg);padding:20px 22px;
+    display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+  }
+  .handoff .ht{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600;
+  }
+  .handoff .hs{font-size:13px;color:var(--ink-soft);margin-top:5px;line-height:1.5;max-width:760px;}
+  .handoff .hs b{color:var(--ink);font-weight:600;}
+  .cta{
+    margin-left:auto;display:inline-flex;align-items:center;gap:10px;
+    background:var(--forest);color:#F7F3EA;border:none;
+    font-family:var(--sans);font-weight:600;font-size:15px;
+    padding:15px 26px;border-radius:12px;cursor:pointer;white-space:nowrap;
+    box-shadow:var(--shadow);transition:transform .12s ease,background .15s ease;
+  }
+  .cta:hover{background:#284034;transform:translateY(-1px);}
+  .cta svg{width:17px;height:17px;}
+
+  .footer-note{margin-top:26px;text-align:center;font-size:12px;color:var(--ink-soft);}
+
+  @media (max-width:1080px){
+    .main{grid-template-columns:1fr;}
+    .adv-grid{grid-template-columns:repeat(3,1fr);}
+  }
+  @media (max-width:720px){
+    .addr-row{grid-template-columns:1fr;}
+    .readout{grid-template-columns:1fr;}
+    .ro{border-left:none;border-top:1px solid var(--line-soft);}
+    .adv-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ Header ============ -->
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Tide &amp; Timber Ventures · Site Intelligence</div>
+      <h1>Parcel &amp; Feasibility</h1>
+      <div class="sub"><b>The Dayton Townhomes (1 Unit)</b> · Standard Spec · <span id="hdrUnits">14 units</span></div>
+    </div>
+    <div class="steps">
+      <span class="s on">1 · Site</span>
+      <span class="arrow">→</span>
+      <span class="s">2 · Underwrite</span>
+    </div>
+  </header>
+
+  <!-- ============ Address / auto-fill ============ -->
+  <section class="addr">
+    <div class="addr-head">
+      <span class="tag">The Parcel</span>
+      <span class="verified">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Auto-filled from Mecklenburg County GIS
+      </span>
+      <button class="ghost" onclick="reFetch(this)">Re-fetch</button>
+    </div>
+
+    <div class="addr-row">
+      <div class="field addr-main">
+        <label>Property address</label>
+        <input type="text" id="addr" value="2723 Dellinger Dr, Charlotte, NC 28269">
+      </div>
+      <div class="field">
+        <label>County</label>
+        <select id="county">
+          <option selected>Mecklenburg</option>
+          <option>Iredell</option>
+          <option>Cabarrus</option>
+          <option>Gaston</option>
+          <option>Union</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Zone</label>
+        <select id="zone" onchange="setZone(this.value)">
+          <option value="N1-B" selected>N1-B</option>
+          <option value="N1-A">N1-A</option>
+          <option value="N1-C">N1-C</option>
+          <option value="N1-D">N1-D</option>
+          <option value="N1-E">N1-E</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="facts">
+      <span class="fact"><span class="k">PID</span><span class="v">04118526</span></span>
+      <span class="fact"><span class="k">Parcel</span><span class="v">77,575 sf · 1.78 ac</span></span>
+      <span class="fact"><span class="k">Zoning</span><span class="v" id="factZone">N1-B</span></span>
+      <span class="fact"><span class="k">Watershed</span><span class="v">Central Catawba</span></span>
+      <span class="fact"><span class="k">Historic</span><span class="v">No</span></span>
+      <span class="fact"><span class="k">Frontage</span><span class="v" id="factFront">272 ft</span></span>
+    </div>
+
+    <div class="parent-note">
+      <span class="ic">i</span>
+      <div>Flagged <b>likely PARENT parcel</b> — at 77,575 sf this reads as land to be divided, not a finished lot.
+      Draw the <b>intended sublot</b> in the diagram below; zone minimums are then checked against the parent.</div>
+    </div>
+  </section>
+
+  <!-- ============ Main ============ -->
+  <div class="main">
+
+    <!-- ---------- Diagram ---------- -->
+    <section class="card big">
+      <div class="card-head">
+        <h2>Buildable Envelope</h2>
+        <span class="why">Setbacks applied to the surveyed parcel — drag to test placement.</span>
+        <div class="fitpill fits" id="fitPill"><span class="dot"></span><span id="fitPillTxt">Fits</span></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg" id="modeSeg">
+          <button class="on" data-mode="parcel" onclick="setMode('parcel')">Parcel shape (from GIS)</button>
+          <button data-mode="rect" onclick="setMode('rect')">Simple rectangle</button>
+        </div>
+        <label class="switch" id="cornerSwitch">
+          <input type="checkbox" id="cornerChk" onchange="setCorner(this.checked)">
+          <span class="track"></span>
+          Corner lot
+        </label>
+        <button class="tool" onclick="rotateFp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          Rotate 90°
+        </button>
+        <span class="orient" id="orientTxt">Front-facing · 22′ across the street</span>
+      </div>
+
+      <div class="plan">
+        <svg id="svg" viewBox="-44 -14 456 396" role="img" aria-label="Interactive parcel diagram">
+          <defs>
+            <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="7" height="7" fill="#F4EFE3"/>
+              <line x1="0" y1="0" x2="0" y2="7" stroke="#E0D5BE" stroke-width="1.4"/>
+            </pattern>
+            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <path d="M30 0 H0 V30" fill="none" stroke="#EDE7DA" stroke-width="0.9"/>
+            </pattern>
+          </defs>
+          <g id="scene"></g>
+        </svg>
+      </div>
+
+      <div class="plan-foot">
+        <div class="legend">
+          <span class="lg"><span class="sw" style="background:#FDFBF6;border-color:#8C9A91;"></span>Parcel</span>
+          <span class="lg"><span class="sw" style="background:repeating-linear-gradient(45deg,#F4EFE3 0 3px,#E0D5BE 3px 4.4px);border-color:#E0D5BE;"></span>Setback</span>
+          <span class="lg"><span class="sw" style="background:rgba(59,107,74,.10);border:1px dashed #3B6B4A;"></span>Envelope</span>
+          <span class="lg"><span class="sw" style="background:#2F4A3C;border-color:#2F4A3C;"></span>Footprint</span>
+        </div>
+        <div class="hint">Drag the footprint. Everything below re-reads live.</div>
+      </div>
+
+      <div class="readout">
+        <div class="ro env">
+          <div class="label"><span class="dot"></span>Buildable envelope</div>
+          <div class="val" id="roEnvArea">—</div>
+          <div class="foot" id="roEnvDims">—</div>
+        </div>
+        <div class="ro fp">
+          <div class="label"><span class="dot" style="background:var(--forest)"></span>Footprint</div>
+          <div class="val" id="roFpDims">—</div>
+          <div class="foot">The Dayton Townhomes (1 Unit) · <b>Standard Spec</b></div>
+        </div>
+        <div class="ro verdict" id="roVerdict">
+          <div class="label"><span class="dot"></span>Fit verdict</div>
+          <div class="val" id="roFit">—</div>
+          <div class="foot" id="roFitFoot">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Feasibility rail ---------- -->
+    <div class="rail">
+      <div class="rail-title">What this parcel allows</div>
+
+      <!-- a) BUA / Watershed -->
+      <section class="fcard">
+        <div class="fhead">
+          <span class="t">Built-Upon Area</span>
+          <span class="badge" id="buaBadge">—</span>
+        </div>
+        <div class="fsub">Mecklenburg watershed · per sublot</div>
+        <div class="verdictline" id="buaVerdict">—</div>
+        <div class="meter">
+          <div class="fill" id="buaFill" style="width:0%;background:var(--forest-2)"></div>
+        </div>
+        <div class="meter-labels">
+          <span>Est. BUA <b id="buaVal">—</b></span>
+          <span>Limit <b id="buaLimit">—</b></span>
+        </div>
+        <div class="rule">
+          <span class="cite">Central Catawba</span> — over 5,000 sf triggers the ordinance; keep under 24%.
+          Limit = min(lot sf × 24%, 5,000 sf). Estimate is footprint + <span id="buaHardTxt">500</span> sf hardscape.
+        </div>
+      </section>
+
+      <!-- b) Subplotting -->
+      <section class="fcard">
+        <div class="fhead">
+          <span class="t">Subplotting</span>
+          <span class="badge" id="spBadge">—</span>
+        </div>
+        <div class="fsub">Attached townhomes · one building, party walls</div>
+        <div class="verdictline" id="spVerdict">—</div>
+        <div class="meter">
+          <div class="fill" id="spFill" style="width:0%"></div>
+          <div class="cap" id="spCap" style="left:100%"></div>
+        </div>
+        <div class="meter-labels">
+          <span>Row length <b id="spLen">—</b></span>
+          <span>Max <b>150 ft</b></span>
+        </div>
+        <div class="stepper">
+          <span class="lab">Units in building</span>
+          <span class="grp">
+            <button onclick="bumpUnits(-1)" aria-label="fewer units">−</button>
+            <span class="n" id="spUnits">14</span>
+            <button onclick="bumpUnits(1)" aria-label="more units">+</button>
+          </span>
+        </div>
+        <div class="rule">
+          Unit width <b id="spUW">22</b> ft × units = building length, capped at 150 ft
+          <span class="cite">(UDO Table 4-4)</span>. Under an attached building the zone minimums apply to the
+          <b>parent parcel only</b> <span class="cite">(Table 4-1, Note 1)</span>; party walls carry 0 setback.
+        </div>
+      </section>
+
+      <!-- c) Sub-lotting (secondary) -->
+      <details class="sub">
+        <summary>Sub-lotting <span class="badge" id="slBadgeSum" style="margin-left:10px">fee-simple</span><span class="chev">▾</span></summary>
+        <div class="sub-body">
+          <div class="fsub" style="margin-bottom:8px;">Detached path — not in play while the plan is attached townhomes.</div>
+          <div class="verdictline" id="slVerdict" style="font-size:19px;">—</div>
+          <div class="kv"><span class="k">Frontage ÷ min width (<span id="slMinW">60</span> ft)</span><span class="v" id="slByWidth">—</span></div>
+          <div class="kv"><span class="k">Area ÷ min lot (<span id="slMinSF">8,000</span> sf)</span><span class="v" id="slByArea">—</span></div>
+          <div class="kv"><span class="k">Governing limit</span><span class="v" id="slGov">—</span></div>
+          <div class="rule">maxN = min( floor(frontage / min width), floor(area / min sf) ). N1-B minimums: 60 ft width, 8,000 sf.</div>
+        </div>
+      </details>
+
+      <!-- d) Highest & best use -->
+      <section class="fcard hbu">
+        <div class="fhead">
+          <span class="t">Highest &amp; Best Use</span>
+          <span class="badge warn">Roadmap</span>
+        </div>
+        <div class="fsub">Suggested by envelope, frontage &amp; density</div>
+        <div class="rec" id="hbuRec">Attached townhomes (14 units)</div>
+        <div class="fsub" id="hbuWhy">—</div>
+        <div class="verify">
+          <span class="vb">Verify</span>
+          <div>Permitted-use matrix is <b>not yet wired in</b>. Attached dwellings are <b>not by-right in N1-A…E</b> —
+          confirm N1-B permits attached before relying on this.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============ Progressive disclosure ============ -->
+  <details class="adv">
+    <summary>
+      <span class="tag">Adjust</span>
+      <span>Dimensions &amp; setbacks</span>
+      <span class="fsub" style="margin-left:6px;">— overrides only; GIS values are already loaded</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="adv-body">
+      <div class="adv-sec">Lot — used by Simple rectangle mode</div>
+      <div class="adv-grid">
+        <div class="field"><label>Lot width (ft)</label><input type="number" step="1" id="i-lotW" value="272" oninput="setNum('lotW',this.value)"></div>
+        <div class="field"><label>Lot depth (ft)</label><input type="number" step="1" id="i-lotD" value="285" oninput="setNum('lotD',this.value)"></div>
+        <div class="field"><label>Hardscape (sf)</label><input type="number" step="50" id="i-hard" value="500" oninput="setNum('hard',this.value)"></div>
+        <div class="field"><label>Unit width (ft)</label><input type="number" step="0.5" id="i-uw" value="22" oninput="setNum('unitW',this.value)"></div>
+        <div class="field"><label>Unit depth (ft)</label><input type="number" step="0.5" id="i-ud" value="40" oninput="setNum('unitD',this.value)"></div>
+      </div>
+
+      <div class="adv-sec">Setbacks — N1-B defaults</div>
+      <div class="adv-grid">
+        <div class="field"><label>Front (ft)</label><input type="number" step="0.5" id="i-sbF" value="27" oninput="setNum('sbF',this.value)"></div>
+        <div class="field"><label>Rear (ft)</label><input type="number" step="0.5" id="i-sbR" value="35" oninput="setNum('sbR',this.value)"></div>
+        <div class="field"><label>Side (ft)</label><input type="number" step="0.5" id="i-sbS" value="5" oninput="setNum('sbS',this.value)"></div>
+        <div class="field"><label>Corner side (ft)</label><input type="number" step="0.5" id="i-sbC" value="13.5" oninput="setNum('sbC',this.value)"></div>
+        <div class="field"><label>Max bldg length (ft)</label><input type="number" step="5" id="i-maxL" value="150" oninput="setNum('maxLen',this.value)"></div>
+      </div>
+
+      <div class="adv-sec">Sub-lotting minimums</div>
+      <div class="adv-grid">
+        <div class="field"><label>Min lot width (ft)</label><input type="number" step="1" id="i-minW" value="60" oninput="setNum('minW',this.value)"></div>
+        <div class="field"><label>Min lot area (sf)</label><input type="number" step="250" id="i-minSF" value="8000" oninput="setNum('minSF',this.value)"></div>
+      </div>
+
+      <div class="adv-note">
+        These fields exist for the parcel GIS gets wrong — a recorded easement, a surveyed setback variance, a plan revision.
+        Nothing here needs touching on a normal deal; the diagram above is the interface.
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ Handoff ============ -->
+  <section class="handoff">
+    <div>
+      <div class="ht">Handoff</div>
+      <div class="hs" id="handoffLine">—</div>
+    </div>
+    <button class="cta" onclick="handoff(this)">
+      Continue to Underwrite
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+  </section>
+
+  <div class="footer-note">Concept mockup · geometry &amp; feasibility only — no financial assumptions live on this screen.</div>
+</div>
+
+<script>
+"use strict";
+
+/* =======================================================================
+   STATE  (no storage APIs — plain JS variables)
+   ======================================================================= */
+const GIS = {
+  pid:'04118526',
+  lotSF:77575,                       // county-reported parcel area
+  // irregular quadrilateral, feet, origin at front-left corner, y = depth
+  poly:[ {x:0,y:0}, {x:272,y:0}, {x:300,y:268.3}, {x:18,y:290} ]
+};
+
+const state = {
+  mode:'parcel',        // 'parcel' | 'rect'
+  corner:false,
+  zone:'N1-B',
+  lotW:272, lotD:285,
+  sbF:27, sbR:35, sbS:5, sbC:13.5,
+  unitW:22, unitD:40,   // The Dayton Townhomes (1 Unit) footprint: 40' D x 22' W
+  rot:0,                // 0 | 90
+  units:14,
+  maxLen:150,
+  hard:500,
+  minW:60, minSF:8000,
+  fp:{cx:0, cy:0}       // footprint center, feet (set on init)
+};
+
+const ZONES = {
+  'N1-A':{sbF:30, sbR:35, sbS:8,  sbC:15,   minW:75, minSF:12000},
+  'N1-B':{sbF:27, sbR:35, sbS:5,  sbC:13.5, minW:60, minSF:8000},
+  'N1-C':{sbF:22, sbR:30, sbS:5,  sbC:12,   minW:50, minSF:6000},
+  'N1-D':{sbF:20, sbR:25, sbS:5,  sbC:10,   minW:45, minSF:5000},
+  'N1-E':{sbF:18, sbR:20, sbS:4,  sbC:10,   minW:40, minSF:4000}
+};
+
+/* =======================================================================
+   GEOMETRY
+   ======================================================================= */
+// Edge order for every polygon we build: 0 = FRONT (street), 1 = RIGHT side,
+// 2 = REAR, 3 = LEFT side. Wound counter-clockwise in feet-space (y = depth).
+function parcelPoly(){
+  if(state.mode === 'rect'){
+    const W = Math.max(20, state.lotW), D = Math.max(20, state.lotD);
+    return [{x:0,y:0},{x:W,y:0},{x:W,y:D},{x:0,y:D}];
+  }
+  return GIS.poly.map(p=>({x:p.x,y:p.y}));
+}
+function setbacks(){
+  // corner lot: the RIGHT side edge takes the corner-side setback
+  return [ state.sbF, state.corner ? state.sbC : state.sbS, state.sbR, state.sbS ];
+}
+const sub = (a,b)=>({x:a.x-b.x, y:a.y-b.y});
+const cross = (a,b)=> a.x*b.y - a.y*b.x;
+const len = v => Math.hypot(v.x,v.y);
+
+function shoelace(P){
+  let s=0;
+  for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; s += P[i].x*P[j].y - P[j].x*P[i].y; }
+  return s/2;
+}
+/* Offset every edge inward by its own distance, then re-intersect neighbours. */
+function insetPoly(P, offs){
+  const n = P.length, lines = [];
+  for(let i=0;i<n;i++){
+    const a=P[i], b=P[(i+1)%n];
+    const d = sub(b,a), L = len(d);
+    if(L < 1e-6) return null;
+    const u = {x:d.x/L, y:d.y/L};
+    const nrm = {x:-u.y, y:u.x};              // inward for CCW winding
+    lines.push({p:{x:a.x + nrm.x*offs[i], y:a.y + nrm.y*offs[i]}, d:u});
+  }
+  const out = [];
+  for(let i=0;i<n;i++){
+    const L1 = lines[(i-1+n)%n], L2 = lines[i];
+    const den = cross(L1.d, L2.d);
+    if(Math.abs(den) < 1e-9) return null;
+    const t = cross(sub(L2.p, L1.p), L2.d)/den;
+    out.push({x:L1.p.x + L1.d.x*t, y:L1.p.y + L1.d.y*t});
+  }
+  return shoelace(out) > 40 ? out : null;      // degenerate / inverted
+}
+function bbox(P){
+  const xs=P.map(p=>p.x), ys=P.map(p=>p.y);
+  return {x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys)};
+}
+function centroid(P){
+  const A = shoelace(P); let cx=0, cy=0;
+  for(let i=0;i<P.length;i++){
+    const j=(i+1)%P.length, f = P[i].x*P[j].y - P[j].x*P[i].y;
+    cx += (P[i].x+P[j].x)*f; cy += (P[i].y+P[j].y)*f;
+  }
+  return {x:cx/(6*A), y:cy/(6*A)};
+}
+function inside(P, pt){
+  let hit=false;
+  for(let i=0,j=P.length-1;i<P.length;j=i++){
+    const yi=P[i].y, yj=P[j].y;
+    if((yi>pt.y)!==(yj>pt.y)){
+      const xx = P[i].x + (pt.y-yi)/(yj-yi)*(P[j].x-P[i].x);
+      if(pt.x < xx) hit = !hit;
+    }
+  }
+  return hit;
+}
+function distToEdges(P, pt){
+  let best = Infinity;
+  for(let i=0;i<P.length;i++){
+    const a=P[i], b=P[(i+1)%P.length];
+    const d = sub(b,a), L2 = d.x*d.x + d.y*d.y;
+    let t = L2 ? ((pt.x-a.x)*d.x + (pt.y-a.y)*d.y)/L2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(pt.x-(a.x+d.x*t), pt.y-(a.y+d.y*t)));
+  }
+  return best;
+}
+
+function fpSize(){
+  return state.rot === 90
+    ? {w:state.unitD, d:state.unitW}
+    : {w:state.unitW, d:state.unitD};
+}
+function fpCorners(){
+  const s = fpSize(), c = state.fp;
+  return [
+    {x:c.x-s.w/2, y:c.y-s.d/2},
+    {x:c.x+s.w/2, y:c.y-s.d/2},
+    {x:c.x+s.w/2, y:c.y+s.d/2},
+    {x:c.x-s.w/2, y:c.y+s.d/2}
+  ];
+}
+
+/* =======================================================================
+   DERIVED MODEL
+   ======================================================================= */
+function model(){
+  const P = parcelPoly();
+  const E = insetPoly(P, setbacks());
+  const lotSF = state.mode === 'parcel' ? GIS.lotSF : Math.round(shoelace(P));
+  const frontage = Math.round(len(sub(P[1], P[0])));
+
+  const envArea = E ? Math.round(shoelace(E)) : 0;
+  // report the envelope the way a builder reads it: width along the street × average depth
+  const envW = E ? Math.round(len(sub(E[1], E[0]))) : 0;
+  const envD = envW ? Math.round(envArea/envW) : 0;
+
+  const s = fpSize(), fpArea = Math.round(s.w*s.d);
+  const cs = fpCorners();
+  const allIn = E ? cs.every(c=>inside(E,c)) : false;
+  const clear = E && allIn ? Math.min(...cs.map(c=>distToEdges(E,c))) : 0;
+  const fit = !E ? 'Exceeds' : (!allIn ? 'Exceeds' : (clear < 6 ? 'Tight' : 'Fits'));
+
+  // BUA
+  const buaLimit = Math.min(Math.round(lotSF*0.24), 5000);
+  const bua = fpArea + Math.max(0, state.hard);
+  const buaPct = buaLimit>0 ? bua/buaLimit : 0;
+  const buaState = buaPct > 1 ? 'bad' : (buaPct > 0.9 ? 'warn' : 'ok');
+
+  // Subplot
+  const rowLen = +(state.unitW * state.units).toFixed(1);
+  const spOk = rowLen <= state.maxLen;
+  const maxUnits = Math.max(1, Math.floor(state.maxLen/Math.max(1,state.unitW)));
+
+  // Sub-lotting
+  const byW = Math.floor(frontage/Math.max(1,state.minW));
+  const byA = Math.floor(lotSF/Math.max(1,state.minSF));
+  const maxN = Math.max(0, Math.min(byW, byA));
+
+  return {P,E,lotSF,frontage,envArea,envW,envD,s,fpArea,fit,clear,
+          buaLimit,bua,buaPct,buaState,rowLen,spOk,maxUnits,byW,byA,maxN};
+}
+
+/* =======================================================================
+   SVG DRAWING
+   ======================================================================= */
+const PLAN = {x:0, y:0, w:360, h:326};
+let TX = null;   // {s, ox, oy} feet -> svg
+function makeTX(P){
+  const b = bbox(P);
+  const bw = Math.max(1, b.x1-b.x0), bh = Math.max(1, b.y1-b.y0);
+  const s = Math.min(PLAN.w/bw, PLAN.h/bh);
+  const ox = PLAN.x + (PLAN.w - bw*s)/2 - b.x0*s;
+  const oy = PLAN.y + PLAN.h - (PLAN.h - bh*s)/2 + b.y0*s;
+  TX = {s, ox, oy};
+}
+const SX = x => TX.ox + x*TX.s;
+const SY = y => TX.oy - y*TX.s;
+const FX = sx => (sx - TX.ox)/TX.s;
+const FY = sy => (TX.oy - sy)/TX.s;
+const path = P => P.map((p,i)=>(i?'L':'M')+SX(p.x).toFixed(2)+' '+SY(p.y).toFixed(2)).join(' ')+' Z';
+const esc = n => Number(n).toFixed(2);
+
+function drawScene(m){
+  makeTX(m.P);
+  const P = m.P, E = m.E;
+  const g = [];
+
+  /* --- street band along the auto-detected front edge --- */
+  const a = P[0], b = P[1];
+  const d = sub(b,a), L = len(d), u = {x:d.x/L, y:d.y/L};
+  const out = {x:u.y, y:-u.x};                       // outward from CCW polygon
+  const BW = 26;
+  const st = [a, b, {x:b.x+out.x*BW, y:b.y+out.y*BW}, {x:a.x+out.x*BW, y:a.y+out.y*BW}];
+  const ang = Math.atan2(SY(b.y)-SY(a.y), SX(b.x)-SX(a.x))*180/Math.PI;
+  const mid = {x:(a.x+b.x)/2 + out.x*BW*0.36, y:(a.y+b.y)/2 + out.y*BW*0.36};
+  const mx = SX(mid.x), my = SY(mid.y)+3;
+  g.push(`<path d="${path(st)}" fill="#EFEADD" stroke="#E4DDCD" stroke-width="1"/>`);
+  g.push(`<line x1="${esc(SX(a.x+out.x*BW*0.86))}" y1="${esc(SY(a.y+out.y*BW*0.86))}" x2="${esc(SX(b.x+out.x*BW*0.86))}" y2="${esc(SY(b.y+out.y*BW*0.86))}" stroke="#CFC5AE" stroke-width="1.3" stroke-dasharray="9 8"/>`);
+  g.push(`<text x="${esc(mx)}" y="${esc(my)}" transform="rotate(${esc(ang)} ${esc(mx)} ${esc(my)})" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" font-weight="600" letter-spacing="1.6" fill="#8A8069">DELLINGER DR</text>`);
+
+  /* --- parcel + grid --- */
+  g.push(`<clipPath id="clipParcel"><path d="${path(P)}"/></clipPath>`);
+  g.push(`<path d="${path(P)}" fill="#FDFBF6"/>`);
+  g.push(`<g clip-path="url(#clipParcel)"><rect x="-60" y="-40" width="560" height="480" fill="url(#grid)"/></g>`);
+
+  /* --- setback band = parcel with envelope as a hole --- */
+  if(E){
+    g.push(`<path d="${path(P)} ${path(E)}" fill="url(#hatch)" fill-rule="evenodd" opacity=".95"/>`);
+  } else {
+    g.push(`<path d="${path(P)}" fill="url(#hatch)" opacity=".95"/>`);
+  }
+  g.push(`<path d="${path(P)}" fill="none" stroke="#8C9A91" stroke-width="1.6"/>`);
+
+  /* front edge emphasis */
+  g.push(`<line x1="${esc(SX(a.x))}" y1="${esc(SY(a.y))}" x2="${esc(SX(b.x))}" y2="${esc(SY(b.y))}" stroke="#B07A3C" stroke-width="3.4" stroke-linecap="round"/>`);
+
+  /* --- envelope --- */
+  if(E){
+    g.push(`<path d="${path(E)}" fill="rgba(59,107,74,.10)" stroke="#3B6B4A" stroke-width="1.8" stroke-dasharray="7 5"/>`);
+  }
+
+  /* --- setback dimension callouts (4 only) --- */
+  if(E){
+    const sb = setbacks();
+    const names = ['Front','Side','Rear','Side'];
+    for(let i=0;i<4;i++){
+      const pa = P[i], pb = P[(i+1)%4];
+      const ea = E[i], ebv = E[(i+1)%4];
+      const M1 = {x:(pa.x+pb.x)/2, y:(pa.y+pb.y)/2};
+      const M2 = {x:(ea.x+ebv.x)/2, y:(ea.y+ebv.y)/2};
+      const label = (i===1 && state.corner) ? `${sb[i]}′ corner` : `${sb[i]}′ ${names[i].toLowerCase()}`;
+      g.push(`<line x1="${esc(SX(M1.x))}" y1="${esc(SY(M1.y))}" x2="${esc(SX(M2.x))}" y2="${esc(SY(M2.y))}" stroke="#A79C83" stroke-width="1" stroke-dasharray="3 3"/>`);
+      // label pushed slightly outside the parcel so it never sits on the footprint
+      const dd = sub(pb,pa), LL = len(dd), uu = {x:dd.x/LL, y:dd.y/LL};
+      const o = {x:uu.y, y:-uu.x};                 // outward
+      let lp, anchor = 'middle';
+      if(i === 0 || i === 2){                      // front / rear: slide along the edge
+        lp = {x:(M1.x+M2.x)/2 + uu.x*26, y:(M1.y+M2.y)/2 + uu.y*26};
+      } else {                                     // sides: park outside the parcel
+        lp = {x:M1.x + o.x*20, y:M1.y + o.y*20};
+        anchor = (i===1) ? 'start' : 'end';
+      }
+      g.push(`<text x="${esc(SX(lp.x))}" y="${esc(SY(lp.y)+3)}" text-anchor="${anchor}" font-family="Inter,sans-serif" font-size="8.6" font-weight="600" fill="#4A5751" stroke="#F6F1E7" stroke-width="3" paint-order="stroke" style="letter-spacing:.02em">${label}</text>`);
+    }
+    /* FRONT tag, tucked to the left end of the street edge */
+    const ft = {x:a.x + (b.x-a.x)*0.13, y:a.y + (b.y-a.y)*0.13};
+    g.push(`<text x="${esc(SX(ft.x))}" y="${esc(SY(ft.y)-6)}" text-anchor="start" font-family="Inter,sans-serif" font-size="7.6" font-weight="600" letter-spacing="1.3" fill="#B07A3C" stroke="#FDFBF6" stroke-width="3" paint-order="stroke">FRONT · ${state.mode==='parcel'?'GIS-DETECTED':'STREET EDGE'}</text>`);
+  } else {
+    const c = centroid(P);
+    g.push(`<text x="${esc(SX(c.x))}" y="${esc(SY(c.y))}" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-size="15" font-weight="600" fill="#A24C39">No buildable envelope</text>`);
+  }
+
+  /* --- footprint (draggable) --- */
+  const cs = fpCorners();
+  const ok = m.fit !== 'Exceeds';
+  const fill   = ok ? 'rgba(47,74,60,.90)' : 'rgba(162,76,57,.88)';
+  const stroke = ok ? '#233A2E' : '#8B3D2C';
+  g.push(`<g class="fp" style="cursor:grab">
+    <path class="fp" d="${path(cs)}" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>
+    <text class="fp" x="${esc(SX(state.fp.x))}" y="${esc(SY(state.fp.y)-1)}" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" font-weight="600" fill="#F7F3EA">${m.s.w}′ × ${m.s.d}′</text>
+    <text class="fp" x="${esc(SX(state.fp.x))}" y="${esc(SY(state.fp.y)+9)}" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="600" letter-spacing="1" fill="rgba(247,243,234,.72)">DRAG</text>
+  </g>`);
+  // grab handles
+  cs.forEach(c=>{
+    g.push(`<rect class="fp" x="${esc(SX(c.x)-2.6)}" y="${esc(SY(c.y)-2.6)}" width="5.2" height="5.2" rx="1.2" fill="#FDFBF6" stroke="${stroke}" stroke-width="1.1"/>`);
+  });
+
+  /* --- scale bar --- */
+  const sbLen = 50*TX.s, bx = PLAN.x + 2, by = PLAN.y + PLAN.h + 46;
+  g.push(`<g font-family="Inter,sans-serif" font-size="7.6" font-weight="600" fill="#8A8069">
+    <line x1="${esc(bx)}" y1="${esc(by)}" x2="${esc(bx+sbLen)}" y2="${esc(by)}" stroke="#B8AE97" stroke-width="1.2"/>
+    <line x1="${esc(bx)}" y1="${esc(by-3)}" x2="${esc(bx)}" y2="${esc(by+3)}" stroke="#B8AE97" stroke-width="1.2"/>
+    <line x1="${esc(bx+sbLen)}" y1="${esc(by-3)}" x2="${esc(bx+sbLen)}" y2="${esc(by+3)}" stroke="#B8AE97" stroke-width="1.2"/>
+    <text x="${esc(bx+sbLen+7)}" y="${esc(by+2.8)}">50 ft</text>
+  </g>`);
+  g.push(`<text x="${esc(PLAN.x+PLAN.w)}" y="${esc(PLAN.y+PLAN.h+48.8)}" text-anchor="end" font-family="Inter,sans-serif" font-size="7.6" font-weight="600" letter-spacing="1.2" fill="#B0A68F">${state.mode==='parcel'?'GIS PARCEL GEOMETRY · PID '+GIS.pid:'IDEALIZED RECTANGLE · '+Math.round(state.lotW)+'′ × '+Math.round(state.lotD)+'′'}</text>`);
+
+  document.getElementById('scene').innerHTML = g.join('');
+}
+
+/* =======================================================================
+   PAINT
+   ======================================================================= */
+const num = n => Math.round(n).toLocaleString('en-US');
+
+function render(){
+  const m = model();
+  drawScene(m);
+
+  /* readout strip */
+  document.getElementById('roEnvArea').textContent = m.E ? num(m.envArea)+' sf' : '—';
+  document.getElementById('roEnvDims').textContent = m.E
+    ? `≈ ${m.envW}′ along the street × ${m.envD}′ deep`
+    : 'Setbacks consume the lot';
+  document.getElementById('roFpDims').textContent = `${m.s.w}′ × ${m.s.d}′`;
+
+  const rv = document.getElementById('roVerdict');
+  rv.classList.remove('tight','bad');
+  const pill = document.getElementById('fitPill');
+  pill.classList.remove('fits','tight','bad');
+  if(m.fit === 'Fits'){
+    pill.classList.add('fits');
+    document.getElementById('roFitFoot').textContent = `${Math.round(m.clear)}′ of clearance at the tightest corner`;
+  } else if(m.fit === 'Tight'){
+    rv.classList.add('tight'); pill.classList.add('tight');
+    document.getElementById('roFitFoot').textContent = `Only ${m.clear.toFixed(1)}′ clear — buildable, but no slack`;
+  } else {
+    rv.classList.add('bad'); pill.classList.add('bad');
+    document.getElementById('roFitFoot').textContent = 'Footprint breaks the setback line';
+  }
+  document.getElementById('roFit').textContent = m.fit;
+  document.getElementById('fitPillTxt').textContent = m.fit;
+  document.getElementById('orientTxt').textContent =
+    (state.rot === 90 ? 'Rotated · ' : 'Front-facing · ') + m.s.w + '′ across the street';
+
+  /* BUA */
+  const bb = document.getElementById('buaBadge');
+  bb.className = 'badge ' + (m.buaState==='ok'?'ok':m.buaState==='warn'?'warn':'bad');
+  bb.textContent = m.buaState==='ok' ? '✓ Under' : m.buaState==='warn' ? '⚠ Within 10%' : '✗ Exceeded';
+  const bv = document.getElementById('buaVerdict');
+  bv.className = 'verdictline ' + (m.buaState==='ok'?'ok':m.buaState==='warn'?'warn':'bad');
+  const head = Math.max(0, m.buaLimit - m.bua);
+  bv.innerHTML = m.buaState==='bad'
+    ? `Over by ${num(m.bua-m.buaLimit)} sf <span class="sm">— redesign or reduce hardscape</span>`
+    : `${num(head)} sf of headroom <span class="sm">— ${(m.buaPct*100).toFixed(0)}% of the limit used</span>`;
+  const bf = document.getElementById('buaFill');
+  bf.style.width = Math.min(100, m.buaPct*100).toFixed(1)+'%';
+  bf.style.background = m.buaState==='ok' ? 'var(--forest-2)' : m.buaState==='warn' ? 'var(--gold)' : 'var(--neg)';
+  document.getElementById('buaVal').textContent = num(m.bua)+' sf';
+  document.getElementById('buaLimit').textContent = num(m.buaLimit)+' sf';
+  document.getElementById('buaHardTxt').textContent = num(state.hard);
+
+  /* Subplot */
+  const sBadge = document.getElementById('spBadge');
+  sBadge.className = 'badge ' + (m.spOk?'ok':'bad');
+  sBadge.textContent = m.spOk ? '✓ Passes' : '✗ Too long';
+  const sv = document.getElementById('spVerdict');
+  sv.className = 'verdictline ' + (m.spOk?'ok':'bad');
+  sv.innerHTML = m.spOk
+    ? `${m.rowLen}′ row <span class="sm">— ${Math.round(state.maxLen-m.rowLen)}′ under the cap</span>`
+    : `${m.rowLen}′ row <span class="sm">— ${Math.round(m.rowLen-state.maxLen)}′ over. Split at ${m.maxUnits} units/building.</span>`;
+  const scale = Math.max(state.maxLen, m.rowLen) * 1.06;
+  const sf = document.getElementById('spFill');
+  sf.style.width = Math.min(100, m.rowLen/scale*100).toFixed(1)+'%';
+  sf.style.background = m.spOk ? 'var(--forest-2)' : 'var(--neg)';
+  document.getElementById('spCap').style.left = Math.min(100, state.maxLen/scale*100).toFixed(1)+'%';
+  document.getElementById('spLen').textContent = m.rowLen+' ft';
+  document.getElementById('spUnits').textContent = state.units;
+  document.getElementById('spUW').textContent = state.unitW;
+
+  /* Sub-lotting */
+  const slv = document.getElementById('slVerdict');
+  slv.className = 'verdictline ' + (m.maxN>=2 ? 'ok' : 'warn');
+  slv.innerHTML = `${m.maxN} fee-simple lot${m.maxN===1?'':'s'} <span class="sm">— if divided detached</span>`;
+  document.getElementById('slByWidth').textContent = `${m.frontage} ÷ ${state.minW} → ${m.byW}`;
+  document.getElementById('slByArea').textContent  = `${num(m.lotSF)} ÷ ${num(state.minSF)} → ${m.byA}`;
+  document.getElementById('slGov').textContent = m.byW <= m.byA ? 'Frontage' : 'Lot area';
+  document.getElementById('slMinW').textContent = state.minW;
+  document.getElementById('slMinSF').textContent = num(state.minSF);
+  document.getElementById('slBadgeSum').textContent = `${m.maxN} lots max`;
+
+  /* H&BU */
+  document.getElementById('hbuRec').textContent = `Attached townhomes (${state.units} units)`;
+  document.getElementById('hbuWhy').innerHTML = m.spOk
+    ? `${num(m.envArea)} sf envelope · ${m.frontage}′ frontage · one ${m.rowLen}′ building clears the 150′ cap.`
+    : `${num(m.envArea)} sf envelope · ${m.frontage}′ frontage · needs ${Math.ceil(state.units/m.maxUnits)} buildings (${m.maxUnits} units each) to clear the 150′ cap.`;
+
+  /* header + handoff */
+  document.getElementById('hdrUnits').textContent = state.units + ' units';
+  document.getElementById('factZone').textContent = state.zone;
+  document.getElementById('factFront').textContent = m.frontage + ' ft';
+  document.getElementById('handoffLine').innerHTML =
+    `Carries forward: buildable envelope <b>${m.E?num(m.envArea)+' sf':'none'}</b> · footprint <b>${m.fit}</b> ` +
+    `at ${m.s.w}′ × ${m.s.d}′ · plan <b>The Dayton Townhomes (1 Unit), Standard Spec</b> · <b>${state.units} units</b>. ` +
+    `No cost, price, or financing assumptions leave this screen.`;
+}
+
+/* =======================================================================
+   INTERACTION
+   ======================================================================= */
+function placeFootprint(){
+  const m0 = {P:parcelPoly()};
+  const E = insetPoly(m0.P, setbacks());
+  const c = centroid(E || m0.P);
+  state.fp = {x:c.x, y:c.y};
+}
+
+function setMode(mode){
+  if(state.mode === mode) return;
+  state.mode = mode;
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===mode));
+  placeFootprint();
+  render();
+}
+function setCorner(v){
+  state.corner = v;
+  document.getElementById('cornerSwitch').classList.toggle('on-text', v);
+  render();
+}
+function rotateFp(){
+  state.rot = state.rot === 90 ? 0 : 90;
+  render();
+}
+function bumpUnits(d){
+  state.units = Math.max(1, Math.min(60, state.units + d));
+  render();
+}
+function setZone(z){
+  state.zone = z;
+  const Z = ZONES[z]; if(!Z) return;
+  state.sbF=Z.sbF; state.sbR=Z.sbR; state.sbS=Z.sbS; state.sbC=Z.sbC;
+  state.minW=Z.minW; state.minSF=Z.minSF;
+  document.getElementById('i-sbF').value=Z.sbF;
+  document.getElementById('i-sbR').value=Z.sbR;
+  document.getElementById('i-sbS').value=Z.sbS;
+  document.getElementById('i-sbC').value=Z.sbC;
+  document.getElementById('i-minW').value=Z.minW;
+  document.getElementById('i-minSF').value=Z.minSF;
+  placeFootprint();
+  render();
+}
+function setNum(key, val){
+  const v = parseFloat(val);
+  state[key] = isNaN(v) ? 0 : v;
+  if(key==='lotW'||key==='lotD'||key==='unitW'||key==='unitD') clampFp();
+  render();
+}
+function clampFp(){
+  // the centre stays on the parcel: the footprint can break the setback line
+  // (that is the warning we want) but never wanders off the drawing.
+  const b = bbox(parcelPoly());
+  state.fp.x = Math.max(b.x0, Math.min(b.x1, state.fp.x));
+  state.fp.y = Math.max(b.y0, Math.min(b.y1, state.fp.y));
+}
+
+/* --- drag --- */
+const svg = document.getElementById('svg');
+let drag = null;
+function toFeet(evt){
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return {x:FX(p.x), y:FY(p.y)};
+}
+svg.addEventListener('pointerdown', e=>{
+  if(!e.target.classList.contains('fp')) return;
+  const f = toFeet(e);
+  drag = {dx: state.fp.x - f.x, dy: state.fp.y - f.y};
+  svg.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+svg.addEventListener('pointermove', e=>{
+  if(!drag) return;
+  const f = toFeet(e);
+  state.fp.x = f.x + drag.dx;
+  state.fp.y = f.y + drag.dy;
+  clampFp();
+  render();
+});
+function endDrag(e){
+  if(!drag) return;
+  drag = null;
+  try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
+}
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+
+/* --- stubs --- */
+function reFetch(btn){
+  const t = btn.textContent;
+  btn.textContent = 'Re-fetched ✓';
+  setTimeout(()=>{ btn.textContent = t; }, 1500);
+}
+function handoff(btn){
+  const html = btn.innerHTML;
+  btn.innerHTML = '✓ Site data passed to Underwrite (demo)';
+  setTimeout(()=>{ btn.innerHTML = html; }, 1800);
+}
+
+/* --- init --- */
+placeFootprint();
+render();
+</script>
+</body>
+</html>

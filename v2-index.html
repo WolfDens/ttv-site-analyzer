@@ -1,0 +1,125 @@
+<!--
+  ============================================================================
+  TTV SITE ANALYZER — V2 REDESIGN PROTOTYPE (NOT PRODUCTION) — landing page
+  ============================================================================
+  Entry point for team testing of the v2 redesign concept. Lives on the
+  `redesign-v2` branch only. The live production app is unchanged on `main`.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTV Site Analyzer — V2 Redesign Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF8F1; --ink:#1A1D1A; --forest:#20402F; --gold:#B08D4F;
+    --line:#E4DFD3; --muted:#6C6A60; --white:#fff;
+    --shadow-lg:0 8px 28px rgba(26,29,26,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--cream); color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased; padding:56px 24px 80px;
+  }
+  .wrap{max-width:920px;margin:0 auto}
+  .tag{
+    display:inline-block; font-size:11px; font-weight:600; letter-spacing:.12em;
+    text-transform:uppercase; color:#8A5A1B; background:#FBEFD8;
+    border:1px solid #EFD9AE; padding:6px 12px; border-radius:999px; margin-bottom:22px;
+  }
+  h1{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:40px; line-height:1.12; letter-spacing:-.01em}
+  .sub{color:var(--muted); font-size:16px; line-height:1.65; margin-top:14px; max-width:62ch}
+  .note{
+    margin-top:30px; background:var(--white); border:1px solid var(--line);
+    border-left:3px solid var(--gold); border-radius:12px; padding:18px 20px;
+    font-size:14px; line-height:1.7; color:#4A4842; box-shadow:var(--shadow-lg);
+  }
+  .note strong{color:var(--ink)}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:34px}
+  @media(max-width:720px){ .grid{grid-template-columns:1fr} h1{font-size:32px} }
+  a.card{
+    display:block; text-decoration:none; color:inherit; background:var(--white);
+    border:1px solid var(--line); border-radius:18px; padding:26px;
+    box-shadow:var(--shadow-lg); transition:transform .16s ease, border-color .16s ease;
+  }
+  a.card:hover{transform:translateY(-3px); border-color:var(--gold)}
+  .num{font-family:'Fraunces',Georgia,serif; font-size:13px; color:var(--gold); letter-spacing:.08em; text-transform:uppercase}
+  .card h2{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:23px; margin:8px 0 10px}
+  .card p{font-size:14px; line-height:1.65; color:var(--muted)}
+  .owns{margin-top:16px; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--forest)}
+  .go{margin-top:18px; display:inline-block; font-size:14px; font-weight:600; color:var(--forest)}
+  .try{margin-top:38px; border-top:1px solid var(--line); padding-top:26px}
+  .try h3{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:18px; margin-bottom:12px}
+  .try ul{list-style:none; display:grid; gap:9px}
+  .try li{font-size:14px; line-height:1.6; color:#4A4842; padding-left:20px; position:relative}
+  .try li:before{content:'→'; position:absolute; left:0; color:var(--gold)}
+  footer{margin-top:40px; font-size:12.5px; color:var(--muted); line-height:1.7}
+  code{background:#F1EDE3; padding:2px 6px; border-radius:5px; font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="tag">Prototype · not production</span>
+  <h1>Site Analyzer — v2 redesign</h1>
+  <p class="sub">
+    A design concept for the underwriting tool, split into two purpose-built surfaces instead of one
+    seven-step form. Built in response to the team huddle feedback: the current tool is
+    “information overload,” and the output can’t be tweaked on the fly.
+  </p>
+
+  <div class="note">
+    <strong>Read this before testing.</strong> These are <strong>UX prototypes</strong>. The numbers
+    recompute live so the screens feel real, but the arithmetic is a <strong>simplified illustrative
+    model</strong> — it is <em>not</em> the production underwriting engine. Wiring these to the real
+    math is a later, separate step. Judge the <strong>layout, flow, and feel</strong>, not the
+    dollar figures. The live production app is untouched and still running from <code>main</code>.
+  </div>
+
+  <div class="grid">
+    <a class="card" href="v2-site.html">
+      <div class="num">Screen 01</div>
+      <h2>Site Intelligence</h2>
+      <p>
+        Address → zoning → setbacks → buildable envelope, with the lot diagram as the primary
+        interface instead of a wall of fields. Includes BUA/watershed, subplotting vs. sub-lotting,
+        and a highest-and-best-use suggestion.
+      </p>
+      <div class="owns">Owns: geometry &amp; feasibility</div>
+      <span class="go">Open Site screen →</span>
+    </a>
+    <a class="card" href="v2-underwrite.html">
+      <div class="num">Screen 02</div>
+      <h2>The Underwrite</h2>
+      <p>
+        Worst / Base / Best in the familiar spreadsheet shape, with the levers you actually touch in
+        a meeting editable in place. Profit, cash-on-cash, and max supportable land lead.
+      </p>
+      <div class="owns">Owns: money</div>
+      <span class="go">Open Underwrite screen →</span>
+    </a>
+  </div>
+
+  <div class="try">
+    <h3>What to poke at</h3>
+    <ul>
+      <li><strong>Site:</strong> drag the building footprint around inside the envelope; hit rotate; flip the corner-lot switch.</li>
+      <li><strong>Site:</strong> change units — watch the townhome row length check itself against Charlotte’s 150&nbsp;ft max building length.</li>
+      <li><strong>Site:</strong> open “Adjust dimensions &amp; setbacks” — every number is still there, just demoted behind one panel.</li>
+      <li><strong>Underwrite:</strong> drag the land-cost lever and watch all three scenarios move together.</li>
+      <li><strong>Underwrite:</strong> edit Retail&nbsp;$/sf inline, then open “Advanced” to see what was hidden.</li>
+      <li><strong>Both:</strong> does it feel calmer than today’s tool? That’s the whole question.</li>
+    </ul>
+  </div>
+
+  <footer>
+    Branch <code>redesign-v2</code> · design direction approved 2026-08-05 · two-surface architecture
+    (geometry vs. money) per <code>04_redesign/Calculator_Redesign_Brief.md</code>.<br>
+    Feedback goes in the underwriting issues tracker so it doesn’t get lost.
+  </footer>
+</div>
+</body>
+</html>
