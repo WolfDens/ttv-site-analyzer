@@ -1171,9 +1171,9 @@ function reFetch(btn){
   setTimeout(()=>{ btn.textContent = t; }, 1500);
 }
 function handoff(btn){
-  const html = btn.innerHTML;
   btn.innerHTML = '✓ Site data passed to Underwrite (demo)';
-  setTimeout(()=>{ btn.innerHTML = html; }, 1800);
+  // Actually complete the two-screen flow; testers were previously dead-ended here.
+  setTimeout(()=>{ window.location.href = 'v2-underwrite.html'; }, 750);
 }
 
 /* --- init --- */

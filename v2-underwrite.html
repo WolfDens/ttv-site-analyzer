@@ -577,7 +577,7 @@ function compute(){
   // Heroes (Base)
   const b = calc('base');
   document.getElementById('h-profit').textContent = money(b.profit);
-  document.getElementById('h-profit').className = 'val ' + (b.profit>=0?'':'');
+  document.getElementById('h-profit').className = 'val' + (b.profit<0?' neg':'');
   document.getElementById('h-profit-foot').innerHTML = 'Total project profit <b>'+money(b.projectProfit)+'</b>';
   document.getElementById('h-coc').textContent = pct(b.coc);
 
@@ -601,7 +601,10 @@ function setPlan(v){ state.planKey = v; compute(); }
 function onLandNum(v){
   state.land = parseFloat(v)||0;
   const s = document.getElementById('landSlider');
-  if(state.land <= +s.max) s.value = state.land;
+  // Manual entry can exceed the slider range. Grow the range instead of skipping the
+  // update, otherwise the thumb goes stale and the next drag snaps back to an old value.
+  if(state.land > +s.max) s.max = String(Math.ceil(state.land/10000)*10000);
+  s.value = state.land;
   paintLand();
   compute();
 }
