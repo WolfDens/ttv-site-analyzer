@@ -1,0 +1,115 @@
+# .github/workflows/codex-review.yml
+#
+# CONTINUOUS CODEX REVIEW — fires on EVERY push to any branch except `main`.
+#
+# Why this exists (and how it differs from the Codex cloud integration):
+#   - Codex CLOUD (already enrolled) reviews a PULL REQUEST. That's the gate before merge.
+#   - This ACTION reviews EVERY COMMIT on a working branch, with no PR required. That's the
+#     fast feedback loop while code is still being written — findings land within a couple of
+#     minutes of a push instead of waiting for a PR to be opened.
+#   Together: Action = while you write. Cloud = before you merge. No overlap, no double-spend.
+#
+# Findings appear in the workflow run's SUMMARY (Actions tab → the run → Summary), because a
+# bare push has no PR thread to comment on.
+#
+# ONE-TIME SETUP (Brian, in GitHub — the key never passes through chat):
+#   Repo → Settings → Secrets and variables → Actions → New repository secret
+#     Name:  OPENAI_API_KEY
+#     Value: an OpenAI API key
+#   Then commit this file to `.github/workflows/codex-review.yml`.
+
+name: Codex review (every push)
+
+on:
+  push:
+    branches-ignore:
+      - main          # `main` is production; the PR gate already covers what lands there.
+
+# Least privilege: a reviewer only ever needs to READ the code.
+permissions:
+  contents: read
+
+concurrency:
+  # A newer push on the same branch supersedes an in-flight review.
+  group: codex-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review changed code against AGENTS.md
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # needed to diff this branch against main
+
+      - name: Collect the diff vs main
+        id: diff
+        run: |
+          git fetch origin main --depth=1 || true
+          BASE=$(git merge-base origin/main HEAD || echo "")
+          if [ -z "$BASE" ]; then
+            echo "No merge base with main; reviewing the last commit instead."
+            BASE=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+          fi
+          {
+            echo "### Files changed"
+            git diff --stat "$BASE"..HEAD
+            echo
+            echo "### Diff"
+            git diff "$BASE"..HEAD
+          } > /tmp/changes.txt
+          # Keep the payload sane on very large diffs.
+          head -c 400000 /tmp/changes.txt > /tmp/changes.trimmed.txt
+          mv /tmp/changes.trimmed.txt /tmp/changes.txt
+          echo "bytes=$(wc -c < /tmp/changes.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Build the review prompt
+        run: |
+          {
+            echo "You are reviewing a work-in-progress commit on a branch of the TTV Site Analyzer,"
+            echo "a single-file client-side underwriting tool (index.html) that deploys to Vercel."
+            echo
+            echo "AUTHORITY: the repo's AGENTS.md is the review standard. Read it and enforce it."
+            echo "It encodes invariants that are easy to break and expensive to miss (pricing derived"
+            echo "from 'base', footprints stored w=W/d=D, per-unit vs per-lot cost scaling, the"
+            echo "circular loan-base solve, single-file/no-build architecture, storage-key limits,"
+            echo "Mecklenburg-only GIS)."
+            echo
+            echo "IMPORTANT CONTEXT: files named v2-*.html are DESIGN PROTOTYPES whose arithmetic is a"
+            echo "deliberately simplified illustrative model. Do NOT report that as a production math"
+            echo "regression. DO report genuine defects in them (JS errors, broken interactions,"
+            echo "accessibility problems, division-by-zero, dead code, unsafe DOM handling)."
+            echo
+            echo "Report findings by severity (P0/P1/P2), each with the file, the concrete failure"
+            echo "scenario, and the fix. If nothing substantive is wrong, say so plainly and briefly."
+            echo "Be specific and terse. No preamble."
+            echo
+            echo "----- BEGIN CHANGES -----"
+            cat /tmp/changes.txt
+            echo "----- END CHANGES -----"
+          } > /tmp/prompt.txt
+
+      - name: Run Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: /tmp/prompt.txt
+          sandbox: read-only          # a reviewer must not be able to modify the workspace
+          safety-strategy: read-only
+
+      - name: Publish findings to the run summary
+        if: always()
+        run: |
+          {
+            echo "## Codex review — \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`"
+            echo
+            echo "Diff reviewed: ${{ steps.diff.outputs.bytes }} bytes"
+            echo
+            echo "${{ steps.codex.outputs.final-message }}"
+            echo
+            echo "---"
+            echo "_Continuous review (every push). The PR-open review by Codex cloud is the separate merge gate._"
+          } >> "$GITHUB_STEP_SUMMARY"
