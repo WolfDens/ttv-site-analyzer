@@ -273,6 +273,10 @@ const CATALOG=[
 ];
 
 const today=new Date();today.setHours(0,0,0,0);
+/* Parse YYYY-MM-DD as LOCAL midnight (new Date('YYYY-MM-DD') is UTC and shifts a day in US timezones). */
+function pdate(s){const[y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d);}
+function fmtDate(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function daysBetween(a,b){return Math.round((a-b)/86400000);}
 function resolveDep(m,f){return typeof m.dep==='function'?m.dep(f):m.dep;}
 function catalogFor(f){return CATALOG.filter(m=>m.show(f));}
@@ -306,7 +310,7 @@ function seed(){
 
 function ageInfo(m,c){
   if(!c.started||(c.status!=='active'&&c.status!=='submitted'))return null;
-  const s=new Date(c.started);s.setHours(0,0,0,0);
+  const s=pdate(c.started);
   const age=daysBetween(today,s),over=age-m.exp;
   let cls='ok';if(over>0)cls='stuck';else if(age>=m.exp*0.7)cls='warn';
   return{age,over,cls,indeterminate:m.id==='address'};
@@ -318,7 +322,7 @@ function projStats(p){
     if(c.status==='done')done++;
     if(c.status==='blocked')blocked++;
     const a=ageInfo(m,c);if(a&&a.cls==='stuck')stuck++;
-    if(c.due&&c.status!=='done'&&new Date(c.due)<today)pastdue++;
+    if(c.due&&c.status!=='done'&&pdate(c.due)<today)pastdue++;
     if(!firstActive&&(c.status==='active'||c.status==='submitted'||c.status==='blocked'))firstActive=m.t;
     if(!firstTodo&&c.status==='todo')firstTodo=m.t;
   });
@@ -333,7 +337,7 @@ function renderList(){
     const d=document.createElement('div');
     d.className='pcard'+(p.id===selId?' sel':'');
     d.onclick=()=>{selId=p.id;selMs=null;render();};
-    d.innerHTML=`<div class="pn">${p.addr}</div>
+    d.innerHTML=`<div class="pn">${esc(p.addr)}</div>
       <div class="pm"><span class="tag ${p.flags.path}">${p.flags.path}</span>${p.flags.demo?'<span class="tag" style="background:#7a5c3a;color:#fff">demo</span>':''}${alert?'<span class="alertdot"></span>':''}</div>
       <div class="mini"><i style="width:${s.pct}%"></i></div>`;
     el.appendChild(d);
@@ -348,7 +352,7 @@ function nodeHtml(p,m){
     else if(a.cls==='warn')badge=`<span class="agebadge warn">${a.age}d</span>`;
     else badge=`<span class="agebadge ok">${a.age}d</span>`;
   }
-  let pd='';if(c.due&&c.status!=='done'&&new Date(c.due)<today)pd=`<span class="agebadge stuck">past due</span>`;
+  let pd='';if(c.due&&c.status!=='done'&&pdate(c.due)<today)pd=`<span class="agebadge stuck">past due</span>`;
   return `<div class="node st-${c.status} ${m.gate?'gate':''} ${selMs===m.id?'msSel':''}" onclick="selectMs('${m.id}')">
     <div class="nt">${m.t}</div>
     <div class="nm">${m.agency}</div>
@@ -369,7 +373,7 @@ function detailHtml(p,m){
     ${m.note?`<div class="dn">${m.note}</div>`:''}
     <div class="ctl">
       <div class="cg"><label>Status</label><select onchange="setStatus('${p.id}','${m.id}',this.value)">${opts}</select></div>
-      <div class="cg"><label>Owner</label><input type="text" style="width:120px" value="${c.owner||''}" onchange="setField('${p.id}','${m.id}','owner',this.value)"></div>
+      <div class="cg"><label>Owner</label><input type="text" style="width:120px" value="${esc(c.owner||'')}" onchange="setField('${p.id}','${m.id}','owner',this.value)"></div>
       <div class="cg"><label>Due date</label><input type="date" value="${c.due||''}" onchange="setField('${p.id}','${m.id}','due',this.value)"></div>
     </div>
   </div>`;
@@ -381,7 +385,7 @@ function renderProject(){
   if(!p){title.innerHTML='<h1>Select a project</h1>';content.innerHTML='';return;}
   const s=projStats(p);
   const pathLabel={subdivision:'Subdivision',sublot:'Sublot',infill:'Infill / neither'}[p.flags.path];
-  title.innerHTML=`<h1>${p.addr}</h1><span class="tag ${p.flags.path}">${pathLabel}</span>${p.flags.demo?'<span class="tag" style="background:#7a5c3a;color:#fff">demo</span>':''}`;
+  title.innerHTML=`<h1>${esc(p.addr)}</h1><span class="tag ${p.flags.path}">${pathLabel}</span>${p.flags.demo?'<span class="tag" style="background:#7a5c3a;color:#fff">demo</span>':''}`;
 
   const pathNotes={
     subdivision:'<b>Subdivision path.</b> New detached lots. Plat + LDIRL largely concurrent; hard gate = <b>recorded plat + address → County permit</b>.',
@@ -435,7 +439,7 @@ function renderProject(){
 function selectMs(id){selMs=(selMs===id?null:id);renderProject();}
 function setStatus(pid,mid,val){
   const p=PROJECTS.find(x=>x.id===pid),c=p.state[mid];
-  if((val==='active'||val==='submitted')&&!c.started)c.started=today.toISOString().slice(0,10);
+  if((val==='active'||val==='submitted')&&!c.started)c.started=fmtDate(today);
   if(val==='todo')c.started=null;
   c.status=val;render();
 }
