@@ -80,6 +80,29 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - Parcel area uses the **shoelace** of the geometry, **not** the bounding box. Flag a
   regression to bounding-box area.
 
+### Permitting board (`/permits.html` + `api/permits.js`)
+- **`/permits.html` is a blessed second static surface** — the team permitting status
+  board. It is deliberately OUTSIDE the single-file calculator: its data refreshes daily
+  from Drive, and folding that churn into `index.html` would put automated changes inside
+  the underwriting file. The single-file rule above still governs the calculator itself —
+  flag calculator logic moving into `permits.html`, or permitting logic into `index.html`.
+- **Data path:** the TTV Permit Listener (scheduled Claude task) maintains
+  `ttv-permit-state.json` in Google Drive; `api/permits.js` proxies it (server-side fetch,
+  5-minute edge cache, `?k=<gate hash>` check); the page paints its baked-in `seed()`
+  snapshot instantly, then swaps to the live payload — and falls back to the snapshot with
+  a visible "offline" banner when the API is unreachable. **The listener never commits to
+  git** — daily status updates happen in Drive only. Flag any change that reintroduces
+  data-update-by-commit.
+- **Storage exception:** the page uses exactly one `sessionStorage` key
+  (`ttv-permit-auth`) for its gate — the only allowed browser-storage key outside the
+  calculator's two `localStorage` keys. Flag additions beyond these three.
+- **Access model (accepted risk):** the passcode gate and the `?k=` check are deterrents,
+  not security boundaries — Mecklenburg permit statuses are public record. Flag any
+  non-public data (pricing, contracts, PII) appearing in the permit-state file or board.
+- The Drive FILE ID in `api/permits.js` is intentionally committed (link-shared file
+  holding the same data the board renders — not a secret). `PERMITS_FILE_ID` env var
+  overrides it; don't flag the literal.
+
 ### Domain-correctness (don't let geometry override the rulebook)
 > These two rules describe the **target state**; the current code differs. Flag against
 > the target, but don't assume the target is already implemented — both are open items.

@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.8 &middot; Jul 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.9 &middot; Aug 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -4614,8 +4614,12 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.8', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.9', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.9',date:'Aug 2026',name:'Team permitting dashboard',items:[
+   'New /permits.html — a passcode-gated Mecklenburg permitting status board for the team: per-project flow view (Intake → Trees → LDIRL → Plat → County Permits → Inspections), days-in-stage clocks on the silent-staller gates (looking at you, Address Assignment), and click-to-edit what-if statuses. Ask Brian for the passcode.',
+   'Live data: the board reads TTV_Permit_State from Drive through the new /api/permits proxy, refreshed each weekday morning by the Permit Listener — daily status changes need zero code deploys.',
+   'The underwriting calculator itself is unchanged in this release.']},
  {v:'7.8',date:'Jul 2026',name:'Sub-lotting, custom footprints & full pricing refresh',items:[
    'New Sub-Lotting Analysis on Step 2 (Lot Dimensions): screens whether the parent parcel can be carved into 2 or 3 recorded lots, checking each lot’s frontage and area against the zone’s UDO minimums — with a max-lots headline and a quick division diagram. Feasibility screen only; a real subdivision still needs a sublot plat + LDIRL.',
    'Custom Dimensions on Step 5: pick “✎ Custom dimensions” in the plan selector to plot any house width × depth on the lot — no Slate plan required — with the same fit check and drag-to-position overlay. Optional finished SF / units / build cost flow into the cost stack.',

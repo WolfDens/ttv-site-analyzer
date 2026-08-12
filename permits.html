@@ -394,7 +394,12 @@ function renderProject(){
   };
 
   let html='';
-  html+=`<div class="banner">🔄 <b>Live view — renderer, not the record.</b> Record = <b>TTV_Permit_State</b> in Drive, refreshed each weekday by the Permit Listener from Gmail. Edits here are what-if; real changes go through the Listener or by telling Claude.</div>`;
+  const srcNote = DATA_META.loading
+    ? `⏳ <b>Loading live data…</b> showing the built-in snapshot while <b>/api/permits</b> answers.`
+    : DATA_META.live
+      ? `🔄 <b>Live data</b> — loaded from <b>TTV_Permit_State</b> (Drive) via /api/permits${DATA_META.updated?`, updated ${esc(String(DATA_META.updated).slice(0,10))}`:''}. Refreshed each weekday by the Permit Listener from Gmail. Edits here are what-if; real changes go through the Listener or by telling Claude.`
+      : `⚠ <b>Offline snapshot</b> — /api/permits unreachable (${esc(DATA_META.error||'unknown')}); showing the last snapshot baked into this page. Reload to retry.`;
+  html+=`<div class="banner">${srcNote}</div>`;
   html+=`<div class="pathnote">${pathNotes[p.flags.path]}</div>`;
   html+=`<div class="kstrip">
     <div class="kpi"><div class="l">Progress</div><div class="v">${s.pct}% <span style="font-size:10px;font-weight:600;color:#6a7580">(${s.done}/${s.total})</span></div></div>
@@ -474,7 +479,25 @@ async function gateCheck(){
 }
 if(sessionStorage.getItem('ttv-permit-auth')==='1'){ const g=document.getElementById('gate'); if(g)g.remove(); }
 
+/* --- data boot: paint the built-in snapshot instantly, then swap to live Drive data --- */
+let DATA_META={live:false,loading:true};
+async function loadLive(){
+  try{
+    const r=await fetch('/api/permits?k='+GATE_HASH,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const ok=d&&Array.isArray(d.projects)&&d.projects.length&&d.projects.every(p=>p&&p.id&&p.addr&&p.flags&&p.state);
+    if(!ok)throw new Error('bad payload');
+    PROJECTS=d.projects;
+    if(!PROJECTS.some(p=>p.id===selId)){selId=PROJECTS[0].id;selMs=null;}
+    DATA_META={live:true,updated:d.updated||null};
+  }catch(e){
+    DATA_META={live:false,error:(e&&e.message)||String(e)};
+  }
+  render();
+}
 seed();render();
+loadLive();
 </script>
 </body>
 </html>
