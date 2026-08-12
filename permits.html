@@ -144,6 +144,31 @@
   .btn.ghost{background:transparent;color:var(--navy);border-color:var(--line)}
   @media(max-width:900px){.side{display:none}.kstrip{flex-wrap:wrap}.kpi{flex:1 1 45%}.paths{grid-template-columns:1fr}}
 
+  /* ── tracks view (v3): one lane per track, left→right staging from the dep graph ── */
+  .viewtoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:auto}
+  .viewtoggle button{border:none;background:var(--white);color:#54606c;font:inherit;font-size:10px;font-weight:700;letter-spacing:.4px;padding:4px 12px;cursor:pointer}
+  .viewtoggle button.on{background:var(--navy);color:var(--cream)}
+  .tracks{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:12px 12px 16px;overflow-x:auto;position:relative}
+  .tgrid{position:relative;min-width:max-content}
+  .taxis,.tlane{display:grid;align-items:stretch}
+  .taxis{grid-auto-flow:column}
+  .tlane{grid-auto-flow:row dense} /* same-column steps in a lane stack vertically instead of overlapping */
+  .taxis>div{font-size:8.5px;color:#a9b0b8;font-weight:700;letter-spacing:.4px;border-left:1px dashed #eee3cf;padding:0 0 3px 6px}
+  .taxis>div:first-child{border:none}
+  .tlane{position:relative;min-height:56px}
+  .tlane + .tlane{border-top:1px dashed #efe8d8}
+  .tlab{grid-row:1/-1;padding:9px 12px 9px 2px;position:sticky;left:0;background:var(--white);z-index:3}
+  .tlab .b{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.8px;color:#fff;border-radius:3px;padding:1px 6px;margin-bottom:3px}
+  .tlab .l{font-size:10.5px;font-weight:800;line-height:1.25}
+  .tlab .d{font-size:8.5px;color:#8a94a0;font-weight:600;line-height:1.35}
+  .tcell{padding:6px 4px;display:flex}
+  .tcell .node{flex:1;margin:0;min-width:110px}
+  .tcell.pack{flex-wrap:wrap;gap:8px;align-content:flex-start}
+  .tcell.pack .node{flex:0 1 150px;min-width:130px}
+  .tcell.locked .node{opacity:.55;border-style:dashed;filter:grayscale(.35)}
+  .tcell.locked .node .nt::before{content:"🔒 ";font-size:9px}
+  .gdrop{position:absolute;width:2px;background:repeating-linear-gradient(to bottom,var(--red) 0 5px,transparent 5px 9px);z-index:2;pointer-events:none}
+  .gdrop::after{content:"unlocks ▼";position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
   #gate{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
   #gate .gcard{background:var(--cream);border-radius:14px;padding:34px 38px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   #gate img{width:64px;margin-bottom:12px}
@@ -281,7 +306,85 @@ function daysBetween(a,b){return Math.round((a-b)/86400000);}
 function resolveDep(m,f){return typeof m.dep==='function'?m.dep(f):m.dep;}
 function catalogFor(f){return CATALOG.filter(m=>m.show(f));}
 
-let PROJECTS=[], selId=null, selMs=null;
+let PROJECTS=[], selId=null, selMs=null, viewMode='tracks'; /* 'tracks' | 'phases' — in-memory only (no new storage keys per AGENTS.md) */
+
+/* ── tracks view engine (v3) ─────────────────────────────────────────────
+   Column = dependency depth, computed from the live dep graph, so the
+   left→right staging updates itself when the catalog changes.
+   Staging-only extra: on plat paths, bp-sub is staged after plat-rec too,
+   honoring the HARD-gate note (recorded plat + address → County permit)
+   without changing the catalog's data-level dependency. */
+const TRACKS=[
+  {key:'t0', b:'#b9b1a2', name:'Track 0 · Parent subdivision', d:'only if subdividing first', ids:[]},
+  {key:'in', b:'#8a94a0', name:'Intake & feasibility', d:'before / during the offer — parallel, not staged', ids:['route','row','survey','water-cap','driveway','ncdot','uw'], pack:true},
+  {key:'dm', b:'#7a5c3a', name:'Track D · Demolition', d:'only if tearing down', ids:['neshap','hist','disc','demo-permit','demo-done'], pack:true},
+  {key:'a',  b:'var(--slate)', name:'Track A · The Plat (LDPLAT)', d:'the long pole — gates Track C', ids:['prelim-sub','prelim-app','plat-prep','plat-app','plat-rec','address']},
+  {key:'bt', b:'var(--pine)', name:'Track B · LDIRL & trees', d:'runs parallel with A', ids:['her-ldirl','tree-rem','dev-ldirl','erosion']},
+  {key:'c',  b:'var(--navy)', name:'Track C · Permits & build', d:'starts where A’s gate drops', ids:['plans','bp-sub','bp-iss','stake','trades','taps','insp','tree-prot','final-insp','co','closeout']}
+];
+function stagingDeps(m,p,byId){
+  const d=resolveDep(m,p.flags); let ds=d?String(d).split('|').filter(id=>byId[id]):[];
+  if(m.id==='bp-sub' && p.flags.path!=='infill' && byId['plat-rec']) ds=[...new Set([...ds,'plat-rec'])];
+  return ds;
+}
+function trackCols(p){
+  const cat=catalogFor(p.flags), byId=Object.fromEntries(cat.map(m=>[m.id,m]));
+  const col={}, start={};
+  function calc(id,seen){
+    if(col[id]!=null)return;
+    if(seen.has(id)){col[id]=1;start[id]=0;return;}
+    seen.add(id);
+    const ds=stagingDeps(byId[id],p,byId);
+    ds.forEach(d=>calc(d,seen));
+    col[id]=ds.length?Math.max(...ds.map(d=>col[d]))+1:1;
+    start[id]=ds.length?Math.max(...ds.map(d=>start[d]+(byId[d].exp||7))):0;
+  }
+  cat.forEach(m=>calc(m.id,new Set()));
+  return {col,start,byId,cat};
+}
+function tracksHtml(p){
+  const {col,start,cat}=trackCols(p);
+  const ncols=Math.max(...cat.map(m=>col[m.id]));
+  const gridCols=`140px repeat(${ncols},minmax(104px,1fr))`;
+  /* indicative week label per column = earliest expected start among its milestones */
+  const wk={};cat.forEach(m=>{const c=col[m.id];const w=Math.floor(start[m.id]/7)+1;wk[c]=wk[c]==null?w:Math.min(wk[c],w);});
+  let axis=`<div class="taxis" style="grid-template-columns:${gridCols}"><div style="grid-column:1"></div>`;
+  for(let c=1;c<=ncols;c++)axis+=`<div style="grid-column:${c+1}">~wk ${wk[c]||'?'}</div>`;
+  axis+=`</div>`;
+  let lanes='';
+  TRACKS.forEach(tr=>{
+    if(tr.key==='t0'){
+      if(!p.flags.parentSub)return; /* hidden unless the project is carved from a parent subdivision */
+      lanes+=`<div class="tlane" style="grid-template-columns:${gridCols}"><div class="tlab" style="grid-column:1"><span class="b" style="background:${tr.b}">TRACK 0</span><div class="l">Parent subdivision</div><div class="d">recorded before this flow begins</div></div><div class="tcell" style="grid-column:2/span 2"><div class="node st-done"><div class="nt">Parent plat recorded</div><div class="nm">tracked on the parent project</div></div></div></div>`;
+      return;
+    }
+    const ms=tr.ids.map(id=>cat.find(m=>m.id===id)).filter(Boolean);
+    if(!ms.length)return; /* lanes with nothing visible for this path/flags are hidden */
+    const byId=Object.fromEntries(cat.map(x=>[x.id,x]));
+    let cells='';
+    if(tr.pack){ /* pre-track lanes: genuinely parallel work — pack compactly, no staging columns */
+      cells=`<div class="tcell pack" style="grid-column:2/-1">${ms.map(m=>p.state[m.id]?nodeHtml(p,m):'').join('')}</div>`;
+    }else ms.forEach(m=>{
+      const c=p.state[m.id];if(!c)return;
+      const locked=c.status==='todo'&&stagingDeps(m,p,byId).some(d=>p.state[d]&&p.state[d].status!=='done');
+      cells+=`<div class="tcell${locked?' locked':''}" style="grid-column:${col[m.id]+1}" data-ms="${m.id}">${nodeHtml(p,m)}</div>`;
+    });
+    lanes+=`<div class="tlane" style="grid-template-columns:${gridCols}"><div class="tlab" style="grid-column:1"><span class="b" style="background:${tr.b}">${esc(tr.name.split('·')[0].trim().toUpperCase())}</span><div class="l">${esc(tr.name.includes('·')?tr.name.split('·')[1].trim():tr.name)}</div><div class="d">${esc(tr.d)}</div></div>${cells}</div>`;
+  });
+  return `<div class="tracks"><div class="tgrid" id="tgrid">${axis}${lanes}</div></div>`;
+}
+function drawGateDrop(){
+  const grid=document.getElementById('tgrid');if(!grid)return;
+  const from=grid.querySelector('[data-ms="plat-rec"]'),to=grid.querySelector('[data-ms="bp-sub"]');
+  if(!from||!to)return;
+  const g=grid.getBoundingClientRect(),f=from.getBoundingClientRect(),t=to.getBoundingClientRect();
+  const d=document.createElement('div');d.className='gdrop';
+  d.style.left=(f.left-g.left+f.width/2)+'px';
+  d.style.top=(f.bottom-g.top-4)+'px';
+  d.style.height=Math.max(20,(t.top-g.top)-(f.bottom-g.top)+10)+'px';
+  grid.appendChild(d);
+}
+function setView(v){viewMode=v;renderProject();}
 
 function blankState(f){const st={};catalogFor(f).forEach(m=>{st[m.id]={status:'todo',owner:m.owner,due:'',started:null};});return st;}
 
@@ -290,7 +393,7 @@ function seed(){
   const df={path:'sublot',demo:false,trees:true,state:false,acre:false};
   const ds=blankState(df);
   ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','prelim-sub','prelim-app','plat-prep','plans','bp-sub','bp-iss','stake','trades'].forEach(id=>{if(ds[id])ds[id].status='done';});
-  ds['plat-app'].status='submitted';ds['plat-app'].started='2026-07-03';
+  ds['plat-app'].status='done';ds['plat-app'].started='2026-07-03'; /* LDPLAT-2026-00501 approved 8/11 (Igor, Slate) — 39d in stage */
   ds['address'].status='submitted';ds['address'].started='2026-07-10';
   ds['taps'].status='active';ds['taps'].started='2026-07-22';
   ds['insp'].status='active';ds['insp'].started='2026-07-27';
@@ -415,11 +518,16 @@ function renderProject(){
     <div class="li"><span class="swatch" style="background:var(--red)"></span>Blocked</div>
     <div class="li"><span class="gatechip">Gate</span>do-not-reverse</div>
     <div class="li"><span class="critchip">Watch</span>silent-staller</div>
-    <div class="li" style="margin-left:auto;color:#8a94a0">click any step to edit</div>
+    <div class="li" style="color:#8a94a0">click any step to edit</div>
+    <div class="viewtoggle"><button class="${viewMode==='tracks'?'on':''}" onclick="setView('tracks')">Tracks</button><button class="${viewMode==='phases'?'on':''}" onclick="setView('phases')">Phases</button></div>
   </div>`;
 
-  html+=`<div class="flow">`;
   const cat=catalogFor(p.flags);
+  if(viewMode==='tracks'){
+    html+=tracksHtml(p);
+    if(selMs && cat.some(m=>m.id===selMs)) html+=detailHtml(p,CATALOG.find(x=>x.id===selMs));
+  }else{
+  html+=`<div class="flow">`;
   const bands=PHASES.map(ph=>({ph,items:cat.filter(m=>m.ph===ph.n)})).filter(b=>b.items.length);
   bands.forEach((b,i)=>{
     const nodes=b.items.map(m=>nodeHtml(p,m)).join('<span class="arr">›</span>');
@@ -430,15 +538,17 @@ function renderProject(){
     if(i<bands.length-1)html+=`<div class="vconn">▼</div>`;
   });
   html+=`</div>`;
+  }
 
   html+=`<details class="sys"><summary>§ Systems layer — where this lives &amp; build notes</summary>
-  <p><b>Where everything lives:</b> the <b>record</b> is the newest "TTV_Permit_State" doc in your Drive (republished on every change). This <b>board</b> is the ttv-permit-dashboard artifact in your desktop sidebar — a renderer of that record. The <b>listener</b> is a scheduled task (weekdays ~7:35am) that reads Gmail, updates the record, refreshes this board, and leaves a digest in your Gmail drafts. The <b>intel log</b> (inside the state doc) holds corrections awaiting Brian's approval.</p>
+  <p><b>Where everything lives:</b> the <b>record</b> is the newest "TTV_Permit_State" doc in Drive (republished on every change). This <b>board</b> renders that record: the listener POSTs fresh data to the TTV Permit Feed endpoint, which updates the Drive JSON this page fetches via <b>/api/permits</b> on every load. The <b>listener</b> is a scheduled task (weekdays ~7:30am) that reads Gmail, updates the record, publishes the board data, and leaves a digest in Brian's Gmail drafts. The <b>intel log</b> (inside the state doc) holds proposed catalog changes awaiting Brian's approval.</p>
   <p><b>The Dellinger address-stall fix:</b> Address Assignment at Mecklenburg County GIS publishes no SLA — on this board it's a Watch gate with a days-in-stage clock, an owner, and a due date, so "sitting" becomes visible and pingable.</p>
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v2</b> · Mecklenburg County / City of Charlotte · audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v3</b> · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
+  if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
 
 function selectMs(id){selMs=(selMs===id?null:id);renderProject();}
