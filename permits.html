@@ -393,15 +393,16 @@ function setView(v){viewMode=v;renderProject();}
 function blankState(f){const st={};catalogFor(f).forEach(m=>{st[m.id]={status:'todo',owner:m.owner,due:'',started:null};});return st;}
 
 function seed(){
-  /* Seeded from TTV_Permit_State (Drive) — real email evidence, Aug 10 2026. */
+  /* Seeded from TTV_Permit_State (Drive) — email-evidenced statuses only, corrected Aug 12 2026.
+     Provenance rule: nothing is 'done' here without a source email/doc in the state record. */
   const df={path:'sublot',demo:false,trees:true,state:false,acre:false};
   const ds=blankState(df);
-  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','prelim-sub','prelim-app','plat-prep','plans','bp-sub','bp-iss','stake','trades'].forEach(id=>{if(ds[id])ds[id].status='done';});
+  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','prelim-sub','prelim-app','plat-prep','plans'].forEach(id=>{if(ds[id])ds[id].status='done';});
   ds['plat-app'].status='done';ds['plat-app'].started='2026-07-03'; /* LDPLAT-2026-00501 approved 8/11 (Igor, Slate) — 39d in stage */
   ds['address'].status='submitted';ds['address'].started='2026-07-10';
-  ds['taps'].status='active';ds['taps'].started='2026-07-22';
-  ds['insp'].status='active';ds['insp'].started='2026-07-27';
-  ds['tree-prot'].status='active';ds['tree-prot'].started='2026-07-27';
+  /* bp-sub stays todo: Igor 5/18 — "Once we have the LDIRL approval, I will submit to the County."
+     Submission happens after plat records; no permit-issued email exists. */
+  ds['taps'].status='active';ds['taps'].started='2026-07-22'; /* Stegall/Slate taps-quote thread, 8/12 */
   PROJECTS.push({id:'p-dell',addr:'2723 Dellinger Dr (3 units)',flags:df,state:ds});
 
   const sf={path:'sublot',demo:false,trees:true,state:false,acre:false};
@@ -550,7 +551,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v3</b> · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v3.1</b> · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
