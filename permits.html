@@ -155,7 +155,7 @@
   .tlane{grid-auto-flow:row dense} /* same-column steps in a lane stack vertically instead of overlapping */
   .taxis>div{font-size:8.5px;color:#a9b0b8;font-weight:700;letter-spacing:.4px;border-left:1px dashed #eee3cf;padding:0 0 3px 6px}
   .taxis>div:first-child{border:none}
-  .tlane{position:relative;min-height:56px}
+  .tlane{position:relative;min-height:56px;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 117px,#f2ecdf 117px,#f2ecdf 118px);background-position:140px 0}
   .tlane + .tlane{border-top:1px dashed #efe8d8}
   .tlab{grid-row:1/-1;padding:9px 12px 9px 2px;position:sticky;left:0;background:var(--white);z-index:3}
   .tlab .b{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.8px;color:#fff;border-radius:3px;padding:1px 6px;margin-bottom:3px}
@@ -168,7 +168,7 @@
   .tcell.locked .node{opacity:.55;border-style:dashed;filter:grayscale(.35)}
   .tcell.locked .node .nt::before{content:"🔒 ";font-size:9px}
   .gdrop{position:absolute;width:2px;background:repeating-linear-gradient(to bottom,var(--red) 0 5px,transparent 5px 9px);z-index:2;pointer-events:none}
-  .gdrop::after{content:"unlocks ▼";position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
+  .gdrop::after{content:"plat → permit gate";position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
   #gate{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
   #gate .gcard{background:var(--cream);border-radius:14px;padding:34px 38px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   #gate img{width:64px;margin-bottom:12px}
@@ -340,12 +340,16 @@ function trackCols(p){
     start[id]=ds.length?Math.max(...ds.map(d=>start[d]+(byId[d].exp||7))):0;
   }
   cat.forEach(m=>calc(m.id,new Set()));
+  /* compact: drop column indices no milestone uses, so the grid never carries empty columns */
+  const used=[...new Set(Object.values(col))].sort((a,b)=>a-b), remap={};
+  used.forEach((c,i)=>remap[c]=i+1);
+  Object.keys(col).forEach(id=>col[id]=remap[col[id]]);
   return {col,start,byId,cat};
 }
 function tracksHtml(p){
   const {col,start,cat}=trackCols(p);
   const ncols=Math.max(...cat.map(m=>col[m.id]));
-  const gridCols=`140px repeat(${ncols},minmax(104px,1fr))`;
+  const gridCols=`140px repeat(${ncols},118px)`; /* fixed width: identical geometry on every project (same flags → same map) */
   /* indicative week label per column = earliest expected start among its milestones */
   const wk={};cat.forEach(m=>{const c=col[m.id];const w=Math.floor(start[m.id]/7)+1;wk[c]=wk[c]==null?w:Math.min(wk[c],w);});
   let axis=`<div class="taxis" style="grid-template-columns:${gridCols}"><div style="grid-column:1"></div>`;
