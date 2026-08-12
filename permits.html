@@ -258,7 +258,7 @@ const CATALOG=[
   {id:'plat-prep',ph:'E',t:'Final Plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.path!=='infill',dep:'prelim-app',note:null},
   {id:'plat-app',ph:'E',t:'Final Plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.path!=='infill',dep:'plat-prep',note:'Planning approves compliant plats within 30 days.'},
   {id:'plat-rec',ph:'E',t:'Plat RECORDED — per-unit PIDs',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.path!=='infill',dep:'plat-app',note:'HARD gate. Recorded plat (+ address) must exist before the County will permit.'},
-  {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,gate:true,crit:true,show:f=>f.path!=='infill',dep:f=>f.path!=='infill'?'plat-rec':null,note:'⚠ No published SLA ("as soon as possible") — chase actively. Fees 7/1/26: $50/parcel + $35/address, due at submission. Can run parallel with plat review (INTEL-004).'},
+  {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,gate:true,crit:true,show:f=>f.path!=='infill',dep:f=>f.path!=='infill'?'prelim-app':null,note:'⚠ No published SLA ("as soon as possible") — chase actively. Fees 7/1/26: $50/parcel + $35/address, due at submission. Per INTEL-004 (record-applied 8/10): files off the siteplan after Preliminary Plan approval, in PARALLEL with plat review (Dellinger: filed 7/10, County began 7/13). Earlier filing (before sublot survey, per Adam 8/12) is under review — decision pending 8/13 meeting.'},
   {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE (Gateway)',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:'dev-ldirl',note:'County rejects unstamped drawings.'},
   {id:'bp-sub',ph:'G',t:'Building permit + plan review',agency:'Meck Co Code Enforcement',portal:'Accela / RTAC-EPS',owner:'Adam',exp:12,show:()=>true,dep:f=>f.path!=='infill'?'address':'dev-ldirl',note:'Concurrent: building·elec·mech·plumb·FIRE·health·land dev. Target ~7d SF / ~12d TH.'},
   {id:'bp-iss',ph:'G',t:'Building permit ISSUED',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:3,gate:true,show:()=>true,dep:'bp-sub',note:'Required before vertical.'},
@@ -389,7 +389,7 @@ function renderProject(){
 
   const pathNotes={
     subdivision:'<b>Subdivision path.</b> New detached lots. Plat + LDIRL largely concurrent; hard gate = <b>recorded plat + address → County permit</b>.',
-    sublot:'<b>Sublot path.</b> Attached units → per-unit lots. <b>LDIRL first</b>, then the sublot plat records the per-unit PIDs.',
+    sublot:'<b>Sublot path — three tracks, not one line</b> (SOP-04). <b>A · Plat:</b> addresses → sublot survey w/ heritage trees → LDPLAT → City approval → RECORD. <b>B · First LDIRL</b> (parallel with A): plot plan → LDIRL doc → submit. <b>C · Permits</b> (gated by the recorded LDPLAT): permit LDIRL package → submit → build. The plot plan travels twice; recorded plat + addresses gate the County permit.',
     infill:'<b>Infill path.</b> One existing legal lot — no plat, no addressing, but the <b>LDIRL is still required</b>.'
   };
 
