@@ -241,7 +241,7 @@
       <div class="fgroup"><label>Scope flags</label>
         <div class="checks">
           <label class="chkrow"><input type="checkbox" id="f-demo"><span><span class="cn">Demolition included</span><div class="cx">Adds NESHAP asbestos + demo permit block.</div></span></label>
-          <label class="chkrow"><input type="checkbox" id="f-trees" checked><span><span class="cn">Trees to remove / heritage trees</span><div class="cx">Adds ROW determination + tree layer + tree permit.</div></span></label>
+          <label class="chkrow"><input type="checkbox" id="f-trees" checked><span><span class="cn">Trees to remove / heritage trees</span><div class="cx">Flags the tree layer on the first LDIRL/plat + adds TTV-owned tree protection during the build. Not separate permits.</div></span></label>
           <label class="chkrow"><input type="checkbox" id="f-state"><span><span class="cn">State-maintained road frontage</span><div class="cx">Adds NCDOT encroachment permit (silent staller).</div></span></label>
           <label class="chkrow"><input type="checkbox" id="f-acre"><span><span class="cn">Disturbs ≥ 1 acre</span><div class="cx">Adds Erosion &amp; Sediment Control permit + bond.</div></span></label>
         </div>
@@ -278,8 +278,7 @@ const PHASES=[
 ];
 const CATALOG=[
   {id:'route',ph:'A',t:'Path & scope set on this board',agency:'TTV Ops',portal:'—',owner:'Brian',exp:1,gate:true,show:()=>true,dep:null,note:'Routing decision: Subdivide? × Sublot? + demo/trees/state-road/acre flags. Everything below is generated from these answers.'},
-  {id:'row',ph:'A',t:'Urban Forestry ROW tree determination',agency:'Charlotte Urban Forestry',portal:'Phone → email',owner:'Adam',exp:7,show:f=>f.trees,dep:null,note:'SITUATIONAL (mtg 8/13): only when trees are questionable on the right-of-way line — and it happens DURING the boundary survey (they mark the determination; no formal revision). FREE. Get it in email.'},
-  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor (Whitehall / Carolina Geomatics)',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'ALWAYS FIRST (mtg 8/13) — the city requires it on every path, and it’s the base drawing every plat + LDIRL is built on.'},
+  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor (Whitehall / Carolina Geomatics)',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'ALWAYS FIRST — everything starts with the boundary survey (mtg 8/13); the city requires it on every path and it’s the base drawing every plat + LDIRL is built on. The Urban Forestry ROW tree determination happens AS PART OF this survey when trees are questionable on the right-of-way line (free — call UF, get the determination in email; the survey marks it).'},
   {id:'water-cap',ph:'A',t:'Charlotte Water flow test / capacity',agency:'Charlotte Water',portal:'CLTWater',owner:'Adam',exp:10,show:()=>true,dep:null,note:'Townhome / multi-unit driven; typically GC-run (Slate did Barrington’s unprompted). Fail = bigger pipe on your dime, or dead deal — keep tracking it (mtg 8/13).'},
   {id:'driveway',ph:'A',t:'Driveway: CDOT vs NCDOT',agency:'CDOT / NCDOT',portal:'—',owner:'Adam',exp:7,show:()=>true,dep:'survey',note:'Decides whether the NCDOT encroachment step applies.'},
   {id:'ncdot',ph:'A',t:'NCDOT driveway / encroachment permit',agency:'NCDOT',portal:'NCDOT Connect',owner:'Adam',exp:30,gate:true,crit:true,show:f=>f.state,dep:'driveway',note:'State-maintained frontage only. Slow + easy to forget.'},
@@ -289,9 +288,7 @@ const CATALOG=[
   {id:'disc',ph:'B',t:'Utility disconnects',agency:'CLT Water / Duke / Piedmont',portal:'Each utility',owner:'Adam',exp:14,show:f=>f.demo,dep:null,note:'Sewer cap + power/gas kill before demo mobilizes.'},
   {id:'demo-permit',ph:'B',t:'Demolition permit',agency:'Meck Co Code Enforcement',portal:'AccelaMeck',owner:'Adam',exp:10,gate:true,show:f=>f.demo,dep:'neshap',note:'Requires NESHAP form + zoning supplemental.'},
   {id:'demo-done',ph:'B',t:'Demolition complete',agency:'GC / demo contractor',portal:'—',owner:'Adam',exp:10,show:f=>f.demo,dep:'demo-permit',note:null},
-  {id:'her-ldirl',ph:'C',t:'Heritage trees on first submission',agency:'CLT Land Development / Urban Forestry',portal:'Accela',owner:'Adam',exp:5,show:f=>f.trees,dep:'survey',note:'There is no standalone "heritage tree LDIRL" (mtg 8/13) — the tree layer rides the FIRST submission you make (first LDIRL or first plat), and again on the sublot plat. Flat $1,500/heritage tree when developing; ROW trees $200/inch.'},
-  {id:'tree-rem',ph:'C',t:'Tree-removal permit',agency:'Charlotte Urban Forestry',portal:'Accela',owner:'Adam',exp:21,show:f=>f.trees,dep:'her-ldirl',note:'Site plan + tree survey + arborist report. 1–3 wks.'},
-  {id:'dev-ldirl',ph:'D',t:'LDIRL — zoning · stormwater · forestry',agency:'CLT Development Center',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'Anytime you build, you need an LDIRL (Wendell, 8/13). On SUBDIVISION paths it starts AFTER the recorded subdivision plat — reviewers need the approved plats. On sublot-only it can run in tandem with the sublot plat ("we did it backwards on Dellinger — you can do it in tandem"). Per lot on multi-lot subdivisions. ~$1,000 review fee. 3-day gateway + 7-day review (+7 if revised).'},
+  {id:'dev-ldirl',ph:'D',t:'LDIRL — zoning · stormwater · forestry · trees',agency:'CLT Development Center',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'Anytime you build, you need an LDIRL (Wendell, 8/13). ⚠ TREES ARE NOT A SEPARATE STEP: heritage-tree designation AND tree removal happen INSIDE this first submission (and ride the sublot plat again) — there is no standalone heritage-tree LDIRL or tree-removal permit. CONFIRM they’re included before it goes in. Tree fees: flat $1,500/heritage tree when developing; ROW trees $200/inch. On SUBDIVISION paths the LDIRL starts AFTER the recorded subdivision plat; on sublot-only it can run in tandem with the sublot plat. Per lot on multi-lot subdivisions. ~$1,000 review fee. 3-day gateway + 7-day review (+7 if revised).'},
   {id:'erosion',ph:'D',t:'Erosion & Sediment Control permit',agency:'CLT Erosion Control',portal:'Accela',owner:'Adam',exp:21,show:f=>f.acre,dep:'dev-ldirl',note:'Standalone approval + bond when disturbance ≥ 1 acre.'},
   {id:'subplat-prep',ph:'E',t:'Subdivision plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.subdiv,dep:'survey',note:'The prelim IS the final (mtg 8/13) — internal review only, then it gets submitted. Heritage trees can ride on it. ~$1,000.'},
   {id:'subplat-app',ph:'E',t:'Subdivision plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.subdiv,dep:'subplat-prep',note:'Planning approves compliant plats within 30 days.'},
@@ -350,12 +347,12 @@ let PROJECTS=[], selId=null, selMs=null, viewMode='tracks'; /* 'tracks' | 'phase
    honoring the HARD-gate note (recorded plat + address → County permit)
    without changing the catalog's data-level dependency. */
 const TRACKS=[
-  {key:'in', b:'#8a94a0', name:'Intake & parallel', d:'anytime — includes addresses (apply immediately)', ids:['route','row','survey','water-cap','driveway','ncdot','uw','address','plans'], pack:true},
+  {key:'in', b:'#8a94a0', name:'Intake · all parallel', d:'no order implied — survey kicks off first, addresses apply immediately', ids:['survey','address','water-cap','driveway','ncdot','uw'], pack:true},
   {key:'dm', b:'#7a5c3a', name:'Track D · Demolition', d:'only if tearing down', ids:['neshap','hist','disc','demo-permit','demo-done'], pack:true},
   {key:'a1', b:'#b9a06a', name:'Track A1 · Subdivision plat', d:'parent split — gates the per-lot work', ids:['subplat-prep','subplat-app','subplat-rec']},
   {key:'a',  b:'var(--slate)', name:'Track A · Sublot plat (LDPLAT)', d:'the long pole — gates Track C', ids:['plat-prep','plat-app','plat-rec']},
-  {key:'bt', b:'var(--pine)', name:'Track B · LDIRL & trees', d:'tandem on sublot-only; after A1 when subdividing', ids:['her-ldirl','tree-rem','dev-ldirl','erosion']},
-  {key:'c',  b:'var(--navy)', name:'Track C · Permits & build', d:'starts where the gate drops', ids:['bp-sub','bp-iss','stake','trades','taps','insp','tree-prot','final-insp','co','closeout']}
+  {key:'bt', b:'var(--pine)', name:'Track B · LDIRL', d:'trees ride INSIDE it — tandem on sublot-only; after A1 when subdividing', ids:['dev-ldirl','erosion']},
+  {key:'c',  b:'var(--navy)', name:'Track C · Permits & build', d:'starts where the gate drops', ids:['plans','bp-sub','bp-iss','stake','trades','taps','insp','tree-prot','final-insp','co','closeout']}
 ];
 function stagingDeps(m,p,byId){
   const d=resolveDep(m,p.flags); let ds=d?String(d).split('|').filter(id=>byId[id]):[];
@@ -431,7 +428,7 @@ function seed(){
      Provenance rule: nothing is 'done' here without a source in the state record. */
   const df=migrateFlags({subdiv:false,sublot:true,demo:false,trees:true,state:false,acre:false});
   const ds=blankState(df);
-  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','plat-prep','plans'].forEach(id=>{if(ds[id])ds[id].status='done';});
+  ['route','survey','water-cap','driveway','uw','dev-ldirl','plat-prep','plans'].forEach(id=>{if(ds[id])ds[id].status='done';});
   ds['plat-app'].status='done';ds['plat-app'].started='2026-07-03'; /* LDPLAT-2026-00501 approved 8/11 (Igor, Slate) */
   ds['address'].status='submitted';ds['address'].started='2026-07-10';
   ds['bp-sub'].status='submitted';ds['bp-sub'].started='2026-08-13';ds['bp-sub'].due='2026-08-27'; /* Igor applying, 3 permits (mtg 8/13) */
@@ -440,7 +437,7 @@ function seed(){
 
   const sf=migrateFlags({subdiv:false,sublot:true,demo:false,trees:true,state:false,acre:false});
   const ss=blankState(sf);
-  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','plat-prep','address'].forEach(id=>{if(ss[id])ss[id].status='done';});
+  ['route','survey','water-cap','driveway','uw','plat-prep','address'].forEach(id=>{if(ss[id])ss[id].status='done';});
   ss['address'].started='2026-08-05'; /* 3911 & 3915 assigned ~8/12 */
   ss['plat-app'].status='submitted';ss['plat-app'].started='2026-08-12';
   ss['dev-ldirl'].status='active';ss['dev-ldirl'].started='2026-08-13'; /* Josh @ Gateway engaged */
@@ -597,7 +594,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v4</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.1</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
