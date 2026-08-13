@@ -168,7 +168,15 @@
   .tcell.locked .node{opacity:.55;border-style:dashed;filter:grayscale(.35)}
   .tcell.locked .node .nt::before{content:"🔒 ";font-size:9px}
   .gdrop{position:absolute;width:2px;background:repeating-linear-gradient(to bottom,var(--red) 0 5px,transparent 5px 9px);z-index:2;pointer-events:none}
-  .gdrop::after{content:"plat → permit gate";position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
+  .gdrop::after{content:attr(data-lbl);position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
+  .unitchip{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.5px;color:#fff;background:var(--amber);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:1px}
+  .delbtn{margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:#9B3B2E;font-size:9.5px;font-weight:700;padding:3px 9px;cursor:pointer;font-family:inherit}
+  .delbtn:hover{background:#f8ecea;border-color:#9B3B2E}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translate(-50%,20px);background:var(--navy);color:#fff;font-size:11px;font-weight:700;padding:8px 16px;border-radius:8px;opacity:0;transition:.25s;z-index:99;pointer-events:none;max-width:80vw}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.bad{background:#9B3B2E}
+  .refin{width:130px}
+  .tag.both{background:#6b4f86;color:#fff}
   #gate{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
   #gate .gcard{background:var(--cream);border-radius:14px;padding:34px 38px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   #gate img{width:64px;margin-bottom:12px}
@@ -203,7 +211,7 @@
 
   <div class="main">
     <div class="topbar">
-      <div class="crumb">Mecklenburg County · City of Charlotte — v2 flow view</div>
+      <div class="crumb">Mecklenburg County · City of Charlotte — v4 · edits save for the whole team</div>
       <div class="ptitle" id="ptitle"></div>
     </div>
     <div class="content" id="content"></div>
@@ -214,21 +222,26 @@
   <div class="modal">
     <div class="modal-h">
       <h2>Start a project</h2>
-      <p>Enter the address and choose the path. The board builds the correct Mecklenburg milestone flow.</p>
+      <p>Two questions set the shape — Subdivide? Sublot? — and the board builds the correct Mecklenburg flow. Saved to the shared record for the whole team.</p>
     </div>
     <div class="modal-b">
       <div class="fgroup"><label>Property address</label><input type="text" id="f-addr" placeholder="e.g. 2723 Dellinger Dr, Charlotte NC"></div>
-      <div class="fgroup"><label>Which path is this going down?</label>
-        <div class="paths">
-          <div class="pathopt" data-path="subdivision" onclick="pickPath(this)"><div class="pon">Subdivision</div><div class="pox">Split into new detached lots. Plat → new PIDs.</div></div>
-          <div class="pathopt" data-path="sublot" onclick="pickPath(this)"><div class="pon">Sublot</div><div class="pox">Attached units → per-unit lots. LDIRL first.</div></div>
-          <div class="pathopt" data-path="infill" onclick="pickPath(this)"><div class="pon">Infill / neither</div><div class="pox">One existing legal lot. No land division.</div></div>
+      <div class="fgroup"><label>Land division — the two questions</label>
+        <div class="checks">
+          <label class="chkrow"><input type="checkbox" id="f-subdiv"><span><span class="cn">Subdivide first?</span><div class="cx">We're splitting the parent parcel into new lots (LD plat → recorded → per-lot work). Off if it's already subdivided when we buy.</div></span></label>
+          <label class="chkrow"><input type="checkbox" id="f-sublot"><span><span class="cn">Sublot?</span><div class="cx">Townhomes / per-unit lots — adds the sublot LD plat that gates building permits. Both off = infill (LDIRL → permits).</div></span></label>
+        </div>
+      </div>
+      <div class="fgroup"><label>Size</label>
+        <div class="checks" style="display:flex;gap:14px">
+          <label style="font-size:11px;font-weight:700">Units total <input type="number" id="f-units" value="1" min="1" style="width:60px"></label>
+          <label style="font-size:11px;font-weight:700">Lots (if subdividing) <input type="number" id="f-lots" value="1" min="1" style="width:60px"></label>
         </div>
       </div>
       <div class="fgroup"><label>Scope flags</label>
         <div class="checks">
           <label class="chkrow"><input type="checkbox" id="f-demo"><span><span class="cn">Demolition included</span><div class="cx">Adds NESHAP asbestos + demo permit block.</div></span></label>
-          <label class="chkrow"><input type="checkbox" id="f-trees" checked><span><span class="cn">Trees to remove / heritage trees</span><div class="cx">Adds ROW determination, Heritage LDIRL, tree permit.</div></span></label>
+          <label class="chkrow"><input type="checkbox" id="f-trees" checked><span><span class="cn">Trees to remove / heritage trees</span><div class="cx">Adds ROW determination + tree layer + tree permit.</div></span></label>
           <label class="chkrow"><input type="checkbox" id="f-state"><span><span class="cn">State-maintained road frontage</span><div class="cx">Adds NCDOT encroachment permit (silent staller).</div></span></label>
           <label class="chkrow"><input type="checkbox" id="f-acre"><span><span class="cn">Disturbs ≥ 1 acre</span><div class="cx">Adds Erosion &amp; Sediment Control permit + bond.</div></span></label>
         </div>
@@ -242,8 +255,10 @@
 </div>
 
 <script>
-/* TTV MECKLENBURG PERMITTING DASHBOARD — v2 flow view.
-   Renderer of TTV_Permit_State (Drive); republished by the Permit Listener. */
+/* TTV MECKLENBURG PERMITTING DASHBOARD — v4.
+   Renders TTV_Permit_State (Drive) and WRITES team edits back through
+   POST /api/permits → TTV Permit Feed (token held server-side on Vercel).
+   Flow shapes are generated from two setup questions: Subdivide? × Sublot?. */
 
 const STATUSES=[
   {k:'todo',label:'Not started'},{k:'active',label:'In progress'},
@@ -262,10 +277,10 @@ const PHASES=[
   {n:'I',name:'Close-out',d:'All paths'}
 ];
 const CATALOG=[
-  {id:'route',ph:'A',t:'Path & scope set on this board',agency:'TTV Ops',portal:'—',owner:'Brian',exp:1,gate:true,show:()=>true,dep:null,note:'Routing decision: path + demo + scope flags. Everything below is generated from this.'},
-  {id:'row',ph:'A',t:'Urban Forestry ROW tree determination',agency:'Charlotte Urban Forestry',portal:'Phone → email',owner:'Adam',exp:7,show:f=>f.trees,dep:null,note:'FREE. Get it in email before assuming any street tree can come out.'},
-  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor (Whitehall / Carolina Geomatics)',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'Base drawing every plat + LDIRL is built on.'},
-  {id:'water-cap',ph:'A',t:'Charlotte Water capacity check',agency:'Charlotte Water',portal:'CLTWater',owner:'Adam',exp:10,show:()=>true,dep:null,note:'Confirm receiving plant + uncommitted allocation.'},
+  {id:'route',ph:'A',t:'Path & scope set on this board',agency:'TTV Ops',portal:'—',owner:'Brian',exp:1,gate:true,show:()=>true,dep:null,note:'Routing decision: Subdivide? × Sublot? + demo/trees/state-road/acre flags. Everything below is generated from these answers.'},
+  {id:'row',ph:'A',t:'Urban Forestry ROW tree determination',agency:'Charlotte Urban Forestry',portal:'Phone → email',owner:'Adam',exp:7,show:f=>f.trees,dep:null,note:'SITUATIONAL (mtg 8/13): only when trees are questionable on the right-of-way line — and it happens DURING the boundary survey (they mark the determination; no formal revision). FREE. Get it in email.'},
+  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor (Whitehall / Carolina Geomatics)',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'ALWAYS FIRST (mtg 8/13) — the city requires it on every path, and it’s the base drawing every plat + LDIRL is built on.'},
+  {id:'water-cap',ph:'A',t:'Charlotte Water flow test / capacity',agency:'Charlotte Water',portal:'CLTWater',owner:'Adam',exp:10,show:()=>true,dep:null,note:'Townhome / multi-unit driven; typically GC-run (Slate did Barrington’s unprompted). Fail = bigger pipe on your dime, or dead deal — keep tracking it (mtg 8/13).'},
   {id:'driveway',ph:'A',t:'Driveway: CDOT vs NCDOT',agency:'CDOT / NCDOT',portal:'—',owner:'Adam',exp:7,show:()=>true,dep:'survey',note:'Decides whether the NCDOT encroachment step applies.'},
   {id:'ncdot',ph:'A',t:'NCDOT driveway / encroachment permit',agency:'NCDOT',portal:'NCDOT Connect',owner:'Adam',exp:30,gate:true,crit:true,show:f=>f.state,dep:'driveway',note:'State-maintained frontage only. Slow + easy to forget.'},
   {id:'uw',ph:'A',t:'Costs loaded into underwrite',agency:'TTV',portal:'Calculator',owner:'Brian',exp:3,show:()=>true,dep:null,note:'Tree + site work are Slate exclusions — required intake field.'},
@@ -274,26 +289,27 @@ const CATALOG=[
   {id:'disc',ph:'B',t:'Utility disconnects',agency:'CLT Water / Duke / Piedmont',portal:'Each utility',owner:'Adam',exp:14,show:f=>f.demo,dep:null,note:'Sewer cap + power/gas kill before demo mobilizes.'},
   {id:'demo-permit',ph:'B',t:'Demolition permit',agency:'Meck Co Code Enforcement',portal:'AccelaMeck',owner:'Adam',exp:10,gate:true,show:f=>f.demo,dep:'neshap',note:'Requires NESHAP form + zoning supplemental.'},
   {id:'demo-done',ph:'B',t:'Demolition complete',agency:'GC / demo contractor',portal:'—',owner:'Adam',exp:10,show:f=>f.demo,dep:'demo-permit',note:null},
-  {id:'her-ldirl',ph:'C',t:'Heritage Tree LDIRL approved',agency:'CLT Land Development',portal:'Accela',owner:'Adam',exp:15,gate:true,show:f=>f.trees,dep:'survey',note:'Must be approved BEFORE the Development LDIRL.'},
+  {id:'her-ldirl',ph:'C',t:'Heritage trees on first submission',agency:'CLT Land Development / Urban Forestry',portal:'Accela',owner:'Adam',exp:5,show:f=>f.trees,dep:'survey',note:'There is no standalone "heritage tree LDIRL" (mtg 8/13) — the tree layer rides the FIRST submission you make (first LDIRL or first plat), and again on the sublot plat. Flat $1,500/heritage tree when developing; ROW trees $200/inch.'},
   {id:'tree-rem',ph:'C',t:'Tree-removal permit',agency:'Charlotte Urban Forestry',portal:'Accela',owner:'Adam',exp:21,show:f=>f.trees,dep:'her-ldirl',note:'Site plan + tree survey + arborist report. 1–3 wks.'},
-  {id:'dev-ldirl',ph:'D',t:'Development LDIRL approved',agency:'CLT Development Center (zoning·stormwater·forestry·CDOT)',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,dep:f=>f.trees?'her-ldirl':'survey',note:'Land Development Individual Residential Lot review. 3-day gateway + 7-day review (+7 if revised).'},
+  {id:'dev-ldirl',ph:'D',t:'LDIRL — zoning · stormwater · forestry',agency:'CLT Development Center',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'Anytime you build, you need an LDIRL (Wendell, 8/13). On SUBDIVISION paths it starts AFTER the recorded subdivision plat — reviewers need the approved plats. On sublot-only it can run in tandem with the sublot plat ("we did it backwards on Dellinger — you can do it in tandem"). Per lot on multi-lot subdivisions. ~$1,000 review fee. 3-day gateway + 7-day review (+7 if revised).'},
   {id:'erosion',ph:'D',t:'Erosion & Sediment Control permit',agency:'CLT Erosion Control',portal:'Accela',owner:'Adam',exp:21,show:f=>f.acre,dep:'dev-ldirl',note:'Standalone approval + bond when disturbance ≥ 1 acre.'},
-  {id:'prelim-sub',ph:'E',t:'Preliminary Plan submitted',agency:'CLT Planning (UDO Art. 30)',portal:'Accela',owner:'Adam',exp:5,show:f=>f.path!=='infill',dep:f=>f.path==='sublot'?'dev-ldirl':'survey',note:null},
-  {id:'prelim-app',ph:'E',t:'Preliminary Plan approved',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.path!=='infill',dep:'prelim-sub',note:'30-day initial review; valid 3 years.'},
-  {id:'plat-prep',ph:'E',t:'Final Plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.path!=='infill',dep:'prelim-app',note:null},
-  {id:'plat-app',ph:'E',t:'Final Plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.path!=='infill',dep:'plat-prep',note:'Planning approves compliant plats within 30 days.'},
-  {id:'plat-rec',ph:'E',t:'Plat RECORDED — per-unit PIDs',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.path!=='infill',dep:'plat-app',note:'HARD gate. Recorded plat (+ address) must exist before the County will permit.'},
-  {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,gate:true,crit:true,show:f=>f.path!=='infill',dep:f=>f.path!=='infill'?'prelim-app':null,note:'⚠ No published SLA ("as soon as possible") — chase actively. Fees 7/1/26: $50/parcel + $35/address, due at submission. Per INTEL-004 (record-applied 8/10): files off the siteplan after Preliminary Plan approval, in PARALLEL with plat review (Dellinger: filed 7/10, County began 7/13). Earlier filing (before sublot survey, per Adam 8/12) is under review — decision pending 8/13 meeting.'},
-  {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE (Gateway)',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:'dev-ldirl',note:'County rejects unstamped drawings.'},
-  {id:'bp-sub',ph:'G',t:'Building permit + plan review',agency:'Meck Co Code Enforcement',portal:'Accela / RTAC-EPS',owner:'Adam',exp:12,show:()=>true,dep:f=>f.path!=='infill'?'address':'dev-ldirl',note:'Concurrent: building·elec·mech·plumb·FIRE·health·land dev. Target ~7d SF / ~12d TH.'},
-  {id:'bp-iss',ph:'G',t:'Building permit ISSUED',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:3,gate:true,show:()=>true,dep:'bp-sub',note:'Required before vertical.'},
+  {id:'subplat-prep',ph:'E',t:'Subdivision plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.subdiv,dep:'survey',note:'The prelim IS the final (mtg 8/13) — internal review only, then it gets submitted. Heritage trees can ride on it. ~$1,000.'},
+  {id:'subplat-app',ph:'E',t:'Subdivision plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.subdiv,dep:'subplat-prep',note:'Planning approves compliant plats within 30 days.'},
+  {id:'subplat-rec',ph:'E',t:'Subdivision plat RECORDED — new lots exist',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.subdiv,dep:'subplat-app',note:'HARD gate on subdivision paths: the recorded parent plat unlocks the per-lot LDIRLs and sublot plats.'},
+  {id:'plat-prep',ph:'E',t:'Sublot plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.sublot,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'The prelim IS the final (mtg 8/13) — no separate preliminary submission. Per lot on subdivision+sublot deals.'},
+  {id:'plat-app',ph:'E',t:'Sublot plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.sublot,perLot:true,dep:'plat-prep',note:'Planning approves compliant plats within 30 days. Addressing re-reviews here and ATTACHES the addresses to the sublots in GIS (second addressing pass).'},
+  {id:'plat-rec',ph:'E',t:'Sublot plat RECORDED — per-unit PIDs',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.sublot,perLot:true,dep:'plat-app',note:'HARD gate. Recorded plat (+ address) must exist before the County will permit.'},
+  {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,crit:true,show:f=>f.subdiv||f.sublot,dep:null,note:'Apply IMMEDIATELY — no survey, plat, or sublot plan needed ("like buying phone numbers", mtg 8/13; closes INTEL-004/005). $50/parcel + $35/address ($85). Addresses aren’t "real" until the sublot-plat review attaches them in GIS. Empirical SLA: ~7 days (Sarah Dr, 8/5→8/12); Dellinger’s 33d was the outlier — still a Watch.'},
+  {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE (Gateway)',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:null,note:'County rejects unstamped drawings. Can start anytime; the LDIRL submission needs them.'},
+  {id:'bp-sub',ph:'G',t:'Building permits submitted — per unit',agency:'Meck Co Code Enforcement',portal:'Accela / RTAC-EPS',owner:'Adam',exp:12,show:()=>true,perUnit:true,dep:f=>f.sublot?'plat-rec':'dev-ldirl',note:'ONE PERMIT PER UNIT (mtg 8/13 — Dellinger = 3). Can be submitted WITH the recorded sublot plat while the LDIRL is still in review — the County holds it in queue, saves days. Fee: $1,662.37 base + $5.05 per $1,000 of construction value over $250K (~$5.5–6K per $1M). Concurrent: building·elec·mech·plumb·FIRE·health·land dev.'},
+  {id:'bp-iss',ph:'G',t:'Building permits ISSUED',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:3,gate:true,show:()=>true,perUnit:true,dep:'bp-sub',note:'Required before vertical. Draw unlocks at break-ground.'},
   {id:'stake',ph:'H',t:'Stakeout & foundation survey',agency:'Surveyor / GC',portal:'Vendor',owner:'Adam',exp:7,show:()=>true,dep:'bp-iss',note:null},
-  {id:'trades',ph:'H',t:'Trade permits pulled',agency:'Licensed trades',portal:'TIP',owner:'Adam',exp:3,show:()=>true,dep:'bp-iss',note:'Instant online via Trade Internet Permitting.'},
+  {id:'trades',ph:'H',t:'Trade permits pulled',agency:'Licensed trades',portal:'TIP',owner:'Adam',exp:3,show:()=>true,perUnit:true,dep:'bp-iss',note:'Instant online via Trade Internet Permitting. Per unit.'},
   {id:'taps',ph:'H',t:'Water / sewer taps & meters',agency:'Charlotte Water / contractor',portal:'CLTWater',owner:'Adam',exp:30,show:()=>true,dep:'bp-iss',note:'Contractor install can beat CLT pricing (Dellinger saved ~$7–8K).'},
   {id:'insp',ph:'H',t:'Construction inspections',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'GC',exp:120,show:()=>true,dep:'stake',note:null},
   {id:'tree-prot',ph:'H',t:'Tree protection (TTV-owned)',agency:'TTV',portal:'—',owner:'Adam',exp:120,show:f=>f.trees,dep:'bp-iss',note:'Slate exclusion — TTV owns fencing/protection through the build.'},
   {id:'final-insp',ph:'I',t:'Final inspections passed',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'GC',exp:14,show:()=>true,dep:'insp',note:null},
-  {id:'co',ph:'I',t:'Certificate of Occupancy',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:7,gate:true,show:()=>true,dep:'final-insp',note:'May be held by an Urban Forestry release inspection (327 Whispering, Jun 26).'},
+  {id:'co',ph:'I',t:'Certificate of Occupancy',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:7,gate:true,show:()=>true,perUnit:true,dep:'final-insp',note:'Per unit. May be held by an Urban Forestry release inspection (327 Whispering, Jun 26).'},
   {id:'closeout',ph:'I',t:'Warranty / close-out package',agency:'TTV',portal:'—',owner:'Brian',exp:7,show:()=>true,dep:'co',note:null}
 ];
 
@@ -306,6 +322,25 @@ function daysBetween(a,b){return Math.round((a-b)/86400000);}
 function resolveDep(m,f){return typeof m.dep==='function'?m.dep(f):m.dep;}
 function catalogFor(f){return CATALOG.filter(m=>m.show(f));}
 
+/* v4 flag model: two independent setup questions — Subdivide? × Sublot? — plus scope flags.
+   migrateFlags() maps legacy payloads (path:'sublot'|'subdivision'|'infill', parentSub) onto it,
+   and derives f.path as a display label so old CSS tags keep working. */
+function migrateFlags(f){
+  if(f.subdiv==null&&f.sublot==null){
+    f.subdiv=f.path==='subdivision'||!!f.parentSub;
+    f.sublot=f.path==='sublot';
+  }
+  f.subdiv=!!f.subdiv;f.sublot=!!f.sublot;
+  f.path=f.subdiv&&f.sublot?'both':f.subdiv?'subdivision':f.sublot?'sublot':'infill';
+  return f;
+}
+/* Old payloads won't have state entries for new catalog ids (subplat-*) — backfill as todo. */
+function fixState(p){
+  migrateFlags(p.flags);
+  catalogFor(p.flags).forEach(m=>{if(!p.state[m.id])p.state[m.id]={status:'todo',owner:m.owner,due:'',started:null};});
+  return p;
+}
+
 let PROJECTS=[], selId=null, selMs=null, viewMode='tracks'; /* 'tracks' | 'phases' — in-memory only (no new storage keys per AGENTS.md) */
 
 /* ── tracks view engine (v3) ─────────────────────────────────────────────
@@ -315,16 +350,16 @@ let PROJECTS=[], selId=null, selMs=null, viewMode='tracks'; /* 'tracks' | 'phase
    honoring the HARD-gate note (recorded plat + address → County permit)
    without changing the catalog's data-level dependency. */
 const TRACKS=[
-  {key:'t0', b:'#b9b1a2', name:'Track 0 · Parent subdivision', d:'only if subdividing first', ids:[]},
-  {key:'in', b:'#8a94a0', name:'Intake & feasibility', d:'before / during the offer — parallel, not staged', ids:['route','row','survey','water-cap','driveway','ncdot','uw'], pack:true},
+  {key:'in', b:'#8a94a0', name:'Intake & parallel', d:'anytime — includes addresses (apply immediately)', ids:['route','row','survey','water-cap','driveway','ncdot','uw','address','plans'], pack:true},
   {key:'dm', b:'#7a5c3a', name:'Track D · Demolition', d:'only if tearing down', ids:['neshap','hist','disc','demo-permit','demo-done'], pack:true},
-  {key:'a',  b:'var(--slate)', name:'Track A · The Plat (LDPLAT)', d:'the long pole — gates Track C', ids:['prelim-sub','prelim-app','plat-prep','plat-app','plat-rec','address']},
-  {key:'bt', b:'var(--pine)', name:'Track B · LDIRL & trees', d:'runs parallel with A', ids:['her-ldirl','tree-rem','dev-ldirl','erosion']},
-  {key:'c',  b:'var(--navy)', name:'Track C · Permits & build', d:'starts where A’s gate drops', ids:['plans','bp-sub','bp-iss','stake','trades','taps','insp','tree-prot','final-insp','co','closeout']}
+  {key:'a1', b:'#b9a06a', name:'Track A1 · Subdivision plat', d:'parent split — gates the per-lot work', ids:['subplat-prep','subplat-app','subplat-rec']},
+  {key:'a',  b:'var(--slate)', name:'Track A · Sublot plat (LDPLAT)', d:'the long pole — gates Track C', ids:['plat-prep','plat-app','plat-rec']},
+  {key:'bt', b:'var(--pine)', name:'Track B · LDIRL & trees', d:'tandem on sublot-only; after A1 when subdividing', ids:['her-ldirl','tree-rem','dev-ldirl','erosion']},
+  {key:'c',  b:'var(--navy)', name:'Track C · Permits & build', d:'starts where the gate drops', ids:['bp-sub','bp-iss','stake','trades','taps','insp','tree-prot','final-insp','co','closeout']}
 ];
 function stagingDeps(m,p,byId){
   const d=resolveDep(m,p.flags); let ds=d?String(d).split('|').filter(id=>byId[id]):[];
-  if(m.id==='bp-sub' && p.flags.path!=='infill' && byId['plat-rec']) ds=[...new Set([...ds,'plat-rec'])];
+  if(m.id==='bp-sub' && p.flags.sublot && byId['plat-rec']) ds=[...new Set([...ds,'plat-rec'])];
   return ds;
 }
 function trackCols(p){
@@ -357,11 +392,6 @@ function tracksHtml(p){
   axis+=`</div>`;
   let lanes='';
   TRACKS.forEach(tr=>{
-    if(tr.key==='t0'){
-      if(!p.flags.parentSub)return; /* hidden unless the project is carved from a parent subdivision */
-      lanes+=`<div class="tlane" style="grid-template-columns:${gridCols}"><div class="tlab" style="grid-column:1"><span class="b" style="background:${tr.b}">TRACK 0</span><div class="l">Parent subdivision</div><div class="d">recorded before this flow begins</div></div><div class="tcell" style="grid-column:2/span 2"><div class="node st-done"><div class="nt">Parent plat recorded</div><div class="nm">tracked on the parent project</div></div></div></div>`;
-      return;
-    }
     const ms=tr.ids.map(id=>cat.find(m=>m.id===id)).filter(Boolean);
     if(!ms.length)return; /* lanes with nothing visible for this path/flags are hidden */
     const byId=Object.fromEntries(cat.map(x=>[x.id,x]));
@@ -379,39 +409,48 @@ function tracksHtml(p){
 }
 function drawGateDrop(){
   const grid=document.getElementById('tgrid');if(!grid)return;
-  const from=grid.querySelector('[data-ms="plat-rec"]'),to=grid.querySelector('[data-ms="bp-sub"]');
-  if(!from||!to)return;
-  const g=grid.getBoundingClientRect(),f=from.getBoundingClientRect(),t=to.getBoundingClientRect();
-  const d=document.createElement('div');d.className='gdrop';
-  d.style.left=(f.left-g.left+f.width/2)+'px';
-  d.style.top=(f.bottom-g.top-4)+'px';
-  d.style.height=Math.max(20,(t.top-g.top)-(f.bottom-g.top)+10)+'px';
-  grid.appendChild(d);
+  /* one drop per hard gate that actually exists on this project's map */
+  [['plat-rec','bp-sub','plat → permit gate'],['subplat-rec','dev-ldirl','subdivision → per-lot gate']].forEach(([a,b,lbl])=>{
+    const from=grid.querySelector(`[data-ms="${a}"]`),to=grid.querySelector(`[data-ms="${b}"]`);
+    if(!from||!to)return;
+    const g=grid.getBoundingClientRect(),f=from.getBoundingClientRect(),t=to.getBoundingClientRect();
+    if(t.top<=f.bottom)return; /* only draw downward drops */
+    const d=document.createElement('div');d.className='gdrop';d.setAttribute('data-lbl',lbl);
+    d.style.left=(f.left-g.left+f.width/2)+'px';
+    d.style.top=(f.bottom-g.top-4)+'px';
+    d.style.height=Math.max(20,(t.top-g.top)-(f.bottom-g.top)+10)+'px';
+    grid.appendChild(d);
+  });
 }
 function setView(v){viewMode=v;renderProject();}
 
 function blankState(f){const st={};catalogFor(f).forEach(m=>{st[m.id]={status:'todo',owner:m.owner,due:'',started:null};});return st;}
 
 function seed(){
-  /* Seeded from TTV_Permit_State (Drive) — email-evidenced statuses only, corrected Aug 12 2026.
-     Provenance rule: nothing is 'done' here without a source email/doc in the state record. */
-  const df={path:'sublot',demo:false,trees:true,state:false,acre:false};
+  /* Offline fallback snapshot — email/meeting-evidenced statuses only, refreshed Aug 13 2026.
+     Provenance rule: nothing is 'done' here without a source in the state record. */
+  const df=migrateFlags({subdiv:false,sublot:true,demo:false,trees:true,state:false,acre:false});
   const ds=blankState(df);
-  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','prelim-sub','prelim-app','plat-prep','plans'].forEach(id=>{if(ds[id])ds[id].status='done';});
-  ds['plat-app'].status='done';ds['plat-app'].started='2026-07-03'; /* LDPLAT-2026-00501 approved 8/11 (Igor, Slate) — 39d in stage */
+  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','plat-prep','plans'].forEach(id=>{if(ds[id])ds[id].status='done';});
+  ds['plat-app'].status='done';ds['plat-app'].started='2026-07-03'; /* LDPLAT-2026-00501 approved 8/11 (Igor, Slate) */
   ds['address'].status='submitted';ds['address'].started='2026-07-10';
-  /* bp-sub stays todo: Igor 5/18 — "Once we have the LDIRL approval, I will submit to the County."
-     Submission happens after plat records; no permit-issued email exists. */
-  ds['taps'].status='active';ds['taps'].started='2026-07-22'; /* Stegall/Slate taps-quote thread, 8/12 */
-  PROJECTS.push({id:'p-dell',addr:'2723 Dellinger Dr (3 units)',flags:df,state:ds});
+  ds['bp-sub'].status='submitted';ds['bp-sub'].started='2026-08-13';ds['bp-sub'].due='2026-08-27'; /* Igor applying, 3 permits (mtg 8/13) */
+  ds['taps'].status='active';ds['taps'].started='2026-07-22'; /* Stegall/Slate taps thread, 8/12 */
+  PROJECTS.push({id:'p-dell',addr:'2723 Dellinger Dr (3 units)',flags:df,units:3,state:ds});
 
-  const sf={path:'sublot',demo:false,trees:true,state:false,acre:false};
+  const sf=migrateFlags({subdiv:false,sublot:true,demo:false,trees:true,state:false,acre:false});
   const ss=blankState(sf);
-  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','dev-ldirl','prelim-sub'].forEach(id=>{if(ss[id])ss[id].status='done';});
-  ss['prelim-app'].status='submitted';ss['prelim-app'].started='2026-07-30';
-  ss['plat-prep'].status='active';ss['plat-prep'].started='2026-07-28';
+  ['route','row','survey','water-cap','driveway','uw','her-ldirl','tree-rem','plat-prep','address'].forEach(id=>{if(ss[id])ss[id].status='done';});
+  ss['address'].started='2026-08-05'; /* 3911 & 3915 assigned ~8/12 */
+  ss['plat-app'].status='submitted';ss['plat-app'].started='2026-08-12';
+  ss['dev-ldirl'].status='active';ss['dev-ldirl'].started='2026-08-13'; /* Josh @ Gateway engaged */
   ss['plans'].status='active';ss['plans'].started='2026-07-24';
-  PROJECTS.push({id:'p-sarah',addr:'3913 Sarah Dr (Duet, 2 units)',flags:sf,state:ss});
+  PROJECTS.push({id:'p-sarah',addr:'3913 Sarah Dr (Duet, 2 units)',flags:sf,units:2,state:ss});
+
+  const lf=migrateFlags({subdiv:true,sublot:true,demo:false,trees:true,state:false,acre:false});
+  const ls=blankState(lf);
+  ls['uw'].status='done';
+  PROJECTS.push({id:'p-lebanon',addr:'4916 Lebanon Rd (subdivide → 3 lots)',flags:lf,units:9,lots:3,state:ls});
 
   selId='p-dell';
 }
@@ -461,9 +500,13 @@ function nodeHtml(p,m){
     else badge=`<span class="agebadge ok">${a.age}d</span>`;
   }
   let pd='';if(c.due&&c.status!=='done'&&pdate(c.due)<today)pd=`<span class="agebadge stuck">past due</span>`;
+  let mult='';
+  if(m.perUnit&&(p.units||0)>1)mult=`<span class="unitchip">×${p.units}</span>`;
+  else if(m.perLot&&(p.lots||0)>1)mult=`<span class="unitchip">×${p.lots}</span>`;
+  const ref=c.ref?` <span class="nm" style="color:var(--slate);font-weight:700">${esc(c.ref)}</span>`:'';
   return `<div class="node st-${c.status} ${m.gate?'gate':''} ${selMs===m.id?'msSel':''}" onclick="selectMs('${m.id}')">
-    <div class="nt">${m.t}</div>
-    <div class="nm">${m.agency}</div>
+    <div class="nt">${m.t}${mult}</div>
+    <div class="nm">${m.agency}${ref}</div>
     <div class="nb">${m.gate?'<span class="gatechip">Gate</span>':''}${m.crit?'<span class="critchip">Watch</span>':''}${badge}${pd}</div>
   </div>`;
 }
@@ -483,6 +526,7 @@ function detailHtml(p,m){
       <div class="cg"><label>Status</label><select onchange="setStatus('${p.id}','${m.id}',this.value)">${opts}</select></div>
       <div class="cg"><label>Owner</label><input type="text" style="width:120px" value="${esc(c.owner||'')}" onchange="setField('${p.id}','${m.id}','owner',this.value)"></div>
       <div class="cg"><label>Due date</label><input type="date" value="${c.due||''}" onchange="setField('${p.id}','${m.id}','due',this.value)"></div>
+      <div class="cg"><label>Ref # (LDIRL / LDPLAT / permit)</label><input type="text" class="refin" value="${esc(c.ref||'')}" placeholder="e.g. LDIRL-2026-02598" onchange="setField('${p.id}','${m.id}','ref',this.value)"></div>
     </div>
   </div>`;
 }
@@ -492,21 +536,22 @@ function renderProject(){
   const title=document.getElementById('ptitle'),content=document.getElementById('content');
   if(!p){title.innerHTML='<h1>Select a project</h1>';content.innerHTML='';return;}
   const s=projStats(p);
-  const pathLabel={subdivision:'Subdivision',sublot:'Sublot',infill:'Infill / neither'}[p.flags.path];
-  title.innerHTML=`<h1>${esc(p.addr)}</h1><span class="tag ${p.flags.path}">${pathLabel}</span>${p.flags.demo?'<span class="tag" style="background:#7a5c3a;color:#fff">demo</span>':''}`;
+  const pathLabel={subdivision:'Subdivide',sublot:'Sublot',both:'Subdivide + sublot',infill:'Infill / neither'}[p.flags.path];
+  title.innerHTML=`<h1>${esc(p.addr)}</h1><span class="tag ${p.flags.path}">${pathLabel}</span>${(p.units||0)>1?`<span class="tag" style="background:var(--amber);color:#fff">${p.units} units</span>`:''}${p.flags.demo?'<span class="tag" style="background:#7a5c3a;color:#fff">demo</span>':''}<button class="delbtn" onclick="deleteProject('${p.id}')" title="Remove this project from the shared board">🗑 remove project</button>`;
 
   const pathNotes={
-    subdivision:'<b>Subdivision path.</b> New detached lots. Plat + LDIRL largely concurrent; hard gate = <b>recorded plat + address → County permit</b>.',
-    sublot:'<b>Sublot path — three tracks, not one line</b> (SOP-04). <b>A · Plat:</b> addresses → sublot survey w/ heritage trees → LDPLAT → City approval → RECORD. <b>B · First LDIRL</b> (parallel with A): plot plan → LDIRL doc → submit. <b>C · Permits</b> (gated by the recorded LDPLAT): permit LDIRL package → submit → build. The plot plan travels twice; recorded plat + addresses gate the County permit.',
-    infill:'<b>Infill path.</b> One existing legal lot — no plat, no addressing, but the <b>LDIRL is still required</b>.'
+    subdivision:'<b>Subdivide-only.</b> Boundary survey → subdivision LD plat (trees can ride on it) → <b>RECORDED = the gate</b> → then per-lot LDIRL → building permits. The LDIRL starts after the recorded plat on this path (Whispering pattern).',
+    sublot:'<b>Sublot-only — three tracks</b> (SOP-04; Dellinger/Sarah pattern — bought already-subdivided). <b>A · Sublot plat</b> gates permits at RECORDED. <b>B · LDIRL</b> can run in tandem with A on this path. <b>C · Permits</b> — per unit; submit with the recorded plat even while the LDIRL is in review.',
+    both:'<b>Subdivide + sublot</b> (Lebanon pattern). <b>A1 · Subdivision plat</b> → RECORDED unlocks the per-lot work → <b>B · LDIRL ×lots</b> and <b>A · sublot plats ×lots</b> in tandem → <b>C · permits per unit</b> (lots × units). One project, N parallel per-lot flows.',
+    infill:'<b>Infill.</b> One existing legal lot — boundary survey (always), one LDIRL carrying everything (zoning · stormwater · forestry), then permits. Simplest path.'
   };
 
   let html='';
   const srcNote = DATA_META.loading
     ? `⏳ <b>Loading live data…</b> showing the built-in snapshot while <b>/api/permits</b> answers.`
     : DATA_META.live
-      ? `🔄 <b>Live data</b> — loaded from <b>TTV_Permit_State</b> (Drive) via /api/permits${DATA_META.updated?`, updated ${esc(String(DATA_META.updated).slice(0,10))}`:''}. Refreshed each weekday by the Permit Listener from Gmail. Edits here are what-if; real changes go through the Listener or by telling Claude.`
-      : `⚠ <b>Offline snapshot</b> — /api/permits unreachable (${esc(DATA_META.error||'unknown')}); showing the last snapshot baked into this page. Reload to retry.`;
+      ? `🔄 <b>Live shared data</b> — from <b>TTV_Permit_State</b> (Drive) via /api/permits${DATA_META.updated?`, updated ${esc(String(DATA_META.updated).slice(0,10))}`:''}. <b>Edits here SAVE for the whole team</b> (your name goes on the edit log); the Permit Listener reconciles them with email evidence each weekday morning.`
+      : `⚠ <b>Offline snapshot</b> — /api/permits unreachable (${esc(DATA_META.error||'unknown')}); showing the last baked-in snapshot. Edits will NOT save until the API is back. Reload to retry.`;
   html+=`<div class="banner">${srcNote}</div>`;
   html+=`<div class="pathnote">${pathNotes[p.flags.path]}</div>`;
   html+=`<div class="kstrip">
@@ -547,11 +592,12 @@ function renderProject(){
 
   html+=`<details class="sys"><summary>§ Systems layer — where this lives &amp; build notes</summary>
   <p><b>Where everything lives:</b> the <b>record</b> is the newest "TTV_Permit_State" doc in Drive (republished on every change). This <b>board</b> renders that record: the listener POSTs fresh data to the TTV Permit Feed endpoint, which updates the Drive JSON this page fetches via <b>/api/permits</b> on every load. The <b>listener</b> is a scheduled task (weekdays ~7:30am) that reads Gmail, updates the record, publishes the board data, and leaves a digest in Brian's Gmail drafts. The <b>intel log</b> (inside the state doc) holds proposed catalog changes awaiting Brian's approval.</p>
+  <p><b>Team edits (v4):</b> status/owner/due/ref changes, new projects, and deletions save through <b>POST /api/permits</b> — the proxy holds the feed's write token as a server-side secret and patches the Drive JSON in place, so edits stick for everyone with no git and no deploys. Every edit is tagged with the editor's name; the Listener adopts overnight edits into the system of record and flags any that contradict email evidence instead of silently overwriting.</p>
   <p><b>The Dellinger address-stall fix:</b> Address Assignment at Mecklenburg County GIS publishes no SLA — on this board it's a Watch gate with a days-in-stage clock, an owner, and a due date, so "sitting" becomes visible and pingable.</p>
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v3.1</b> · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
@@ -562,26 +608,70 @@ function setStatus(pid,mid,val){
   if((val==='active'||val==='submitted')&&!c.started)c.started=fmtDate(today);
   if(val==='todo')c.started=null;
   c.status=val;render();
+  saveState({op:'setMilestone',projectId:pid,milestoneId:mid,changes:{...c}});
 }
-function setField(pid,mid,field,val){PROJECTS.find(x=>x.id===pid).state[mid][field]=val;render();}
+function setField(pid,mid,field,val){
+  const c=PROJECTS.find(x=>x.id===pid).state[mid];c[field]=val;render();
+  saveState({op:'setMilestone',projectId:pid,milestoneId:mid,changes:{...c}});
+}
 
-let newPath=null;
 function openNew(){document.getElementById('overlay').classList.add('show');}
 function closeNew(){document.getElementById('overlay').classList.remove('show');}
-function pickPath(el){newPath=el.dataset.path;document.querySelectorAll('.pathopt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
 function createProject(){
   const addr=document.getElementById('f-addr').value.trim()||'Untitled parcel';
-  if(!newPath){alert('Pick a path first.');return;}
-  const flags={path:newPath,demo:document.getElementById('f-demo').checked,trees:document.getElementById('f-trees').checked,state:document.getElementById('f-state').checked,acre:document.getElementById('f-acre').checked};
+  const flags=migrateFlags({
+    subdiv:document.getElementById('f-subdiv').checked,
+    sublot:document.getElementById('f-sublot').checked,
+    demo:document.getElementById('f-demo').checked,trees:document.getElementById('f-trees').checked,
+    state:document.getElementById('f-state').checked,acre:document.getElementById('f-acre').checked});
+  const units=Math.max(1,parseInt(document.getElementById('f-units').value,10)||1);
+  const lots=Math.max(1,parseInt(document.getElementById('f-lots').value,10)||1);
   const st=blankState(flags);st['route'].status='done';
   const id='p-'+Math.abs(hash(addr+PROJECTS.length));
-  PROJECTS.push({id,addr,flags,state:st});
-  selId=id;selMs=null;newPath=null;
+  const proj={id,addr,flags,units,lots,state:st};
+  PROJECTS.push(proj);
+  selId=id;selMs=null;
   document.getElementById('f-addr').value='';
-  document.querySelectorAll('.pathopt').forEach(x=>x.classList.remove('sel'));
   closeNew();render();
+  saveState({op:'addProject',project:proj});
+}
+function deleteProject(pid){
+  const p=PROJECTS.find(x=>x.id===pid);if(!p)return;
+  if(!confirm(`Remove "${p.addr}" from the board for EVERYONE?\n\nThis deletes it from the shared record (the Listener will log the removal). There is no undo from the board.`))return;
+  PROJECTS=PROJECTS.filter(x=>x.id!==pid);
+  if(selId===pid){selId=PROJECTS.length?PROJECTS[0].id:null;selMs=null;}
+  render();
+  saveState({op:'delProject',projectId:pid});
 }
 function hash(s){let h=0;for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i)|0;}return h;}
+
+/* ── write path: edits stick for the whole team ─────────────────────────
+   POSTs a small patch to /api/permits; the proxy holds the feed token as a
+   server-side secret (Vercel env) and forwards to the TTV Permit Feed, which
+   updates ttv-permit-state.json in place. The Listener adopts manual edits
+   into the system of record each morning (tagged with the editor's name). */
+let EDITOR=null; /* in-memory only — no new storage keys per AGENTS.md */
+function ensureEditor(){
+  if(!EDITOR){const v=prompt('Quick one-time thing: your name for the edit log?','');EDITOR=((v||'').trim()||'team');}
+  return EDITOR;
+}
+async function saveState(patch){
+  if(!DATA_META.live){toast('⚠ Not saved — board is offline; your change is on this screen only',true);return;}
+  ensureEditor();
+  try{
+    const r=await fetch('/api/permits',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({k:GATE_HASH,editor:EDITOR,patch})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error((d&&d.error)||('HTTP '+r.status));
+    toast('✓ Saved to the shared record');
+  }catch(e){toast('⚠ Save failed ('+((e&&e.message)||e)+') — change is on this screen only',true);}
+}
+function toast(msg,bad){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}
+  t.textContent=msg;t.className=bad?'bad':'';t.classList.add('show');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),3500);
+}
 
 
 /* --- passcode gate (team access; change by replacing GATE_HASH with sha256 of new passcode) --- */
@@ -603,7 +693,7 @@ async function loadLive(){
     const d=await r.json();
     const ok=d&&Array.isArray(d.projects)&&d.projects.length&&d.projects.every(p=>p&&p.id&&p.addr&&p.flags&&p.state);
     if(!ok)throw new Error('bad payload');
-    PROJECTS=d.projects;
+    PROJECTS=d.projects.map(fixState); /* migrate legacy flags + backfill new catalog ids */
     if(!PROJECTS.some(p=>p.id===selId)){selId=PROJECTS[0].id;selMs=null;}
     DATA_META={live:true,updated:d.updated||null};
   }catch(e){
