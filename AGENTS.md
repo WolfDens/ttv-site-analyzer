@@ -86,16 +86,31 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   from Drive, and folding that churn into `index.html` would put automated changes inside
   the underwriting file. The single-file rule above still governs the calculator itself —
   flag calculator logic moving into `permits.html`, or permitting logic into `index.html`.
-- **Data path:** the TTV Permit Listener (scheduled Claude task) maintains
-  `ttv-permit-state.json` in Google Drive; `api/permits.js` proxies it (server-side fetch,
-  5-minute edge cache, `?k=<gate hash>` check); the page paints its baked-in `seed()`
-  snapshot instantly, then swaps to the live payload — and falls back to the snapshot with
-  a visible "offline" banner when the API is unreachable. **The listener never commits to
-  git** — daily status updates happen in Drive only. Flag any change that reintroduces
-  data-update-by-commit.
+- **Data path (read):** the TTV Permit Listener (scheduled Claude task) maintains
+  `ttv-permit-state.json` in Google Drive; `api/permits.js` GET proxies it (server-side
+  fetch, 30-second edge cache, `?k=<gate hash>` check); the page paints its baked-in
+  `seed()` snapshot instantly, then swaps to the live payload — and falls back to the
+  snapshot with a visible "offline" banner when the API is unreachable. **The listener
+  never commits to git** — daily status updates happen in Drive only. Flag any change
+  that reintroduces data-update-by-commit.
+- **Data path (write, v4):** team edits (milestone changes, add/delete project) POST a
+  patch to `api/permits.js`, which forwards it to the "TTV Permit Feed" Apps Script
+  using `PERMITS_FEED_URL` + `PERMITS_FEED_TOKEN` from **Vercel env vars only**. Flag
+  ANY appearance of the feed token or exec URL in client code, HTML, or this repo —
+  the token is a real write credential, unlike the committed FILE_ID. The client-side
+  auth on POST is the same gate hash as GET (deterrent-grade, accepted risk). Every
+  edit carries an editor name; the Listener reconciles manual edits into the system of
+  record each morning.
+- **Flow engine (v4):** project shape = two setup booleans `flags.subdiv` × `flags.sublot`
+  (plus demo/trees/state/acre). `migrateFlags()` maps legacy `path`/`parentSub` payloads;
+  `fixState()` backfills state entries for catalog ids old payloads lack. Flag changes
+  that compute layout from completion state instead of flags+catalog (layout must be
+  identical for every project with the same flags), and flag removal of the legacy
+  migration while old payloads can still exist in Drive.
 - **Storage exception:** the page uses exactly one `sessionStorage` key
   (`ttv-permit-auth`) for its gate — the only allowed browser-storage key outside the
-  calculator's two `localStorage` keys. Flag additions beyond these three.
+  calculator's two `localStorage` keys. The editor-name for the edit log is held in a
+  plain in-memory variable on purpose. Flag additions beyond these three keys.
 - **Access model (accepted risk):** the passcode gate and the `?k=` check are deterrents,
   not security boundaries — Mecklenburg permit statuses are public record. Flag any
   non-public data (pricing, contracts, PII) appearing in the permit-state file or board.
