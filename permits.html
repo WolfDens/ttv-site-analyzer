@@ -82,7 +82,7 @@
 
   .node{flex:0 0 auto;width:158px;border:1.5px solid var(--line);border-radius:7px;background:var(--white);padding:6px 8px 5px;cursor:pointer;position:relative;transition:.1s}
   .node:hover{box-shadow:0 2px 8px rgba(16,37,56,.15);transform:translateY(-1px)}
-  .node .nt{font-size:10.5px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px}
+  .node .nt{font-size:10.5px;font-weight:700;line-height:1.25;min-height:26px} /* v4.2: no line-clamp — titles always render in full */
   .node .nm{font-size:9px;color:#6a7580;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .node .nb{display:flex;gap:4px;align-items:center;margin-top:4px;min-height:12px;flex-wrap:wrap}
   .node.st-done{border-color:var(--pine);background:#eef3ec}
@@ -594,7 +594,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.1</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.2</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
