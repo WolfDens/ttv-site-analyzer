@@ -43,8 +43,6 @@
   .alertdot{width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;box-shadow:0 0 0 2px rgba(178,58,58,.25)}
   .newbtn{margin:10px;padding:10px;border:1px dashed rgba(245,240,231,.4);background:transparent;color:var(--cream);border-radius:8px;font-weight:700;font-size:12px}
   .newbtn:hover{background:rgba(245,240,231,.08)}
-  .navlink{display:block;padding:8px 9px;border-radius:8px;color:var(--cream);text-decoration:none;font-size:11.5px;font-weight:700;margin-bottom:6px;background:rgba(245,240,231,.06);border:1px solid rgba(245,240,231,.10)}
-  .navlink:hover{background:rgba(245,240,231,.11)}
 
   /* Main */
   .main{flex:1;min-width:0}
@@ -171,6 +169,9 @@
   .tcell.locked .node .nt::before{content:"🔒 ";font-size:9px}
   .gdrop{position:absolute;width:2px;background:repeating-linear-gradient(to bottom,var(--red) 0 5px,transparent 5px 9px);z-index:2;pointer-events:none}
   .gdrop::after{content:attr(data-lbl);position:absolute;bottom:8px;left:5px;font-size:8px;font-weight:800;color:var(--red);white-space:nowrap}
+  .gdrop.soft{background:repeating-linear-gradient(to bottom,var(--amber) 0 3px,transparent 3px 8px);opacity:.85}
+  .gdrop.soft::after{color:var(--amber)}
+  .heldchip{display:inline-block;font-size:7.5px;font-weight:800;letter-spacing:.4px;color:#fff;background:var(--amber);border-radius:3px;padding:1px 5px}
   .unitchip{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.5px;color:#fff;background:var(--amber);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:1px}
   .delbtn{margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:#9B3B2E;font-size:9.5px;font-weight:700;padding:3px 9px;cursor:pointer;font-family:inherit}
   .delbtn:hover{background:#f8ecea;border-color:#9B3B2E}
@@ -205,9 +206,6 @@
       <div><div class="t">Tide &amp; Timber</div><div class="s">Permitting Tracker</div></div>
     </div>
     <div class="side-scroll">
-      <h4>Ops Dashboard</h4>
-      <a class="navlink" href="/capital-raise.html">Capital Raise</a>
-      <a class="navlink" href="/">New Build Calculator</a>
       <h4>Active Projects</h4>
       <div class="plist" id="plist"></div>
     </div>
@@ -293,13 +291,13 @@ const CATALOG=[
   {id:'disc',ph:'B',t:'Utility disconnects',agency:'CLT Water / Duke / Piedmont',portal:'Each utility',owner:'Adam',exp:14,show:f=>f.demo,dep:null,note:'Sewer cap + power/gas kill before demo mobilizes.'},
   {id:'demo-permit',ph:'B',t:'Demolition permit',agency:'Meck Co Code Enforcement',portal:'AccelaMeck',owner:'Adam',exp:10,gate:true,show:f=>f.demo,dep:'neshap',note:'Requires NESHAP form + zoning supplemental.'},
   {id:'demo-done',ph:'B',t:'Demolition complete',agency:'GC / demo contractor',portal:'—',owner:'Adam',exp:10,show:f=>f.demo,dep:'demo-permit',note:null},
-  {id:'dev-ldirl',ph:'D',t:'LDIRL — zoning · stormwater · forestry · trees',agency:'CLT Development Center',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'Anytime you build, you need an LDIRL (Wendell, 8/13). ⚠ TREES ARE NOT A SEPARATE STEP: heritage-tree designation AND tree removal happen INSIDE this first submission (and ride the sublot plat again) — there is no standalone heritage-tree LDIRL or tree-removal permit. CONFIRM they’re included before it goes in. Tree fees: flat $1,500/heritage tree when developing; ROW trees $200/inch. On SUBDIVISION paths the LDIRL starts AFTER the recorded subdivision plat; on sublot-only it can run in tandem with the sublot plat. Per lot on multi-lot subdivisions. ~$1,000 review fee. 3-day gateway + 7-day review (+7 if revised).'},
+  {id:'dev-ldirl',ph:'D',t:'LDIRL — zoning · stormwater · forestry · trees',agency:'CLT Development Center',portal:'Accela',owner:'Adam',exp:15,gate:true,show:()=>true,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'Anytime you build, you need an LDIRL (Wendell, 8/13). ⚠ TREES ARE NOT A SEPARATE STEP: heritage-tree designation AND tree removal happen INSIDE this first submission (and ride the sublot plat again) — there is no standalone heritage-tree LDIRL or tree-removal permit. CONFIRM they’re included before it goes in. Tree fees: flat $1,500/heritage tree when developing; ROW trees $200/inch. On SUBDIVISION paths the LDIRL starts AFTER the recorded subdivision plat; on sublot-only it can run in tandem with the sublot plat — BUT the city holds the approved plat until this LDIRL clears (release gate, Sarah Dr 8/14), so the LDIRL is on the critical path either way. Per lot on multi-lot subdivisions. ~$1,000 review fee. 3-day gateway + 7-day review (+7 if revised).'},
   {id:'erosion',ph:'D',t:'Erosion & Sediment Control permit',agency:'CLT Erosion Control',portal:'Accela',owner:'Adam',exp:21,show:f=>f.acre,dep:'dev-ldirl',note:'Standalone approval + bond when disturbance ≥ 1 acre.'},
   {id:'subplat-prep',ph:'E',t:'Subdivision plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.subdiv,dep:'survey',note:'The prelim IS the final (mtg 8/13) — internal review only, then it gets submitted. Heritage trees can ride on it. ~$1,000.'},
   {id:'subplat-app',ph:'E',t:'Subdivision plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.subdiv,dep:'subplat-prep',note:'Planning approves compliant plats within 30 days.'},
   {id:'subplat-rec',ph:'E',t:'Subdivision plat RECORDED — new lots exist',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.subdiv,dep:'subplat-app',note:'HARD gate on subdivision paths: the recorded parent plat unlocks the per-lot LDIRLs and sublot plats.'},
   {id:'plat-prep',ph:'E',t:'Sublot plat prepared',agency:'Surveyor',portal:'Vendor',owner:'Adam',exp:14,show:f=>f.sublot,perLot:true,dep:f=>f.subdiv?'subplat-rec':'survey',note:'The prelim IS the final (mtg 8/13) — no separate preliminary submission. Per lot on subdivision+sublot deals.'},
-  {id:'plat-app',ph:'E',t:'Sublot plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.sublot,perLot:true,dep:'plat-prep',note:'Planning approves compliant plats within 30 days. Addressing re-reviews here and ATTACHES the addresses to the sublots in GIS (second addressing pass).'},
+  {id:'plat-app',ph:'E',t:'Sublot plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.sublot,perLot:true,dep:'plat-prep',note:'Planning approves compliant plats within 30 days. Addressing re-reviews here and ATTACHES the addresses to the sublots in GIS (second addressing pass). ⛓ RELEASE GATE: even once approved, the city HOLDS the plat until the LDIRL is also approved — they release together (Brian, 8/14; observed on Sarah Dr).'},
   {id:'plat-rec',ph:'E',t:'Sublot plat RECORDED — per-unit PIDs',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.sublot,perLot:true,dep:'plat-app',note:'HARD gate. Recorded plat (+ address) must exist before the County will permit.'},
   {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,crit:true,show:f=>f.subdiv||f.sublot,dep:null,note:'Apply IMMEDIATELY — no survey, plat, or sublot plan needed ("like buying phone numbers", mtg 8/13; closes INTEL-004/005). $50/parcel + $35/address ($85). Addresses aren’t "real" until the sublot-plat review attaches them in GIS. Empirical SLA: ~7 days (Sarah Dr, 8/5→8/12); Dellinger’s 33d was the outlier — still a Watch.'},
   {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE (Gateway)',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:null,note:'County rejects unstamped drawings. Can start anytime; the LDIRL submission needs them.'},
@@ -411,16 +409,22 @@ function tracksHtml(p){
 }
 function drawGateDrop(){
   const grid=document.getElementById('tgrid');if(!grid)return;
-  /* one drop per hard gate that actually exists on this project's map */
-  [['plat-rec','bp-sub','plat → permit gate'],['subplat-rec','dev-ldirl','subdivision → per-lot gate']].forEach(([a,b,lbl])=>{
-    const from=grid.querySelector(`[data-ms="${a}"]`),to=grid.querySelector(`[data-ms="${b}"]`);
-    if(!from||!to)return;
-    const g=grid.getBoundingClientRect(),f=from.getBoundingClientRect(),t=to.getBoundingClientRect();
-    if(t.top<=f.bottom)return; /* only draw downward drops */
-    const d=document.createElement('div');d.className='gdrop';d.setAttribute('data-lbl',lbl);
-    d.style.left=(f.left-g.left+f.width/2)+'px';
-    d.style.top=(f.bottom-g.top-4)+'px';
-    d.style.height=Math.max(20,(t.top-g.top)-(f.bottom-g.top)+10)+'px';
+  /* one connector per gate that actually exists on this project's map.
+     The line is anchored at the UPPER node and drops toward the lower lane —
+     'soft' = release gate (amber, dotted): plat approval is HELD until the LDIRL clears. */
+  [['plat-rec','bp-sub','plat → permit gate',''],
+   ['subplat-rec','dev-ldirl','subdivision → per-lot gate',''],
+   ['plat-app','dev-ldirl','plat released only WITH LDIRL approval','soft']].forEach(([a,b,lbl,cls])=>{
+    const na=grid.querySelector(`[data-ms="${a}"] .node`)||grid.querySelector(`[data-ms="${a}"]`);
+    const nb=grid.querySelector(`[data-ms="${b}"] .node`)||grid.querySelector(`[data-ms="${b}"]`);
+    if(!na||!nb)return;
+    const g=grid.getBoundingClientRect(),ra=na.getBoundingClientRect(),rb=nb.getBoundingClientRect();
+    const up=ra.top<rb.top?ra:rb, lo=up===ra?rb:ra;
+    if(lo.top-up.bottom<8)return;
+    const d=document.createElement('div');d.className='gdrop'+(cls?' '+cls:'');d.setAttribute('data-lbl',lbl);
+    d.style.left=(up.left-g.left+up.width/2)+'px';
+    d.style.top=(up.bottom-g.top-4)+'px';
+    d.style.height=Math.max(20,(lo.top-g.top)-(up.bottom-g.top)+10)+'px';
     grid.appendChild(d);
   });
 }
@@ -502,6 +506,10 @@ function nodeHtml(p,m){
     else badge=`<span class="agebadge ok">${a.age}d</span>`;
   }
   let pd='';if(c.due&&c.status!=='done'&&pdate(c.due)<today)pd=`<span class="agebadge stuck">past due</span>`;
+  /* release gate: an in-review/approved-but-unreleased plat is held until the LDIRL clears */
+  let held='';
+  if(m.id==='plat-app'&&(c.status==='submitted'||c.status==='active')&&p.state['dev-ldirl']&&p.state['dev-ldirl'].status!=='done')
+    held=`<span class="heldchip">⛓ held by LDIRL</span>`;
   let mult='';
   if(m.perUnit&&(p.units||0)>1)mult=`<span class="unitchip">×${p.units}</span>`;
   else if(m.perLot&&(p.lots||0)>1)mult=`<span class="unitchip">×${p.lots}</span>`;
@@ -509,7 +517,7 @@ function nodeHtml(p,m){
   return `<div class="node st-${c.status} ${m.gate?'gate':''} ${selMs===m.id?'msSel':''}" onclick="selectMs('${m.id}')">
     <div class="nt">${m.t}${mult}</div>
     <div class="nm">${m.agency}${ref}</div>
-    <div class="nb">${m.gate?'<span class="gatechip">Gate</span>':''}${m.crit?'<span class="critchip">Watch</span>':''}${badge}${pd}</div>
+    <div class="nb">${m.gate?'<span class="gatechip">Gate</span>':''}${m.crit?'<span class="critchip">Watch</span>':''}${badge}${pd}${held}</div>
   </div>`;
 }
 
@@ -599,7 +607,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.2</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.3</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
