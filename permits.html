@@ -281,7 +281,7 @@ const PHASES=[
 ];
 const CATALOG=[
   {id:'route',ph:'A',t:'Path & scope set on this board',agency:'TTV Ops',portal:'—',owner:'Brian',exp:1,gate:true,show:()=>true,dep:null,note:'Routing decision: Subdivide? × Sublot? + demo/trees/state-road/acre flags. Everything below is generated from these answers.'},
-  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor (Whitehall / Carolina Geomatics)',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'ALWAYS FIRST — everything starts with the boundary survey (mtg 8/13); the city requires it on every path and it’s the base drawing every plat + LDIRL is built on. The Urban Forestry ROW tree determination happens AS PART OF this survey when trees are questionable on the right-of-way line (free — call UF, get the determination in email; the survey marks it).'},
+  {id:'survey',ph:'A',t:'Boundary survey — trees marked',agency:'Surveyor — set vendor per project',portal:'Vendor',owner:'Adam',exp:14,show:()=>true,dep:null,note:'ALWAYS FIRST — everything starts with the boundary survey (mtg 8/13); the city requires it on every path and it’s the base drawing every plat + LDIRL is built on. The Urban Forestry ROW tree determination happens AS PART OF this survey when trees are questionable on the right-of-way line (free — call UF, get the determination in email; the survey marks it).'},
   {id:'water-cap',ph:'A',t:'Charlotte Water flow test / capacity',agency:'Charlotte Water',portal:'CLTWater',owner:'Adam',exp:10,show:()=>true,dep:null,note:'Townhome / multi-unit driven; typically GC-run (Slate did Barrington’s unprompted). Fail = bigger pipe on your dime, or dead deal — keep tracking it (mtg 8/13).'},
   {id:'driveway',ph:'A',t:'Driveway: CDOT vs NCDOT',agency:'CDOT / NCDOT',portal:'—',owner:'Adam',exp:7,show:()=>true,dep:'survey',note:'Decides whether the NCDOT encroachment step applies.'},
   {id:'ncdot',ph:'A',t:'NCDOT driveway / encroachment permit',agency:'NCDOT',portal:'NCDOT Connect',owner:'Adam',exp:30,gate:true,crit:true,show:f=>f.state,dep:'driveway',note:'State-maintained frontage only. Slow + easy to forget.'},
@@ -300,7 +300,7 @@ const CATALOG=[
   {id:'plat-app',ph:'E',t:'Sublot plat — City approval',agency:'CLT Planning',portal:'Accela',owner:'Adam',exp:30,gate:true,show:f=>f.sublot,perLot:true,dep:'plat-prep',note:'Planning approves compliant plats within 30 days. Addressing re-reviews here and ATTACHES the addresses to the sublots in GIS (second addressing pass). ⛓ RELEASE GATE: even once approved, the city HOLDS the plat until the LDIRL is also approved — they release together (Brian, 8/14; observed on Sarah Dr).'},
   {id:'plat-rec',ph:'E',t:'Sublot plat RECORDED — per-unit PIDs',agency:'Meck Co Register of Deeds',portal:'ROD',owner:'Adam',exp:7,gate:true,crit:true,show:f=>f.sublot,perLot:true,dep:'plat-app',note:'HARD gate. Recorded plat (+ address) must exist before the County will permit.'},
   {id:'address',ph:'F',t:'Address Assignment Request',agency:'Meck Co GIS — Address Management',portal:'Address Assignment Request System',owner:'Eunice',exp:14,crit:true,show:f=>f.subdiv||f.sublot,dep:null,note:'Apply IMMEDIATELY — no survey, plat, or sublot plan needed ("like buying phone numbers", mtg 8/13; closes INTEL-004/005). $50/parcel + $35/address ($85). Addresses aren’t "real" until the sublot-plat review attaches them in GIS. Empirical SLA: ~7 days (Sarah Dr, 8/5→8/12); Dellinger’s 33d was the outlier — still a Watch.'},
-  {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE (Gateway)',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:null,note:'County rejects unstamped drawings. Can start anytime; the LDIRL submission needs them.'},
+  {id:'plans',ph:'G',t:'Stamped plans ready',agency:'Architect + PE — set vendor per project',portal:'Vendor',owner:'Adam',exp:21,show:()=>true,dep:null,note:'County rejects unstamped drawings. Can start anytime; the LDIRL submission needs them.'},
   {id:'bp-sub',ph:'G',t:'Building permits submitted — per unit',agency:'Meck Co Code Enforcement',portal:'Accela / RTAC-EPS',owner:'Adam',exp:12,show:()=>true,perUnit:true,dep:f=>f.sublot?'plat-rec':'dev-ldirl',note:'ONE PERMIT PER UNIT (mtg 8/13 — Dellinger = 3). Can be submitted WITH the recorded sublot plat while the LDIRL is still in review — the County holds it in queue, saves days. Fee: $1,662.37 base + $5.05 per $1,000 of construction value over $250K (~$5.5–6K per $1M). Concurrent: building·elec·mech·plumb·FIRE·health·land dev.'},
   {id:'bp-iss',ph:'G',t:'Building permits ISSUED',agency:'Meck Co Code Enforcement',portal:'Accela',owner:'Adam',exp:3,gate:true,show:()=>true,perUnit:true,dep:'bp-sub',note:'Required before vertical. Draw unlocks at break-ground.'},
   {id:'stake',ph:'H',t:'Stakeout & foundation survey',agency:'Surveyor / GC',portal:'Vendor',owner:'Adam',exp:7,show:()=>true,dep:'bp-iss',note:null},
@@ -516,7 +516,7 @@ function nodeHtml(p,m){
   const ref=c.ref?` <span class="nm" style="color:var(--slate);font-weight:700">${esc(c.ref)}</span>`:'';
   return `<div class="node st-${c.status} ${m.gate?'gate':''} ${selMs===m.id?'msSel':''}" onclick="selectMs('${m.id}')">
     <div class="nt">${m.t}${mult}</div>
-    <div class="nm">${m.agency}${ref}</div>
+    <div class="nm">${esc(c.vendor||m.agency)}${ref}</div>
     <div class="nb">${m.gate?'<span class="gatechip">Gate</span>':''}${m.crit?'<span class="critchip">Watch</span>':''}${badge}${pd}${held}</div>
   </div>`;
 }
@@ -529,12 +529,14 @@ function detailHtml(p,m){
   return `<div class="detail">
     <div class="dt">${m.t} ${m.gate?'<span class="gatechip">Gate</span>':''} ${m.crit?'<span class="critchip">Watch</span>':''}
       <button class="xbtn" onclick="selectMs(null)">close ✕</button></div>
-    <div class="dm"><span><b>Agency:</b> ${m.agency}</span><span><b>Portal:</b> ${m.portal}</span><span><b>Typical:</b> ${m.exp}d</span><span><b>Started:</b> ${c.started||'—'}</span></div>
+    <div class="dm"><span><b>Agency / vendor:</b> ${esc(c.vendor||m.agency)}</span><span><b>Portal:</b> ${m.portal}</span><span><b>Typical:</b> ${m.exp}d</span></div>
     ${depM?`<div class="dn dep">${depM.t}</div>`:''}
     ${m.note?`<div class="dn">${m.note}</div>`:''}
     <div class="ctl">
       <div class="cg"><label>Status</label><select onchange="setStatus('${p.id}','${m.id}',this.value)">${opts}</select></div>
       <div class="cg"><label>Owner</label><input type="text" style="width:120px" value="${esc(c.owner||'')}" onchange="setField('${p.id}','${m.id}','owner',this.value)"></div>
+      <div class="cg"><label>Vendor / who's doing it</label><input type="text" style="width:150px" value="${esc(c.vendor||'')}" placeholder="${esc(m.agency)}" onchange="setField('${p.id}','${m.id}','vendor',this.value)"></div>
+      <div class="cg"><label>Started</label><input type="date" value="${c.started||''}" onchange="setField('${p.id}','${m.id}','started',this.value||null)"></div>
       <div class="cg"><label>Due date</label><input type="date" value="${c.due||''}" onchange="setField('${p.id}','${m.id}','due',this.value)"></div>
       <div class="cg"><label>Ref # (LDIRL / LDPLAT / permit)</label><input type="text" class="refin" value="${esc(c.ref||'')}" placeholder="e.g. LDIRL-2026-02598" onchange="setField('${p.id}','${m.id}','ref',this.value)"></div>
     </div>
@@ -607,7 +609,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.3</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.4</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
