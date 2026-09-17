@@ -180,25 +180,10 @@
   #toast.bad{background:#9B3B2E}
   .refin{width:130px}
   .tag.both{background:#6b4f86;color:#fff}
-  #gate{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
-  #gate .gcard{background:var(--cream);border-radius:14px;padding:34px 38px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-  #gate img{width:64px;margin-bottom:12px}
-  #gate h2{font-size:16px;color:var(--navy);margin-bottom:4px}
-  #gate p{font-size:11.5px;color:#6a7580;margin:0 0 14px}
-  #gate input{width:100%;font-size:14px;padding:10px;text-align:center;border:1.5px solid var(--line);border-radius:8px}
-  #gate button{margin-top:10px;width:100%;padding:10px;border:none;border-radius:8px;background:var(--navy);color:var(--cream);font-weight:700;font-size:13px;cursor:pointer}
-  #gate .err{color:var(--red);font-size:11px;margin-top:8px;min-height:14px}
 
 </style>
 </head>
 <body>
-<div id="gate"><div class="gcard">
-  <h2>TTV Permitting Dashboard</h2>
-  <p>Tide &amp; Timber Ventures — team access</p>
-  <input type="password" id="gpw" placeholder="Passcode" autofocus onkeydown="if(event.key==='Enter')gateCheck()">
-  <button onclick="gateCheck()">Enter</button>
-  <div class="err" id="gerr"></div>
-</div></div>
 <div class="app">
   <aside class="side">
     <div class="brand">
@@ -609,7 +594,7 @@ function renderProject(){
   <p><b>County-specific by design:</b> this is the Mecklenburg catalog; Union/Cabarrus/Iredell get cloned catalogs with swapped agencies + timelines — same engine, same paths.</p>
   </details>`;
 
-  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.4</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
+  html+=`<div class="footer"><b>TTV Permitting Dashboard v4.5</b> · Subdivide × Sublot flow engine (mtg 2026-08-13) · team edits save to the shared record · timeline target: beat the ~17-week Dellinger baseline · Mecklenburg County / City of Charlotte · Tracks view staging is computed from the live dependency graph; week labels are indicative (from expected durations), not commitments. Audited Aug 2026 vs charlottenc.gov, mecknc.gov, charlotteudo.org, gis.mecknc.gov + TTV Development Brain + SOP-04 + live project email history. Confirm live figures with each agency before they drive a permit, contract, or underwrite.</div>`;
   content.innerHTML=html;
   if(viewMode==='tracks')requestAnimationFrame(drawGateDrop);
 }
@@ -686,15 +671,10 @@ function toast(msg,bad){
 }
 
 
-/* --- passcode gate (team access; change by replacing GATE_HASH with sha256 of new passcode) --- */
+/* --- API token: GATE_HASH is the shared `?k=` value api/permits.js expects on GET and POST.
+   The browser passcode gate that used to sit in front of this board was removed 2026-09-17
+   (team decision) — the board opens directly. The `?k=` check on the API is unchanged. --- */
 const GATE_HASH='9b748ce71c59791771ab14a3de4bb0a2822eac70555d3e292ac7160af8fa1cc6';
-async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function gateCheck(){
-  const v=document.getElementById('gpw').value;
-  try{ if((await sha256(v))===GATE_HASH){ sessionStorage.setItem('ttv-permit-auth','1'); document.getElementById('gate').remove(); return; } }catch(e){}
-  document.getElementById('gerr').textContent='Not it — try again.';
-}
-if(sessionStorage.getItem('ttv-permit-auth')==='1'){ const g=document.getElementById('gate'); if(g)g.remove(); }
 
 /* --- data boot: paint the built-in snapshot instantly, then swap to live Drive data --- */
 let DATA_META={live:false,loading:true};

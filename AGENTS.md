@@ -107,13 +107,18 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   that compute layout from completion state instead of flags+catalog (layout must be
   identical for every project with the same flags), and flag removal of the legacy
   migration while old payloads can still exist in Drive.
-- **Storage exception:** the page uses exactly one `sessionStorage` key
-  (`ttv-permit-auth`) for its gate — the only allowed browser-storage key outside the
-  calculator's two `localStorage` keys. The editor-name for the edit log is held in a
-  plain in-memory variable on purpose. Flag additions beyond these three keys.
-- **Access model (accepted risk):** the passcode gate and the `?k=` check are deterrents,
-  not security boundaries — Mecklenburg permit statuses are public record. Flag any
-  non-public data (pricing, contracts, PII) appearing in the permit-state file or board.
+- **Storage rule:** `permits.html` uses NO browser storage. Its former `sessionStorage`
+  key (`ttv-permit-auth`) went away with the passcode gate on 2026-09-17, so the only
+  allowed browser-storage keys in the repo are the calculator's two `localStorage` keys.
+  The editor-name for the edit log is held in a plain in-memory variable on purpose. Flag
+  any storage key added to the permitting board.
+- **Access model (accepted risk):** the board has no login — the browser passcode gate
+  was removed 2026-09-17 at Brian's direction so the team can open it from the hub
+  directly. The `?k=` check in `api/permits.js` (GET and POST) still uses `GATE_HASH`
+  and is a deterrent, not a security boundary — Mecklenburg permit statuses are public
+  record. Flag any non-public data (pricing, contracts, PII) appearing in the
+  permit-state file or board, and flag any change that re-adds a client-side gate
+  without a decision recorded here.
 - The Drive FILE ID in `api/permits.js` is intentionally committed (link-shared file
   holding the same data the board renders — not a secret). `PERMITS_FILE_ID` env var
   overrides it; don't flag the literal.
