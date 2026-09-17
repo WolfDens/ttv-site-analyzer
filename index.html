@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.10 &middot; Aug 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.11 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -4614,8 +4614,12 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.10', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.11', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.11',date:'Sep 2026',name:'Permitting board opens without a passcode',items:[
+   '/permits.html no longer asks for the team passcode — it opens directly from the TTV Tools hub (team decision, Sep 2026). Mecklenburg permit statuses are public record; the board’s live-data API check is unchanged.',
+   '/capital-raise.html keeps its passcode (it holds investor commitments) — ask Brian if you need it. Entering it there no longer has anything to unlock on the Permitting board.',
+   'The underwriting calculator itself is unchanged in this release.']},
  {v:'7.10',date:'Aug 2026',name:'Capital raise tracker',items:[
    'New /capital-raise.html — a capital-raise snapshot for the team: target vs. committed vs. deposited by project, plus the full investor/source list. Same team passcode as the Permitting board — one login unlocks both.',
    'Manually maintained, not live-synced — update it via a PR whenever a commitment changes stage. Carries forward the Capital Raise tab from the retired Partner Review Board sheet, which is being phased out (its project-status role is now covered live by the Permitting board).',
