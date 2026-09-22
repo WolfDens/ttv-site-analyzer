@@ -18,9 +18,10 @@ in the repo, version it with the code.
   site costs → plan/build cost → financing → worst/base/best exit, plus feasibility
   screens and PDF/Excel/offer-letter exports.
 - **Architecture:** a **single, fully client-side `index.html`** (UI + all logic + all
-  plan data, ~4,775 lines) + **one** serverless function `api/gis.js` (Charlotte/Meck
-  GIS proxy) + `plans/` images + `assets/` logos. No framework, no build step, no
-  database. Everything runs in the browser.
+  plan data, ~4,900 lines) + three serverless functions in `api/`: `gis.js` (Charlotte/Meck
+  GIS + county assessor proxy), `comps.js` (county new-build comps) and `permits.js` (the
+  permitting board's data proxy) + `plans/` images + `assets/` logos. No framework, no build
+  step, no database. Everything runs in the browser.
 - **Deploy model — why review matters:** Vercel serves the static files; **every push to
   `main` auto-deploys to production.** There is no build gate and no test suite catching
   regressions. The PR review *is* the safety net. Non-`main` branches get a Vercel
@@ -138,6 +139,21 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - The Drive FILE ID in `api/permits.js` is intentionally committed (link-shared file
   holding the same data the board renders — not a secret). `PERMITS_FILE_ID` env var
   overrides it; don't flag the literal.
+
+### Comps (`api/comps.js`, v7.14)
+- **Mecklenburg-only**, same rule as the GIS proxy. It joins `TaxParcelSales` to
+  `TaxParcel_camadata` on PID because the sales layer carries no building attributes at all.
+- **Sale-validity filter is the heart of it.** Keep blank (arm's length) and **Z (builder sale)**;
+  everything else is a disqualified transfer. Flag a change that widens this without a reason, or
+  that drops Z — builder sales are the new-build resales TTV is actually pricing.
+- **The ARV is capped at the highest sold comp.** The SOP is explicit that $/sf math must never run
+  past a real nearby sale. Flag removal of the cap or of the `capped` flag it sets.
+- **Two tiers, both reported:** built `minYear`+ (default 2020) for context, `solidYear`+ (default
+  2025) as solid comps. The ARV prefers solid when there are at least two.
+- **`xcoord` holds latitude and `ycoord` holds longitude** in the CAMA layer. The field names are
+  backwards in the source data; don't 'fix' the distance maths.
+- Comps land in the same `COMPS` model the manual table uses, so the blended $/sf, the PDF and the
+  Excel export keep working unchanged. Flag a parallel comps model.
 
 ### Lot-factor auto-fill (v7.13)
 - **Only write a field that still holds its shipped default.** `applyCountyDefaults()` checks each

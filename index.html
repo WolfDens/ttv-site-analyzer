@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.13 &middot; Sep 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.14 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -1067,7 +1067,9 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
     <p class="note" style="margin-bottom:10px">Enter comparable sales to derive your ARV $/sf. <b>Adj $/SF</b> = (Sold + Adjustments) &divide; Sq Ft &mdash; use a negative adjustment (e.g. <code>-40,000</code>) to dock a superior comp. Suggested ARV multiplies the blended $/sf by the selected plan&rsquo;s Sq Ft. Apply median/avg to Base ARV below.</p>
     <div id="comps-summary" class="comps-summary"></div>
     <div style="overflow-x:auto"><table class="comps-table" id="comps-table"></table></div>
+    <div id="county-comps-msg" style="display:none;margin-top:10px;border:1px solid rgba(94,128,149,0.35);border-radius:8px;padding:10px 12px;background:rgba(94,128,149,0.08);font-size:12.5px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-ghost" id="county-comps-btn" onclick="pullCountyComps()" title="Recent new-construction sales from Mecklenburg County records">&#128225; Pull new-build comps (Meck)</button>
       <button class="btn btn-ghost" onclick="addComp()">+ Add comp</button>
       <button class="btn btn-ghost" onclick="applyCompsArv('median')">Apply median &rarr; Base ARV</button>
       <button class="btn btn-ghost" onclick="applyCompsArv('avg')">Apply avg &rarr; Base ARV</button>
@@ -1487,6 +1489,64 @@ function renderComps(){
       sum.innerHTML=`Comps: <b>${st.n}</b> &nbsp;\u00b7&nbsp; Median adj $/SF: <b>$${st.median.toFixed(0)}</b> &nbsp;\u00b7&nbsp; Avg: <b>$${st.avg.toFixed(0)}</b> &nbsp;\u00b7&nbsp; Range: <b>$${st.min.toFixed(0)}\u2013$${st.max.toFixed(0)}</b>${arv}`;
     }
   }
+}
+// v7.14: pull recent NEW-BUILD sales from Mecklenburg County records into the comps table.
+// Needs the PID from the Step 1 GIS auto-fill, since every county layer keys on it.
+// Rows land in the same COMPS model the manual table uses, so everything downstream
+// (blended $/sf, Apply median, the PDF and the Excel export) works unchanged.
+async function pullCountyComps(){
+  const btn=$('county-comps-btn'), box=$('county-comps-msg');
+  const say=(html,border)=>{ if(!box)return; box.innerHTML=html; box.style.display=''; if(border)box.style.borderColor=border; };
+  const gis=(typeof window!=='undefined'&&window._lastGis)||null;
+  const pid=gis&&gis.pid;
+  if(!pid){ say('Run <b>\ud83d\udef0 Auto-fill from County GIS</b> on Step 1 first \u2014 the comp search keys off the county parcel id.','#f0a93c'); return; }
+  const county=($('county-sel')||{}).value||'';
+  if(county&&!/mecklenburg/i.test(county)){ say('County records are wired for <b>Mecklenburg</b> only. For '+county+', pull comps manually or from DealMachine.','#f0a93c'); return; }
+  const sf=sfPerUnit>0?sfPerUnit:'';
+  if(btn){btn.disabled=true;btn.textContent='Pulling\u2026';}
+  say('Searching county sales records\u2026');
+  try{
+    const url='/api/comps?pid='+encodeURIComponent(pid)+'&radius=0.5&months=24'+(sf?('&sf='+sf):'');
+    const r=await fetch(url);
+    const d=await r.json();
+    if(d.error){ say('Comps lookup failed: '+d.error,'#ef5d57'); return; }
+    const rows=(d.comps||[]).filter(c=>c.tier==='solid'||c.tier==='context');
+    if(!rows.length){
+      say('No new-build sales found within 0.5 mi in the last 24 months.'
+        +((d.notes||[]).length?('<div style="color:var(--text-dim);margin-top:4px">'+d.notes.join(' \u00b7 ')+'</div>'):''),'#f0a93c');
+      return;
+    }
+    // Newest first within the nearest set, then keep it to a readable dozen.
+    rows.sort((a,b)=>(a.distance_mi??99)-(b.distance_mi??99));
+    const take=rows.slice(0,12);
+    take.forEach(c=>{
+      COMPS.push({addr:(c.address||c.pid)+(c.builder_sale?' (builder sale)':''),
+        sqft:c.heated_sf?String(Math.round(c.heated_sf)):'',
+        sold:c.sale_price?String(Math.round(c.sale_price)):'',
+        adj:'', date:c.sale_date||'',
+        dist:c.distance_mi!=null?(c.distance_mi+' mi'):'',
+        mom:'',
+        notes:[c.year_built?('built '+c.year_built):'',c.beds?(c.beds+'bd'):'',c.grade||'',c.tier==='solid'?'solid':'context'].filter(Boolean).join(' \u00b7 '),
+        url:''});
+    });
+    renderComps(); if(typeof renderShortlist==='function')renderShortlist();
+    const S=d.summary&&d.summary.solid, N=d.summary&&d.summary.new_build;
+    const money=n=>'$'+Math.round(n).toLocaleString();
+    let h='<b>'+take.length+' new-build comps added</b> from Mecklenburg County records \u00b7 '
+      +(d.notes&&d.notes[0]?d.notes[0]:'');
+    if(N&&N.count)h+='<div style="margin-top:4px">Built '+(d.params.minYear)+'+: <b>'+N.count+'</b> comps, median <b>$'+N.median_psf+'/sf</b> (range $'+N.min_psf+'\u2013$'+N.max_psf+') \u00b7 highest sold '+money(N.highest_sold)+'</div>';
+    if(S&&S.count)h+='<div>Solid (built '+(d.params.solidYear)+'+): <b>'+S.count+'</b> comps, median <b>$'+S.median_psf+'/sf</b></div>';
+    if(d.arv)h+='<div style="margin-top:6px">Suggested ARV for '+Math.round(d.arv.subject_sf).toLocaleString()+' sf: <b>'+money(d.arv.arv)+'</b> = <b>$'+d.arv.retail_psf+'/sf</b>'
+      +' <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;margin-left:6px" onclick="applyCountyArv('+d.arv.retail_psf+')">Apply \u2192 Base ARV</button>'
+      +'<div style="color:var(--text-dim);font-size:11px;margin-top:2px">'+d.arv.note+'</div></div>';
+    (d.flags||[]).forEach(f=>{h+='<div style="color:#f0a93c;margin-top:4px">\u26a0 '+f+'</div>';});
+    h+='<div style="color:var(--text-dim);font-size:11px;margin-top:6px">County deed records only \u2014 no MLS status, concessions or photos. Recording lags closing by 1\u20133 weeks. Check each row before you lean on it.</div>';
+    say(h);
+  }catch(e){ say('Comps lookup failed: '+e.message,'#ef5d57'); }
+  finally{ if(btn){btn.disabled=false;btn.innerHTML='\ud83d\udce1 Pull new-build comps (Meck)';} }
+}
+function applyCountyArv(psf){
+  const f=$('arv-b'); if(f&&psf>0){ f.value=Math.round(psf); if(typeof calcScenarios==='function')calcScenarios(); }
 }
 function applyCompsArv(stat){
   const st=compStats(), v=stat==='median'?st.median:st.avg;
@@ -4714,8 +4774,14 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.13', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.14', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.14',date:'Sep 2026',name:'New-build comps straight from county records',items:[
+   'New \ud83d\udce1 Pull new-build comps button on the Sales Comps card: recent NEW-CONSTRUCTION sales within half a mile, pulled from Mecklenburg County deed and assessor records, dropped straight into the comps table.',
+   'It follows the Deal Analyst SOP: built 2020+ for context and 2025+ as solid comps, both the $/sf and the absolute-sold-price reads, and the suggested ARV is capped at the highest sold comp so the $/sf math can never run past a real sale.',
+   'Only arm\u2019s-length and builder sales are kept. The assessor\u2019s validity codes filter out foreclosures, family transfers, multi-parcel conveyances and bargain transfers automatically.',
+   'The panel calls out thin evidence (fewer than two solid comps), a luxury-tier comp above $1M, and a wide $/sf spread \u2014 the things the SOP says to surface rather than bury.',
+   'Run the Step 1 GIS auto-fill first; the search keys off the county parcel id. County deed records only \u2014 no MLS status, concessions or photos, and recording lags closing by 1\u20133 weeks. Mecklenburg only for now.']},
  {v:'7.13',date:'Sep 2026',name:'County GIS fills in the site \u2014 and the lot factor',items:[
    'The \ud83d\udef0 auto-fill now also pulls Mecklenburg County\u2019s assessor record: owner, land use, year built, heated square footage, beds/baths, quality grade, tax value, and the last sale with a flag when it wasn\u2019t an arm\u2019s-length deal.',
    'New Site conditions block: mapped building footprint (your teardown square footage), tree canopy as a % of the lot, and real slope \u2014 elevation sampled at the parcel corners from the county\u2019s 3-ft LiDAR surface.',
