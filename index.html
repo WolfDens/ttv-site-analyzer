@@ -778,7 +778,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="card">
         <div class="card-title"><span class="dot"></span>Existing Structure</div>
         <div class="fr2">
-          <div class="field"><label>Structure Size (sq ft)</label><input type="number" id="demo-sqft" value="0" oninput="calcLF()" placeholder="0 = vacant"><p class="note">$8–$10/sf. Enter 0 if vacant.</p></div>
+          <div class="field"><label>Structure Size (sq ft)</label><input type="number" id="demo-sqft" value="0" oninput="markManual(this);calcLF()" placeholder="0 = vacant"><p class="note">$8–$10/sf. Enter 0 if vacant.</p></div>
           <div class="field"><label>Demo Rate ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="demo-rate" value="9" oninput="calcLF()"></div></div>
         </div>
       </div>
@@ -812,7 +812,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="card">
         <div class="card-title"><span class="dot"></span>Clearing, Grading &amp; Site Work</div>
         <div class="field"><label>Clearing Type</label>
-          <select id="clearing" onchange="calcLF()">
+          <select id="clearing" onchange="markManual(this);calcLF()">
             <option value="0">None / Already Clear ($0)</option>
             <option value="3000">Light — minimal vegetation ($3,000)</option>
             <option value="6500" selected>Medium — standard lot ($6,500)</option>
@@ -825,7 +825,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
           <div class="field"><label>Cost / Load</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="dirt-rate" value="500" oninput="calcLF()"></div></div>
         </div>
         <div class="fr2">
-          <div class="field"><label>Grading</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="grading" value="2500" oninput="calcLF()"></div></div>
+          <div class="field"><label>Grading</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="grading" value="2500" oninput="markManual(this);calcLF()"></div></div>
           <div class="field"><label>Site Prep / Driveway</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="site-prep" value="750" oninput="calcLF()"></div></div>
         </div>
         <div class="fr2">
@@ -1889,12 +1889,13 @@ function applyGisData(d){
 }
 // v7.13: turn the county's own site facts into lot-factor starting points. Each field is only
 // written while it still holds its shipped default, so anything the user typed survives a re-lookup.
-const LF_DEFAULTS={'demo-sqft':'0','clearing':'6500','grading':'2500'};
 const CANOPY_CLEARING={cleared:'0',light:'3000',medium:'6500',heavy:'10000',extreme:'15000'};
 const SLOPE_GRADING={flat:2500,moderate:7500,severe:15000};
 function applyCountyDefaults(d){
   const filled=[];
-  const untouched=id=>{const e=$(id);return e&&String(e.value).trim()===LF_DEFAULTS[id];};
+  // An analyst's own figure can coincide with a default, so never infer intent from the value —
+  // markManual() flags any human edit and restoreDeal() flags every field of a saved deal.
+  const untouched=id=>!!$(id) && !isManual(id);
   const cama=d.cama||null, site=d.site||null;
   // Teardown square footage: the assessor's heated area is the number the demo bid keys off.
   // Fall back to the mapped building footprint when there's no CAMA record (new lots have none).

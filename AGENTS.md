@@ -170,9 +170,13 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   Excel export keep working unchanged. Flag a parallel comps model.
 
 ### Lot-factor auto-fill (v7.13)
-- **Only write a field that still holds its shipped default.** `applyCountyDefaults()` checks each
-  input against `LF_DEFAULTS` before touching it, so a re-lookup never clobbers a number the
-  analyst typed. Flag any auto-fill that writes unconditionally.
+- **Never infer "untouched" from a field's value.** An analyst can legitimately type a number that
+  equals a shipped default (a real $2,000 survey quote, a real $2,500 grading allowance), and the
+  value-based check silently overwrote it — a Codex P1 on PR #17. Auto-fill gates on the explicit
+  `data-manual` flag instead: `markManual()` sets it on any human edit, `restoreDeal()` sets it on
+  every field of a saved deal, and `isManual()` is what `applySurveyDefault()` and
+  `applyCountyDefaults()` check. Flag any auto-fill that compares against a default value, or an
+  input added without `markManual(this)` on its handler.
 - **The three mappings are deliberate:** demo square footage from the assessor's heated area (falling
   back to the mapped footprint when there is no CAMA record, e.g. a newly created lot); clearing tier
   from canopy % (`CANOPY_CLEARING`); grading from the slope band (`SLOPE_GRADING`). These are
