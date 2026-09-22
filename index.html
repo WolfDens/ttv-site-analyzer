@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.11 &middot; Sep 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.12 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -984,7 +984,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <!-- Exit Costs -->
       <div class="card">
         <div class="card-title"><span class="dot"></span>Exit / Sale Costs</div>
-        <div class="field"><label>Sale Costs (% of ARV)</label><div class="input-wrap"><input type="number" id="sale-cost-pct" value="5" step="0.5" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div><p class="note">Covers realtor + sale closing costs. Default 5%.</p></div>
+        <div class="field"><label>Sale Costs (% of ARV)</label><div class="input-wrap"><input type="number" id="sale-cost-pct" value="6" step="0.5" class="sfx-pad" oninput="calcFinancing()"><span class="sfx">%</span></div><p class="note">Covers realtor (5%) + sale closing (1%). Default 6%, matching the team UW template.</p></div>
       </div>
     </div>
 
@@ -1036,11 +1036,17 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <span class="pfx">$</span>
       <input type="text" id="land-cost" value="25,000" oninput="calcAll();calcScenarios()">
     </div>
+    <div class="asking-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0 4px;font-size:12px;color:var(--text-dim)">
+      <label for="asking-price" style="font-weight:600">Asking Price</label>
+      <span style="display:inline-flex;align-items:center;gap:4px"><span class="pfx">$</span><input type="text" id="asking-price" value="" placeholder="listed price" style="width:120px" oninput="calcScenarios()"></span>
+      <span id="ask-gap"></span>
+      <span class="note" style="margin:0">Listed deals: start at asking and move the offer down until the profit rule clears. Never up.</span>
+    </div>
     <div class="max-offer-bar">
       <div class="max-offer-card amber">
-        <div class="max-offer-label">Max Land Cost — $50k Base Profit</div>
+        <div class="max-offer-label">Max Land Cost — Profit Rule</div>
         <div class="max-offer-val" id="max-land-display">—</div>
-        <div class="max-offer-sub">Land ceiling to hit $50k/unit base case</div>
+        <div class="max-offer-sub" id="max-land-sub">Base case ≥ the greater of $50k/unit or 15% of all-in</div>
       </div>
       <div class="max-offer-card">
         <div class="max-offer-label">Loan Amount</div>
@@ -3176,11 +3182,23 @@ function calcLF(){
 }
 
 // ═══════════════════ PLAN & BUILD ═══════════════════
+// v7.12: survey defaults to $2,000 for duets / townhomes / triplex and $1,000 otherwise (matches the corrected UW
+// template). Only rewrites the field while it still holds a default value, so a figure the user typed is left alone.
+function applySurveyDefault(){
+  const s=$('survey');if(!s)return;
+  const cur=pv('survey');
+  if(cur!==0&&cur!==1000&&cur!==2000)return;
+  const val=($('plan-sel')||{}).value||'';
+  const p=currentPlanObj();
+  const multi=(val==='__CUSTOM__')?(pv('cust-u')>1):!!(p&&(p.t==='duet'||p.t==='th'||p.t==='mf'));
+  s.value=multi?2000:1000;
+}
 function onPlanChange(){
   const val=($('plan-sel')||{}).value||'';
   const info=$('plan-info');
   const cp=$('custom-dim-panel');
   const isCustom=(val==='__CUSTOM__');
+  applySurveyDefault();
   if(cp)cp.style.display=isCustom?'':'none';
 
   let name,du,fpW,fpD;
@@ -3315,6 +3333,8 @@ function calcAll(){
   units=Math.max(1,pv('units'));
   const buildTotal=currentPlanCost*units;
   const upgPerUnit=Array.from(selectedUpgrades).reduce((s,id)=>{const u=UPGRADES.find(x=>x.id===id);return s+(u?u.cost:0);},0);
+  // Upgrades are entered at their flat menu price and added straight to the build — the GC fee applies to the
+  // Slate base build only (Brian, 2026-09-22). Do not mark these up.
   const upgTotal=upgPerUnit*units;
   const skipW=$('skip-water')&&$('skip-water').checked;
   const skipS=$('skip-sewer')&&$('skip-sewer').checked;
@@ -3453,29 +3473,42 @@ function calcScenarios(){
     if(arvSub)arvSub.textContent=arv>0?`${units} unit${units>1?'s':''} × ${fmt(arv)} = ${fmt(arv*units)} gross sale`:'';
   });
 
-  // Max land cost — back-solve for $50k base profit
+  // v7.12: asking-price anchor (SOP addendum 2026-09-21) — show the land offer as a % of asking
+  const askEl=$('ask-gap');
+  if(askEl){
+    const ask=pv('asking-price');
+    if(ask>0&&landCost>0){
+      const diff=landCost-ask;
+      askEl.textContent=`Offer ${fmt(landCost)} = ${(landCost/ask*100).toFixed(0)}% of asking (${diff<0?'-':'+'}${fmt(Math.abs(diff))})`;
+      askEl.style.color=diff>0?'var(--red)':'';askEl.style.fontWeight='600';
+    } else askEl.textContent='';
+  }
+  // Max land cost — back-solve for the PROFIT RULE target
   if(basePSF>0&&sfPerUnit>0){
     const bARV=basePSF*sfPerUnit;
     const term=pv('term-b');
     const salePctV=salePct;
     const ltcPct=pv('ltc-pct')/100;
     const rate=pv('fin-rate')/100,pts=pv('fin-points')/100,docFee=pv('fin-doc-fee'),annTax=pv('fin-tax');
-    const TARGET=50000;
-    // profit = ARV - (allInExLand+land)/units - holdPerUnit - saleCost = TARGET
-    // holdPerUnit = (loan*(rate/12*term+pts) + docFee + tax/12*term + loan*0.01) / units
-    // loan = ltcPct*(land+allInExLand)/(1-ltcPct*0.01)
-    // Let L = land (unknown), A = allInExLand (known)
-    // loan = ltcPct*(L+A)/(1-ltcPct*0.01) = k1*(L+A) where k1=ltcPct/(1-ltcPct*0.01)
+    // v7.12 PROFIT RULE (Deal Analyst SOP): base-case profit per unit must clear the GREATER of $50k or 15% of
+    // all-in cost per unit. Solve the land ceiling for each rule and take the lower one (that rule is binding).
+    const FLOOR=50000, RULE_PCT=0.15;
+    // loan = ltcPct*(L+A)/(1-ltcPct*0.01) = k1*(L+A) where k1=ltcPct/(1-ltcPct*0.01); L = land (unknown), A = allInExLand
     const k1=ltcPct/(1-ltcPct*0.01);
-    // holdPerUnit = loan * (rate/12*term + pts + 0.01) / units + (docFee + annTax/12*term)/units
+    // holdPerUnit = loan*(rate/12*term + pts + 0.01)/units + (docFee + annTax/12*term)/units
     const loanFactor=rate/12*term+pts+0.01;
     const fixedHold=(docFee+(annTax/12)*term)/units;
-    // profit = bARV - (A+L)/units - k1*(L+A)*loanFactor/units - fixedHold - bARV*salePctV = TARGET
-    // bARV*(1-salePctV) - TARGET - A/units - fixedHold = L/units + k1*(L+A)*loanFactor/units
-    // bARV*(1-salePctV) - TARGET - A/units - fixedHold - k1*A*loanFactor/units = L*(1/units + k1*loanFactor/units)
-    const rhs=bARV*(1-salePctV)-TARGET-allInExLand/units-fixedHold-k1*allInExLand*loanFactor/units;
     const lhsCoeff=1/units+k1*loanFactor/units;
-    const maxLand=rhs/lhsCoeff;
+    // Rule A (flat floor): bARV*(1-salePct) - FLOOR - A/units - fixedHold - k1*A*loanFactor/units = L*lhsCoeff
+    const rhsA=bARV*(1-salePctV)-FLOOR-allInExLand/units-fixedHold-k1*allInExLand*loanFactor/units;
+    const landA=rhsA/lhsCoeff;
+    // Rule B (15% of all-in): profit = RULE_PCT*allIn  =>  allIn(L) = bARV/(1+RULE_PCT)
+    // allIn(L) = (A+L)/units + k1*(L+A)*loanFactor/units + fixedHold + bARV*salePct
+    const rhsB=bARV/(1+RULE_PCT)-allInExLand/units-fixedHold-bARV*salePctV-k1*allInExLand*loanFactor/units;
+    const landB=rhsB/lhsCoeff;
+    const maxLand=Math.min(landA,landB);
+    const binding=landB<landA?'15% of all-in':'$50k floor';
+    const mls=$('max-land-sub');if(mls)mls.textContent=`Base case ≥ max($50k/unit, 15% of all-in) · binding rule: ${binding} · $50k-only ceiling ${landA>0?fmt(landA):'—'}`;
     const ml=$('max-land-display');if(ml)ml.textContent=maxLand>0?fmt(maxLand):'—';
   }else{const ml=$('max-land-display');if(ml)ml.textContent='Enter ARV $/sf';}
 }
@@ -3964,7 +3997,7 @@ function collectModelInputs(d){
     tapWaterU:skipW?0:pv('tap-water'),tapSewerU:skipS?0:pv('tap-sewer'),septicLot:skipS?pv('septic-cost'):0,
     tapTotal:tapTotal||0,survey:pv('survey'),appraisal:pv('appraisal'),insurance:pv('insurance'),
     land:pv('land-cost'),ltc:(pv('ltc-pct')||93)/100,rate:(pv('fin-rate')||10)/100,points:(pv('fin-points')||1)/100,
-    docFee:pv('fin-doc-fee')||0,annTax:pv('fin-tax')||0,salePct:(pv('sale-cost-pct')||5)/100,
+    docFee:pv('fin-doc-fee')||0,annTax:pv('fin-tax')||0,salePct:(pv('sale-cost-pct')||6)/100,
     arvBase:pv('arv-b'),arvWorst:rawW>0?rawW:'',arvBest:rawBest>0?rawBest:'',
     termW:pv('term-w')||12,termB:pv('term-b')||9,termBest:pv('term-best')||6,
     gis:(typeof window!=='undefined'&&window._lastGis)||null,
@@ -4614,8 +4647,13 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.11', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.12', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.12',date:'Sep 2026',name:'Math aligned with the corrected UW template',items:[
+   'Sale costs default to 6% of ARV (5% realtor + 1% closing) instead of 5%.',
+   'Survey defaults to $2,000 when a duet, townhome or triplex plan is selected ($1,000 otherwise). A figure you typed yourself is left alone.',
+   'Max Supportable Land applies the Deal Analyst PROFIT RULE: base-case profit must clear the greater of $50k or 15% of all-in per unit. The card now says which rule is binding.',
+   'New Asking Price field on Exit & Offer shows the land offer as a % of asking, per the Sep 21 SOP addendum (anchor to asking on listed deals; move down, never up).']},
  {v:'7.11',date:'Sep 2026',name:'Permitting board opens without a passcode',items:[
    '/permits.html no longer asks for the team passcode — it opens directly from the TTV Tools hub (team decision, Sep 2026). Mecklenburg permit statuses are public record; the board’s live-data API check is unchanged.',
    '/capital-raise.html keeps its passcode (it holds investor commitments) — ask Brian if you need it. Entering it there no longer has anything to unlock on the Permitting board.',

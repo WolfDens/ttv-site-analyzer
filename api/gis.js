@@ -7,8 +7,10 @@
 // Server-side fetch avoids the browser CORS block. Deploy on Vercel at /api/gis.js,
 // push to main, then hit  /api/gis?address=2723%20Dellinger%20Dr&debug=1
 //
-// Verified against 2723 Dellinger (PID 04118526): area 77,575 sf, zoning N1-B,
-// PCSO district Central Catawba. v2 fixes the matched-address field, returns the
+// Verified against 2723 Dellinger Dr: zoning N1-B, PCSO district Central Catawba.
+// NOTE (2026-09-21): the site was sub-lotted — 2723 now resolves to PID 04118535 (7,145 sf),
+// 2727 = 04118536 (3,455 sf), 2731 = 04118537 (4,312 sf). The old "PID 04118526 / 77,575 sf"
+// note referred to a neighbouring parcel and is retired. v2 fixes the matched-address field, returns the
 // parcel polygon, swaps the bogus "buffer" (layer 32 was a staff review area) for
 // the real SWIM/Water-Quality-Buffer layer, and maps the PCO district to its BUA rule.
 const BASE = 'https://gis.charlottenc.gov/arcgis/rest/services/Accela/Accela/MapServer';
