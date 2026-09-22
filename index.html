@@ -922,7 +922,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="card">
         <div class="card-title"><span class="dot"></span>Other Soft Costs</div>
         <div class="fr3">
-          <div class="field"><label>Survey</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="survey" value="1000" oninput="calcAll()"></div></div>
+          <div class="field"><label>Survey</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="survey" value="1000" oninput="markManual(this);calcAll()"></div></div>
           <div class="field"><label>Appraisal</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="appraisal" value="725" oninput="calcAll()"></div></div>
           <div class="field"><label>Insurance (build period)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="insurance" value="1400" oninput="calcAll()"></div></div>
         </div>
@@ -3184,14 +3184,20 @@ function calcLF(){
 // ═══════════════════ PLAN & BUILD ═══════════════════
 // v7.12: survey defaults to $2,000 for duets / townhomes / triplex and $1,000 otherwise (matches the corrected UW
 // template). Only rewrites the field while it still holds a default value, so a figure the user typed is left alone.
+// An analyst can legitimately type $1,000 or $2,000 as a real survey quote, so inferring
+// "untouched" from the amount would silently overwrite their number on the next plan change.
+// Fields carry an explicit data-manual flag instead; markManual() sets it on any human edit,
+// and restoring a saved deal sets it on everything, because those values were deliberate.
+function markManual(el){ const e=(typeof el==='string')?$(el):el; if(e) e.dataset.manual='1'; }
+function markAllManual(){ document.querySelectorAll('.page input[id], .page select[id]').forEach(e=>{ e.dataset.manual='1'; }); }
+function isManual(id){ const e=$(id); return !!(e && e.dataset.manual==='1'); }
 function applySurveyDefault(){
   const s=$('survey');if(!s)return;
-  const cur=pv('survey');
-  if(cur!==0&&cur!==1000&&cur!==2000)return;
+  if(isManual('survey'))return;
   const val=($('plan-sel')||{}).value||'';
   const p=currentPlanObj();
   const multi=(val==='__CUSTOM__')?(pv('cust-u')>1):!!(p&&(p.t==='duet'||p.t==='th'||p.t==='mf'));
-  s.value=multi?2000:1000;
+  s.value=multi?2000:1000;   // still auto — leave data-manual unset
 }
 function onPlanChange(){
   const val=($('plan-sel')||{}).value||'';
@@ -3710,7 +3716,7 @@ function buildReportHTML(canvasDataUrl){
       +metric('Base-Case Profit / Unit',baseProfit,base.hasArv?('CoC '+base.coc.toFixed(1)+'%'):'',true)
       +metric('Total All-In',F(d.cost.total),d.units>1?(d.units+' units'):'',true)
       +metric('Cash Required',F(d.fin.cash),'at close',true)
-      +metric('Max Land (Base, $50K target)',d.maxLand,'per $50K/unit goal',true)
+      +metric('Max Land (Base, profit rule)',d.maxLand,'greater of $50k/unit or 15% of all-in',true)
     +'</div>'
     +'<div class="two-col">'
       +'<div>'+secHdr('DEAL SUMMARY')
@@ -4110,7 +4116,18 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   ws.getCell('A27').value='loan factor'; F('B27',`${I('rate')}/12*${I('termB')}+${I('pts')}+0.01`,'0.0000');
   ws.getCell('A28').value='fixed hold / unit'; F('B28',`(${I('doc')}+${I('tax')}/12*${I('termB')})/${I('units')}`,MONEY);
   ws.getCell('A29').value='Base ARV ($)'; F('B29','D15',MONEY);
-  ws.getCell('A30').value='Max Land Cost'; F('B30',`(B29*(1-${I('sale')})-50000-B4/${I('units')}-B28-B26*B4*B27/${I('units')})/(1/${I('units')}+B26*B27/${I('units')})`,MONEY,true);
+  // PROFIT RULE, same as the on-screen card: base profit/unit must clear the GREATER of $50k or
+  // 15% of all-in per unit, so the land ceiling is the LOWER of the two solutions. Solving only
+  // the $50k rule here would let a recalculated workbook recommend land above the app's ceiling.
+  ws.getCell('A30').value='Max Land Cost (profit rule)';
+  {
+    const U=I('units'), S=I('sale'), DEN=`(1/${U}+B26*B27/${U})`;
+    const ruleA=`(B29*(1-${S})-50000-B4/${U}-B28-B26*B4*B27/${U})/${DEN}`;          // >= $50k/unit
+    const ruleB=`(B29/1.15-B4/${U}-B28-B29*${S}-B26*B4*B27/${U})/${DEN}`;           // >= 15% of all-in
+    F('B30',`MIN(${ruleA},${ruleB})`,MONEY,true);
+    ws.getCell('C30').value='lower of the $50k/unit and 15%-of-all-in ceilings';
+    ws.getCell('C30').font={name:'Arial',size:9,italic:true,color:{argb:'FF7A7A7A'}};
+  }
   ws.pageSetup={printArea:'A1:E30'};
 
   // ---------- Sensitivity ----------
@@ -4150,7 +4167,7 @@ function buildModelWorkbook(ExcelJS, M, logoBuf){
   head(9,'Base Profit / Unit','Scenarios!D21',MONEY,GREEN);
   head(11,'Base Cash-on-Cash','Scenarios!D23',PCT,NAVY);
   head(13,'Total Project Profit (Base)','Scenarios!D22',MONEY,GREEN);
-  head(15,'Max Land Cost ($50k/unit)','Scenarios!B30',MONEY,STEEL);
+  head(15,'Max Land Cost (profit rule)','Scenarios!B30',MONEY,STEEL);
   head(17,'Loan Amount','Scenarios!B8',MONEY,NAVY);
   head(19,'Cash Required at Close','Scenarios!B12',MONEY,STEEL);
   wc.mergeCells('C6:E6'); wc.getCell('C6').value=[M.county,M.zone,M.units+' unit'+(M.units>1?'s':''),M.planName].filter(Boolean).join('  \u00b7  ');
@@ -4571,6 +4588,8 @@ function restoreDeal(d){
       sel.appendChild(o);sel.value=vals['zone-sel'].v;
     }
     onZoneChange();
+    // every restored value was deliberate — protect them from any auto-fill
+    markAllManual();
     // 3) lock tap signature so step-5 entry doesn't clobber restored taps
     _tapSig=($('county-sel').value||'')+'|'+(($('addr-city').value||'').toLowerCase().trim());
     // 4) lot geometry
