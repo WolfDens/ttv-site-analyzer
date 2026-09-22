@@ -148,6 +148,16 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   that drops Z — builder sales are the new-build resales TTV is actually pricing.
 - **The ARV is capped at the highest sold comp.** The SOP is explicit that $/sf math must never run
   past a real nearby sale. Flag removal of the cap or of the `capped` flag it sets.
+- **Comps are SIZE-MATCHED to the subject (v7.15).** `SIZE_BAND` (±20%) is applied to the comp set
+  before the median, widening to `SIZE_BAND_WIDE` (±40%) only when fewer than `MIN_IN_BAND` match.
+  This is evidence-based: a 2026-09-22 backtest over 92 of Pat's historical underwritings cut the
+  median miss from 10.3% to 7.1%. Flag a change that medians the whole pool when a subject size
+  is known.
+- **The `confidence` gate is the headline, not decoration.** `high` requires `CONF_MIN_COMPS` (10)
+  size-matched comps AND spread <= `CONF_MAX_SPREAD` (1.4×); that combination backtested at 2.5%
+  median error and 64% within 5%, versus ~10% error when it fails. It fires on roughly a quarter
+  of deals. Do not loosen these constants without re-running the backtest
+  (`scratchpad/backtest/`, method in `research/05_comps-backtest.md`).
 - **Two tiers, both reported:** built `minYear`+ (default 2020) for context, `solidYear`+ (default
   2025) as solid comps. The ARV prefers solid when there are at least two.
 - **`xcoord` holds latitude and `ycoord` holds longitude** in the CAMA layer. The field names are
