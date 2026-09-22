@@ -18,9 +18,10 @@ in the repo, version it with the code.
   site costs → plan/build cost → financing → worst/base/best exit, plus feasibility
   screens and PDF/Excel/offer-letter exports.
 - **Architecture:** a **single, fully client-side `index.html`** (UI + all logic + all
-  plan data, ~4,775 lines) + **one** serverless function `api/gis.js` (Charlotte/Meck
-  GIS proxy) + `plans/` images + `assets/` logos. No framework, no build step, no
-  database. Everything runs in the browser.
+  plan data, ~4,900 lines) + three serverless functions in `api/`: `gis.js` (Charlotte/Meck
+  GIS + county assessor proxy), `comps.js` (county new-build comps) and `permits.js` (the
+  permitting board's data proxy) + `plans/` images + `assets/` logos. No framework, no build
+  step, no database. Everything runs in the browser.
 - **Deploy model — why review matters:** Vercel serves the static files; **every push to
   `main` auto-deploys to production.** There is no build gate and no test suite catching
   regressions. The PR review *is* the safety net. Non-`main` branches get a Vercel
@@ -79,6 +80,16 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   (`cf66446f...`) on purpose — keep it that way; don't hard-code it.
 
 ### GIS proxy (`api/gis.js`)
+- **County enrichment (v5, 2026-09-22) is a non-fatal fan-out.** After the parcel is resolved, the
+  proxy queries Mecklenburg County's own public servers (`meckgis` CAMA / building footprints /
+  tree canopy, `meckaerial` LiDAR DEM) through `Promise.allSettled`, so one layer being down costs
+  one field, not the lookup. Flag a change that makes any of these awaited serially or fatal.
+- **`aj()` throws on an ArcGIS error body.** ArcGIS answers a bad field or `where` with HTTP 200 and
+  an `{error:{...}}` payload; treating that as "no features" silently blanked the whole CAMA block
+  once already. Keep the error check in `aj()` and `ajPost()`.
+- **Sale-validity semantics:** blank = arm's length and **Z = builder sale** (the new-build resales
+  TTV comps against) are the two market codes; everything else is a disqualified transfer. Flag a
+  comp filter that drops Z or keeps the rest.
 - Auto-fill is **Mecklenburg-only** by design. Other counties link out to the county
   viewer — don't "fix" that into a broken universal fetch.
 - Parcel area uses the **shoelace** of the geometry, **not** the bounding box. Flag a
@@ -128,6 +139,64 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - The Drive FILE ID in `api/permits.js` is intentionally committed (link-shared file
   holding the same data the board renders — not a secret). `PERMITS_FILE_ID` env var
   overrides it; don't flag the literal.
+
+### Comps (`api/comps.js`, v7.14)
+- **Mecklenburg-only**, same rule as the GIS proxy. It joins `TaxParcelSales` to
+  `TaxParcel_camadata` on PID because the sales layer carries no building attributes at all.
+- **Sale-validity filter is the heart of it.** Keep blank (arm's length) and **Z (builder sale)**;
+  everything else is a disqualified transfer. Flag a change that widens this without a reason, or
+  that drops Z — builder sales are the new-build resales TTV is actually pricing.
+- **The ARV is capped at the highest sold comp.** The SOP is explicit that $/sf math must never run
+  past a real nearby sale. Flag removal of the cap or of the `capped` flag it sets.
+- **Comps are clipped to the true `radius`.** The ArcGIS query takes a rectangle, so the envelope's
+  corners reach `radius × √2`; rows are filtered on the computed great-circle distance before any
+  tier is built, and the count dropped is reported in `notes`. Flag a change that drops the filter
+  and lets a 0.7 mi sale drive an ARV labelled "within 0.5 mi".
+- **Comp selection is a CASCADE, neighbourhood first (v7.16).** In order: same assessor
+  neighbourhood + size band → same neighbourhood → size band (`SIZE_BAND`, ±20%) → widened band
+  (`SIZE_BAND_WIDE`) → the whole pocket. Each tier needs `MIN_IN_BAND` comps to fire. This is
+  evidence-based, from the 2026-09-22 backtest: flat median 10.3% median miss, size-matched 7.7%,
+  this cascade 6.3%. The neighbourhood code is the county's own market-area boundary and is the
+  single strongest signal (~4.6% on its own tier). Same-STREET matching was tested and was NOT
+  better, so it is deliberately absent — don't add it back without new evidence.
+- Flag a change that medians the whole pool when a neighbourhood or subject size is known.
+- **The `confidence` gate is the headline, not decoration.** `high` = a neighbourhood-based tier,
+  OR a size tier with `CONF_MIN_COMPS` (10) in-band comps and spread <= `CONF_MAX_SPREAD` (1.4×).
+  Backtested: high covers ~75% of deals at 5.0% median miss; low is ~9% of deals at 20.3%. The
+  badge is what tells the analyst whether to apply the number or pick comps by hand, so keep the
+  levels tied to measured tiers. Do not loosen these constants without re-running the backtest
+  (method and data in `research/05_comps-backtest.md`).
+- **Two tiers, both reported:** built `minYear`+ (default 2020) for context, `solidYear`+ (default
+  2025) as solid comps. **Selection runs over the full new-build pool; recency is reported, not
+  enforced** (`summary.matching.solid_in_set` / `solid_share`, plus a flag when none of the
+  chosen comps are solid). This rule changed on 2026-09-22 after it was measured: a Codex P1 on
+  PR #18 correctly spotted that the code no longer matched the old "prefer solid" wording, but
+  running the ladder over solid-only first backtests at **25.4% within 5% / 10.0% median error**
+  versus **44.8% / 6.3%** for the full pool, and loses 37-17 head to head on the deals where the
+  two differ. Restricting to 2025+ starves the neighbourhood tier. A same-pocket 2023 sale beats
+  a half-mile-away 2025 one. Don't reinstate a hard recency preference without new evidence.
+- **`xcoord` holds latitude and `ycoord` holds longitude** in the CAMA layer. The field names are
+  backwards in the source data; don't 'fix' the distance maths.
+- Comps land in the same `COMPS` model the manual table uses, so the blended $/sf, the PDF and the
+  Excel export keep working unchanged. Flag a parallel comps model.
+
+### Lot-factor auto-fill (v7.13)
+- **A cached GIS result must not outlive its address.** `window._lastGis` carries the PID the comps
+  pull keys off. `onAddrChange()` drops the cache as soon as the typed address stops matching
+  `_lastGis.addrSig`, and `pullCountyComps()` re-checks before using the PID. Without this an
+  analyst who edits the address after a lookup silently prices the previous parcel. Flag any new
+  consumer of `_lastGis` that doesn't verify the signature.
+- **Never infer "untouched" from a field's value.** An analyst can legitimately type a number that
+  equals a shipped default (a real $2,000 survey quote, a real $2,500 grading allowance), and the
+  value-based check silently overwrote it — a Codex P1 on PR #17. Auto-fill gates on the explicit
+  `data-manual` flag instead: `markManual()` sets it on any human edit, `restoreDeal()` sets it on
+  every field of a saved deal, and `isManual()` is what `applySurveyDefault()` and
+  `applyCountyDefaults()` check. Flag any auto-fill that compares against a default value, or an
+  input added without `markManual(this)` on its handler.
+- **The three mappings are deliberate:** demo square footage from the assessor's heated area (falling
+  back to the mapped footprint when there is no CAMA record, e.g. a newly created lot); clearing tier
+  from canopy % (`CANOPY_CLEARING`); grading from the slope band (`SLOPE_GRADING`). These are
+  screening estimates and the UI says so — don't present them as quotes.
 
 ### Domain-correctness (don't let geometry override the rulebook)
 > These two rules describe the **target state**; the current code differs. Flag against
