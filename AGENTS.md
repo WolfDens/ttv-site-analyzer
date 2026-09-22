@@ -43,6 +43,8 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - **Footprint convention:** Slate publishes footprints as **(D′ × W′)**; `PLANS` store
   them **corrected** to `w=W, d=D`. Flag any new/edited plan whose width/depth looks
   transposed — a swap silently breaks every fit-check and BUA calc.
+- **Upgrades are NOT marked up.** The GC fee applies to the Slate base build only; upgrades are
+  added at their flat menu price (Brian, 2026-09-22). Flag any path that applies the fee to upgrades.
 - **Scaling rule.** Per-**unit** costs scale ×N: build, upgrades, water tap, sewer tap.
   Per-**lot** costs stay singular ×1: lot factor, septic, survey, appraisal, insurance.
   Flag anything miscategorized (e.g. a per-lot cost multiplied by units).
@@ -54,8 +56,10 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - **Preserve the circular loan solve.** `loan = LTC% × costBase / (1 − LTC%×0.01)`
   because purchase closing (1% of the loan) is itself inside the loan base. Flag any
   naive `loan = LTC% × costBase` that drops the closed-form term.
-- **Max-supportable-land back-solve** targets a **$50,000** base profit/unit. Don't
-  change that constant silently; if it changes, it's a deliberate, called-out change.
+- **Max-supportable-land back-solve** targets the Deal Analyst **PROFIT RULE** (v7.12,
+  2026-09-22): base profit/unit must clear the **greater of $50,000 or 15% of all-in per unit**.
+  It solves both rules and takes the lower land ceiling. Don't change either constant silently;
+  if they change, it's a deliberate, called-out change.
 
 ### Architecture & footguns
 - **Stay single-file & buildless.** Flag any added framework, bundler, npm build step, or
@@ -143,8 +147,12 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - Any user-facing change bumps **both** `APP_VERSION` and the header badge together, and
   adds a release-notes / changelog entry. Flag a mismatch.
 - Because there's no automated test suite, **every logic change must include a manual
-  verification note in the PR** — recompute one known deal (e.g. 2723 Dellinger Dr,
-  PID 04118526: 77,575 sf, N1-B, Central Catawba) and show the before/after numbers.
+  verification note in the PR** — recompute one known deal and show the before/after numbers.
+  **Canonical parcels (verified against Mecklenburg County GIS, 2026-09-21):** the Dellinger site
+  was sub-lotted into three townhouse lots — 2723 Dellinger Dr (PID 04118535, 7,145 sf), 2727
+  (PID 04118536, 3,455 sf) and 2731 (PID 04118537, 4,312 sf), all N1-B, Central Catawba. The older
+  note "PID 04118526 / 77,575 sf" is wrong — that PID is a neighbouring 1.78-acre parcel on
+  Milhaven Ln owned by a third party.
   Flag a math-touching PR that ships without one.
 
 ---
