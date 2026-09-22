@@ -148,16 +148,20 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   that drops Z — builder sales are the new-build resales TTV is actually pricing.
 - **The ARV is capped at the highest sold comp.** The SOP is explicit that $/sf math must never run
   past a real nearby sale. Flag removal of the cap or of the `capped` flag it sets.
-- **Comps are SIZE-MATCHED to the subject (v7.15).** `SIZE_BAND` (±20%) is applied to the comp set
-  before the median, widening to `SIZE_BAND_WIDE` (±40%) only when fewer than `MIN_IN_BAND` match.
-  This is evidence-based: a 2026-09-22 backtest over 92 of Pat's historical underwritings cut the
-  median miss from 10.3% to 7.1%. Flag a change that medians the whole pool when a subject size
-  is known.
-- **The `confidence` gate is the headline, not decoration.** `high` requires `CONF_MIN_COMPS` (10)
-  size-matched comps AND spread <= `CONF_MAX_SPREAD` (1.4×); that combination backtested at 2.5%
-  median error and 64% within 5%, versus ~10% error when it fails. It fires on roughly a quarter
-  of deals. Do not loosen these constants without re-running the backtest
-  (`scratchpad/backtest/`, method in `research/05_comps-backtest.md`).
+- **Comp selection is a CASCADE, neighbourhood first (v7.16).** In order: same assessor
+  neighbourhood + size band → same neighbourhood → size band (`SIZE_BAND`, ±20%) → widened band
+  (`SIZE_BAND_WIDE`) → the whole pocket. Each tier needs `MIN_IN_BAND` comps to fire. This is
+  evidence-based, from the 2026-09-22 backtest: flat median 10.3% median miss, size-matched 7.7%,
+  this cascade 6.3%. The neighbourhood code is the county's own market-area boundary and is the
+  single strongest signal (~4.6% on its own tier). Same-STREET matching was tested and was NOT
+  better, so it is deliberately absent — don't add it back without new evidence.
+- Flag a change that medians the whole pool when a neighbourhood or subject size is known.
+- **The `confidence` gate is the headline, not decoration.** `high` = a neighbourhood-based tier,
+  OR a size tier with `CONF_MIN_COMPS` (10) in-band comps and spread <= `CONF_MAX_SPREAD` (1.4×).
+  Backtested: high covers ~75% of deals at 5.0% median miss; low is ~9% of deals at 20.3%. The
+  badge is what tells the analyst whether to apply the number or pick comps by hand, so keep the
+  levels tied to measured tiers. Do not loosen these constants without re-running the backtest
+  (method and data in `research/05_comps-backtest.md`).
 - **Two tiers, both reported:** built `minYear`+ (default 2020) for context, `solidYear`+ (default
   2025) as solid comps. The ARV prefers solid when there are at least two.
 - **`xcoord` holds latitude and `ycoord` holds longitude** in the CAMA layer. The field names are

@@ -15,12 +15,15 @@
 //   - 0-1 solid comps, or luxury-tier ARV (> $1M), is a red flag to surface, not to hide
 //   - comps are SIZE-MATCHED to the subject (SOP: +/-200 sf first, widen only if you must)
 //
-// Backtested 2026-09-22 against 92 of Pat's historical underwritings. A flat median of every
-// new build within half a mile missed her number by 10.3% (median absolute error). Matching
-// comps to the subject's size first cut that to 7.1%. The bigger lever is knowing WHEN to
-// trust it: with 10+ size-matched comps and a tight $/sf spread, median error drops to 2.5%
-// and 64% of deals land within 5% of the analyst's own number — but that only happens on about
-// a quarter of deals. Hence `confidence`: high means safe to apply, low means Pat picks by hand.
+// Backtested 2026-09-22 against Pat's historical underwritings. A flat median of every new build
+// within half a mile missed her number by 10.3% (median absolute error). Size-matching cut that
+// to 7.1%. Matching on the assessor's NEIGHBOURHOOD code cut it to ~4.2%: that code is the
+// county's own market-area definition, built for mass appraisal, so it captures the pocket
+// boundaries that a half-mile radius blurs (the NoDa and Keswick misses were exactly this).
+// Same-street matching was tested too and was NOT better (8.7% on a small sample), so the
+// cascade below stops at the neighbourhood.
+// `confidence` exists because knowing when to trust the number matters more than the number:
+// a neighbourhood-based tier backtested at ~4.5% median error, a bare pocket median at ~17%.
 //
 // Mecklenburg-only by design, same as api/gis.js. Other counties fall back to DealMachine.
 // Deploy on Vercel; hit /api/comps?pid=08915115&sf=1854&radius=0.5
@@ -44,7 +47,7 @@ const RES_USE = /^R(1\d\d|2\d\d|3\d\d)$/;
 // Size matching. Backtest showed +/-20% of the subject's heated area is the sweet spot; widening
 // to +/-40% recovers thin pockets at some cost in accuracy.
 const SIZE_BAND = 0.20, SIZE_BAND_WIDE = 0.40, MIN_IN_BAND = 3;
-// Confidence gate, from the backtest: both conditions -> median error 2.5%.
+// A size-only tier still earns 'high' when the evidence is deep and tight (backtest: 2.5% error).
 const CONF_MIN_COMPS = 10, CONF_MAX_SPREAD = 1.4;
 
 // ArcGIS answers a bad field or where-clause with HTTP 200 and an {error:...} body, so check for it.
@@ -220,35 +223,52 @@ export default async function handler(req, res){
 
     // 7) suggested ARV. Size-match first (the single biggest accuracy lever in the backtest),
     //    then cap at the highest real sale.
-    let basis = solid.length>=2 ? {set:solid, label:`solid comps (built ${solidYear}+)`}
-              : context.length ? {set:context, label:`new-build comps (built ${minYear}+)`} : null;
-    let inBandCount = null, spread = null;
+    let basis = solid.length>=2 ? {set:solid, label:`solid comps (built ${solidYear}+)`, tier:'solid'}
+              : context.length ? {set:context, label:`new-build comps (built ${minYear}+)`, tier:'context'} : null;
+    let inBandCount = null, spread = null, tier = basis && basis.tier;
     if(basis && subjectSf){
-      const pool = context.length ? context : basis.set;
-      const within = pct => pool.filter(r=>Math.abs(r.heated_sf-subjectSf)/subjectSf <= pct);
-      let band_ = within(SIZE_BAND), bandLabel = `within ±${Math.round(SIZE_BAND*100)}% of ${Math.round(subjectSf).toLocaleString()} sf`;
-      if(band_.length < MIN_IN_BAND){
-        const wide = within(SIZE_BAND_WIDE);
-        if(wide.length >= MIN_IN_BAND){ band_ = wide; bandLabel = `within ±${Math.round(SIZE_BAND_WIDE*100)}% of ${Math.round(subjectSf).toLocaleString()} sf (widened — too few close matches)`; }
-      }
-      inBandCount = within(SIZE_BAND).length;
-      if(band_.length >= 2){
-        basis = {set:band_, label:`size-matched new-build comps, ${bandLabel}`};
-        const ps = band_.map(r=>r.psf);
+      const all = context.length ? context : basis.set;
+      const subjNbh = (out.subject && out.subject.neighborhood || '').trim();
+      const inSize = (set, pct) => set.filter(r => Math.abs(r.heated_sf-subjectSf)/subjectSf <= pct);
+      const sameNbh = subjNbh ? all.filter(r => (r.neighborhood||'').trim() === subjNbh) : [];
+      inBandCount = inSize(all, SIZE_BAND).length;
+      const sf0 = Math.round(subjectSf).toLocaleString();
+      // Tightest tier with enough evidence wins. Neighbourhood beats radius; size breaks ties.
+      const ladder = [
+        {set:inSize(sameNbh, SIZE_BAND), need:MIN_IN_BAND, tier:'neighborhood+size',
+         label:`same assessor neighbourhood (${subjNbh}) and within ±${Math.round(SIZE_BAND*100)}% of ${sf0} sf`},
+        {set:sameNbh, need:MIN_IN_BAND, tier:'neighborhood',
+         label:`same assessor neighbourhood (${subjNbh})`},
+        {set:inSize(all, SIZE_BAND), need:MIN_IN_BAND, tier:'size',
+         label:`within ±${Math.round(SIZE_BAND*100)}% of ${sf0} sf`},
+        {set:inSize(all, SIZE_BAND_WIDE), need:MIN_IN_BAND, tier:'size-wide',
+         label:`within ±${Math.round(SIZE_BAND_WIDE*100)}% of ${sf0} sf (widened — too few close matches)`},
+        {set:all, need:2, tier:'pocket', label:`every new build within ${radius} mi (no closer match)`}
+      ];
+      const pick = ladder.find(l => l.set.length >= l.need);
+      if(pick){
+        basis = {set:pick.set, label:'size- and pocket-matched comps: '+pick.label, tier:pick.tier};
+        tier = pick.tier;
+        const ps = pick.set.map(r=>r.psf);
         spread = +(Math.max(...ps)/Math.min(...ps)).toFixed(2);
       }
-      out.summary.size_matched = {in_band:inBandCount, used:basis.set.length, band_pct:SIZE_BAND, spread};
-      // Confidence gate — this is what says whether to trust the number or pick comps by hand.
-      const high = inBandCount>=CONF_MIN_COMPS && spread!=null && spread<=CONF_MAX_SPREAD;
-      const medium = !high && (inBandCount>=5 || basis.set.length>=5);
+      out.summary.matching = {tier, comps_used:basis.set.length, in_size_band:inBandCount,
+        same_neighborhood:sameNbh.length, subject_neighborhood:subjNbh||null, spread};
+      const nbhTier = tier==='neighborhood+size' || tier==='neighborhood';
+      const deepSize = tier==='size' && inBandCount>=CONF_MIN_COMPS && spread!=null && spread<=CONF_MAX_SPREAD;
+      const high = nbhTier || deepSize;
+      const medium = !high && tier!=='pocket' && basis.set.length>=5;
       out.confidence = {
-        level: high?'high':medium?'medium':'low',
-        in_band:inBandCount, spread,
-        reason: high
-          ? `${inBandCount} comps within ±${Math.round(SIZE_BAND*100)}% of the subject's size and a tight $/sf spread (${spread}×). On the 2026-09 backtest this combination landed within 5% of the analyst's own number on 64% of deals, median error 2.5%.`
+        level: high?'high':medium?'medium':'low', tier,
+        comps_used: basis.set.length, in_size_band: inBandCount,
+        same_neighborhood: sameNbh.length, spread,
+        reason: nbhTier
+          ? `${basis.set.length} comps in the subject's own assessor neighbourhood${tier==='neighborhood+size'?' and size band':''}. On the 2026-09 backtest this tier missed the analyst's number by about 4% at the median, with three quarters inside 10%.`
+          : deepSize
+          ? `${inBandCount} comps within ±${Math.round(SIZE_BAND*100)}% of the subject's size and a tight $/sf spread (${spread}×). Backtested at 2.5% median error.`
           : medium
-          ? `Only ${inBandCount} size-matched comps${spread!=null?` and a ${spread}× $/sf spread`:''}. Treat as a starting point and check the rows — backtest median error in this band was around 7%.`
-          : `Too few size-matched comps${spread!=null?` (${inBandCount}) and a ${spread}× spread`:''}. Pick the comps by hand; backtest median error here was about 10-12%.`
+          ? `No comps in the subject's assessor neighbourhood, so this is a ${basis.set.length}-comp size match across the wider pocket. Backtest median error here was around 9%. Check the rows.`
+          : `Thin evidence — ${basis.set.length} comps and no pocket match. Backtest median error for this tier was about 17%. Pick the comps by hand.`
       };
     }
     if(basis && subjectSf){
@@ -257,6 +277,7 @@ export default async function handler(req, res){
       const cap = Math.max(...basis.set.map(r=>r.sale_price));
       const capped = raw > cap;
       out.arv = {
+        tier,
         basis:basis.label, comps_used:basis.set.length, median_psf:mpsf,
         subject_sf:subjectSf,
         arv_by_psf:Math.round(raw),

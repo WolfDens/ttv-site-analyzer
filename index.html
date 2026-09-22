@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.15 &middot; Sep 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.16 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -4783,8 +4783,14 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.15', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.16', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.16',date:'Sep 2026',name:'Comps now match the pocket, not just the radius',items:[
+   'Comps are picked from the subject\u2019s own assessor neighbourhood first, then by plan size, and only fall back to \u201ceverything within half a mile\u201d when nothing closer exists. The county\u2019s neighbourhood code is its own market-area boundary, so it captures pockets a radius blurs \u2014 which is what threw the NoDa and Keswick estimates off.',
+   'The panel now says which tier it used and how many comps were in it.',
+   'Backtest against Pat\u2019s historical underwritings: median miss fell from 10.3% (flat median, v7.14) to 7.7% (size matching, v7.15) to 6.3% now, and deals landing within 5% of her number rose from 31% to 45%.',
+   'The confidence badge got both broader and more honest. HIGH now covers about three quarters of deals at a 5.0% median miss; LOW is reserved for genuinely thin evidence, where the median miss is 20% and you should pick comps by hand.',
+   'Same-street matching was tested and did NOT beat the neighbourhood code, so it is deliberately not used.']},
  {v:'7.15',date:'Sep 2026',name:'Comps are size-matched, and now tell you when to trust them',items:[
    'Comps are matched to the selected plan\u2019s square footage (\u00b120% first, widening only when the pocket is thin) instead of taking a flat median of every new build nearby. Bigger homes sell for less per square foot, so the old flat median was biased on any specific plan.',
    'New Confidence badge \u2014 HIGH, MEDIUM or LOW \u2014 on the comps panel, with the reason spelled out.',
