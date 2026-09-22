@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.12 &middot; Sep 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.13 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -1804,6 +1804,8 @@ function applyGisData(d){
   const filled=[];
   if(d.zoning&&d.zoning.value&&setGisZoning(d.zoning.value))filled.push('zoning '+d.zoning.value);
   if(d.parcel&&d.parcel.geometry&&d.parcel.geometry.rings&&loadParcelPolygon(d.parcel.geometry.rings,d.parcel.edges))filled.push('lot polygon + area'+(d.parcel.edges&&d.parcel.edges.front_index!=null?' + front edge':''));
+  const lf=applyCountyDefaults(d);
+  if(lf.length)filled.push('lot factor \u2014 '+lf.join(', '));
   setGisStatus(filled.length?('Filled: '+filled.join(', ')+'. Review & adjust below.'):'Lookup complete.');
   try{window._lastGis={ts:Date.now(),
     pid:d.parcel&&d.parcel.pid||null,nc_pin:d.parcel&&d.parcel.nc_pin||null,
@@ -1812,8 +1814,38 @@ function applyGisData(d){
     zoning:d.zoning&&d.zoning.value||null,zclass:d.zoning&&d.zoning.class||null,
     watershed:d.watershed&&d.watershed.pco_district||null,bua:d.watershed&&d.watershed.bua_rule||null,
     swim:d.swim_buffer?{i:!!d.swim_buffer.intersects,t:(d.swim_buffer.types||[]).slice(0,3)}:null,
-    historic:d.historic?{i:!!d.historic.in_district,n:d.historic.name||null}:null};}catch(_){ }
+    historic:d.historic?{i:!!d.historic.in_district,n:d.historic.name||null}:null,
+    cama:d.cama||null,site:d.site||null};}catch(_){ }
   renderGisResult(d);
+}
+// v7.13: turn the county's own site facts into lot-factor starting points. Each field is only
+// written while it still holds its shipped default, so anything the user typed survives a re-lookup.
+const LF_DEFAULTS={'demo-sqft':'0','clearing':'6500','grading':'2500'};
+const CANOPY_CLEARING={cleared:'0',light:'3000',medium:'6500',heavy:'10000',extreme:'15000'};
+const SLOPE_GRADING={flat:2500,moderate:7500,severe:15000};
+function applyCountyDefaults(d){
+  const filled=[];
+  const untouched=id=>{const e=$(id);return e&&String(e.value).trim()===LF_DEFAULTS[id];};
+  const cama=d.cama||null, site=d.site||null;
+  // Teardown square footage: the assessor's heated area is the number the demo bid keys off.
+  // Fall back to the mapped building footprint when there's no CAMA record (new lots have none).
+  if(untouched('demo-sqft')){
+    let sf=null,src='';
+    if(cama&&cama.vacant===true){sf=0;src='county says vacant';}
+    else if(cama&&cama.heated_sf>0){sf=Math.round(cama.heated_sf);src='assessor heated area';}
+    else if(site&&site.footprint_sf>0){sf=Math.round(site.footprint_sf);src='mapped footprint';}
+    if(sf!=null){$('demo-sqft').value=sf;filled.push('demo '+sf.toLocaleString()+' sf ('+src+')');}
+  }
+  if(site&&site.canopy_class&&untouched('clearing')){
+    const v=CANOPY_CLEARING[site.canopy_class];
+    if(v!=null){$('clearing').value=v;filled.push('clearing '+site.canopy_class+' ('+site.canopy_pct+'% canopy)');}
+  }
+  if(site&&site.slope_class&&untouched('grading')){
+    const v=SLOPE_GRADING[site.slope_class];
+    if(v!=null){$('grading').value=v;filled.push('grading '+site.slope_class+' ('+site.slope_pct+'% slope)');}
+  }
+  if(filled.length){try{calcLF();}catch(_){ }}
+  return filled;
 }
 function renderGisResult(d){
   const box=$('gis-result');if(!box)return;
@@ -1829,6 +1861,22 @@ function renderGisResult(d){
   if(w.bua_rule)h+=row('BUA rule',w.bua_rule,amber);
   if(b&&typeof b.intersects==='boolean')h+=row('SWIM buffer',b.intersects?('\u26a0 Intersects'+(b.types&&b.types.length?' ('+b.types.join(', ')+')':'')):'\u2713 None on parcel',b.intersects?red:green);
   if(d.historic)h+=row('Historic district',d.historic.in_district?('\u26a0 '+(d.historic.name||'Yes')):'\u2713 No',d.historic.in_district?amber:'');
+  const cm=d.cama,st=d.site;
+  if(cm){
+    h+='<div style="font-weight:bold;color:'+teal+';margin:8px 0 4px">\ud83c\udfe0 Assessor record</div>';
+    if(cm.owner)h+=row('Owner',cm.owner+(cm.owner2?' & '+cm.owner2:''));
+    if(cm.land_use)h+=row('Land use',cm.land_use+(cm.vacant?' \u00b7 VACANT':''));
+    if(cm.year_built)h+=row('Existing structure',cm.year_built+(cm.heated_sf?' \u00b7 '+Math.round(cm.heated_sf).toLocaleString()+' sf heated':'')+(cm.beds?' \u00b7 '+cm.beds+'bd/'+cm.baths+'ba':'')+(cm.grade?' \u00b7 '+cm.grade:''));
+    if(cm.total_value)h+=row('Tax value','$'+Math.round(cm.total_value).toLocaleString()+(cm.land_value?' (land $'+Math.round(cm.land_value).toLocaleString()+')':''));
+    if(cm.last_sale_date)h+=row('Last sale',(cm.last_sale_price?'$'+Math.round(cm.last_sale_price).toLocaleString():'price not recorded')+' \u00b7 '+cm.last_sale_date+(cm.sale_is_market?'':' \u00b7 \u26a0 not arm\u2019s length'+(cm.sale_validity_note?' ('+cm.sale_validity_note.toLowerCase()+')':'')),cm.sale_is_market?'':amber);
+  }
+  if(st){
+    h+='<div style="font-weight:bold;color:'+teal+';margin:8px 0 4px">\u26f0 Site conditions</div>';
+    if(st.footprint_sf!=null)h+=row('Building footprint',st.footprint_sf?(st.footprint_sf.toLocaleString()+' sf'+(st.footprint_count>1?' in '+st.footprint_count+' structures':'')):'None mapped \u2014 vacant lot');
+    if(st.canopy_pct!=null)h+=row('Tree canopy',st.canopy_pct+'% of lot ('+st.canopy_sf.toLocaleString()+' sf) \u00b7 '+st.canopy_class,st.canopy_pct>55?amber:'');
+    if(st.slope_pct!=null)h+=row('Slope',st.fall_ft+' ft fall over '+st.run_ft+' ft \u00b7 '+st.slope_pct+'% \u00b7 '+st.slope_class,st.slope_pct>12?amber:'');
+    if(st.note)h+='<div style="font-size:11px;color:'+dim+';padding:3px 0">'+st.note+'</div>';
+  }
   h+=row('Easements','Verify on recorded plat',dim);
   if(d.errors&&d.errors.length)h+=row('Errors',d.errors.join('; '),red);
   h+='<div style="font-size:11px;color:'+dim+';margin-top:6px">Zoning &amp; lot loaded into the form above \u2014 override anything off-benchmark. Parcel shown is the current GIS shape; for a subdivision, draw the intended sublot.</div>';
@@ -4666,8 +4714,14 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.12', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.13', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.13',date:'Sep 2026',name:'County GIS fills in the site \u2014 and the lot factor',items:[
+   'The \ud83d\udef0 auto-fill now also pulls Mecklenburg County\u2019s assessor record: owner, land use, year built, heated square footage, beds/baths, quality grade, tax value, and the last sale with a flag when it wasn\u2019t an arm\u2019s-length deal.',
+   'New Site conditions block: mapped building footprint (your teardown square footage), tree canopy as a % of the lot, and real slope \u2014 elevation sampled at the parcel corners from the county\u2019s 3-ft LiDAR surface.',
+   'Those three facts now pre-fill the Lot Factor step: demo square footage from the assessor, clearing tier from canopy %, grading from the slope band. Anything you have already typed is left alone \u2014 the auto-fill only writes a field that still holds its default.',
+   'Everything is a screening estimate and says so. Slope is corner-to-corner across the whole parcel, not the building pad; canopy is the 2025 county layer. Confirm both on site.',
+   'Mecklenburg only, like the rest of the GIS auto-fill. Other counties still link out.']},
  {v:'7.12',date:'Sep 2026',name:'Math aligned with the corrected UW template',items:[
    'Sale costs default to 6% of ARV (5% realtor + 1% closing) instead of 5%.',
    'Survey defaults to $2,000 when a duet, townhome or triplex plan is selected ($1,000 otherwise). A figure you typed yourself is left alone.',

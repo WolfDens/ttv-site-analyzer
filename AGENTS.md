@@ -79,6 +79,16 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   (`cf66446f...`) on purpose — keep it that way; don't hard-code it.
 
 ### GIS proxy (`api/gis.js`)
+- **County enrichment (v5, 2026-09-22) is a non-fatal fan-out.** After the parcel is resolved, the
+  proxy queries Mecklenburg County's own public servers (`meckgis` CAMA / building footprints /
+  tree canopy, `meckaerial` LiDAR DEM) through `Promise.allSettled`, so one layer being down costs
+  one field, not the lookup. Flag a change that makes any of these awaited serially or fatal.
+- **`aj()` throws on an ArcGIS error body.** ArcGIS answers a bad field or `where` with HTTP 200 and
+  an `{error:{...}}` payload; treating that as "no features" silently blanked the whole CAMA block
+  once already. Keep the error check in `aj()` and `ajPost()`.
+- **Sale-validity semantics:** blank = arm's length and **Z = builder sale** (the new-build resales
+  TTV comps against) are the two market codes; everything else is a disqualified transfer. Flag a
+  comp filter that drops Z or keeps the rest.
 - Auto-fill is **Mecklenburg-only** by design. Other counties link out to the county
   viewer — don't "fix" that into a broken universal fetch.
 - Parcel area uses the **shoelace** of the geometry, **not** the bounding box. Flag a
@@ -128,6 +138,15 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
 - The Drive FILE ID in `api/permits.js` is intentionally committed (link-shared file
   holding the same data the board renders — not a secret). `PERMITS_FILE_ID` env var
   overrides it; don't flag the literal.
+
+### Lot-factor auto-fill (v7.13)
+- **Only write a field that still holds its shipped default.** `applyCountyDefaults()` checks each
+  input against `LF_DEFAULTS` before touching it, so a re-lookup never clobbers a number the
+  analyst typed. Flag any auto-fill that writes unconditionally.
+- **The three mappings are deliberate:** demo square footage from the assessor's heated area (falling
+  back to the mapped footprint when there is no CAMA record, e.g. a newly created lot); clearing tier
+  from canopy % (`CANOPY_CLEARING`); grading from the slope band (`SLOPE_GRADING`). These are
+  screening estimates and the UI says so — don't present them as quotes.
 
 ### Domain-correctness (don't let geometry override the rulebook)
 > These two rules describe the **target state**; the current code differs. Flag against

@@ -23,13 +23,47 @@ const FRONT_MAX_ANY_FT=60;    // non-ROW rescue threshold (mis-flagged slivers)
 // Real SWIM / Water Quality Buffer geometry (City Open Data hosted feature layer),
 // resolved at runtime from its ArcGIS Online item so we don't hardcode the org URL.
 const WQ_BUFFER_ITEM = 'cf66446f36244e2498aa9b3f8e704b84';
+// v5: Mecklenburg County's own public ArcGIS servers (no key, no signup). These carry the CAMA
+// (assessor) record, building footprints, tree canopy and a 3-ft LiDAR elevation surface — none of
+// which exist on the city's Accela service. Verified 2026-09-21 against PIDs 04118535/36/37.
+const MECK = 'https://meckgis.mecklenburgcountync.gov/server/rest/services';
+const AERIAL = 'https://meckaerial.mecklenburgcountync.gov/server/rest/services';
+const GEOMSVC = MECK + '/Utilities/Geometry/GeometryServer';
+// Slope bands drive the lot-factor grading assumption (SOP: flat ~$15k, trees/moderate $25-30k,
+// heavy+severe $40k+). Canopy bands drive the clearing dropdown.
+const SLOPE_BANDS = [{max:5,label:'flat'},{max:12,label:'moderate'},{max:Infinity,label:'severe'}];
+const CANOPY_BANDS = [{max:10,label:'cleared'},{max:30,label:'light'},{max:55,label:'medium'},{max:75,label:'heavy'},{max:Infinity,label:'extreme'}];
+function band(v,bands){ for(const b of bands){ if(v<=b.max) return b.label; } return bands[bands.length-1].label; }
 
 // Post-Construction Stormwater Ordinance district -> built-upon-area rule of thumb.
 const BUA_RULE = {
   'Central Catawba': 'Over 5,000 sf BUA triggers the stormwater ordinance; keep under 24% of lot area (verify).',
 };
 
-async function aj(url){ const r = await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status+' '+url); return r.json(); }
+async function aj(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('HTTP '+r.status+' '+url);
+  const j = await r.json();
+  if(j && j.error) throw new Error('ArcGIS '+(j.error.code||'')+': '+(j.error.message||'')+((j.error.details&&j.error.details.length)?(' — '+j.error.details.join('; ')):''));
+  return j;
+}
+// ArcGIS geometry operations need POST — the payloads (polygon rings) blow past URL limits.
+async function ajPost(url, params){
+  const body = new URLSearchParams(params).toString();
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+  if(!r.ok) throw new Error('HTTP '+r.status+' '+url);
+  const j = await r.json();
+  if(j && j.error) throw new Error('ArcGIS '+(j.error.code||'')+': '+(j.error.message||''));
+  return j;
+}
+// Query any layer with the parcel polygon as the spatial filter.
+async function byPolygon(layerUrl, ring, outFields='*', returnGeometry=false){
+  const geom = JSON.stringify({rings:[ring], spatialReference:{wkid:SR}});
+  const params = {geometry:geom, geometryType:'esriGeometryPolygon', inSR:String(SR),
+    spatialRel:'esriSpatialRelIntersects', outFields, returnGeometry:String(!!returnGeometry), f:'json'};
+  if(returnGeometry) params.outSR = String(SR);
+  return ajPost(layerUrl+'/query', params);
+}
 const _fields = {};
 async function fields(id){ if(_fields[id]) return _fields[id]; const m = await aj(`${BASE}/${id}?f=json`); _fields[id] = (m.fields||[]); return _fields[id]; }
 async function pickField(id, rx, prefer){
@@ -242,6 +276,126 @@ export default async function handler(req, res){
 
       try{ const h=await spatialAt(`${BASE}/${LAYER.historic}`,pt); out.historic={ in_district:h.hit, name:((findAttr(h.attrs,/name|district/i)||{}).value)||null }; }
       catch(e){ out.errors.push('historic: '+e.message); }
+    }
+
+    // 4) v5 county enrichment — assessor record + site facts. Mecklenburg only; every piece is
+    // independent and non-fatal, so a layer being down degrades one field instead of the lookup.
+    const pid = out.parcel && out.parcel.pid;
+    const ring = out.parcel && out.parcel.geometry && out.parcel.geometry.rings && out.parcel.geometry.rings[0];
+    if(pid){
+      const results = await Promise.allSettled([
+        // 4a) CAMA: owner, land use, year built, heated sf, last sale, assessed values
+        aj(`${MECK}/TaxParcel_camadata/MapServer/0/query?where=${encodeURIComponent("pid='"+pid+"'")}`
+          +'&outFields=pid,address,legaldesc,ownrlstnme,ownrfrstnme,ownr2lstnme,ownr2frstnme,'
+          +'lusecode,landuse_description,legalacres,gisacres,neighbordesc,vacorimprov,'
+          +'saleprice,saledate,validsale,naldesc,typeofdeed,grantor,deed_book,deed_page,'
+          +'totlandval,totalbldgval,totalvalue,totmarkval,'
+          +'yearbuilt,effyearblt,heatedarea,totalarea,finarea,bedrooms,fullbath,halfbath,'
+          +'grade,bldgtype,storyheight,extwall,foundation,resunits'
+          +'&returnGeometry=false&f=json'),
+        // 4b) building footprints on the lot (teardown square footage)
+        ring ? byPolygon(`${MECK}/BuildingFootprints/MapServer/0`, ring, 'layer,sourceyear', true) : Promise.resolve(null),
+        // 4c) tree canopy polygons over the lot (clipped below)
+        ring ? byPolygon(`${MECK}/TreeCanopy/TreeCanopy2025/MapServer/0`, ring, 'OBJECTID', true) : Promise.resolve(null),
+        // 4d) elevation at the parcel corners -> fall and slope
+        ring ? aj(`${AERIAL}/LiDAR/DEM_3ft_2026/ImageServer/getSamples?geometry=`
+          +encodeURIComponent(JSON.stringify({points:ring.map(p=>[p[0],p[1]]), spatialReference:{wkid:SR}}))
+          +'&geometryType=esriGeometryMultipoint&returnFirstValueOnly=true&f=json') : Promise.resolve(null),
+      ]);
+      const [camaR, fpR, canopyR, demR] = results;
+      raw.county = debug ? {cama:camaR.status, footprints:fpR.status, canopy:canopyR.status, dem:demR.status} : undefined;
+
+      // 4a) assessor record
+      if(camaR.status==='fulfilled' && camaR.value && camaR.value.features && camaR.value.features.length){
+        const a = camaR.value.features[0].attributes;
+        const asDate = v => (typeof v==='number' && v>0 && v<4e12) ? new Date(v).toISOString().slice(0,10) : null;
+        const nm = (l,f) => [f,l].map(x=>(x||'').trim()).filter(Boolean).join(' ') || null;
+        const validity = (a.validsale||'').trim();
+        out.cama = {
+          owner:nm(a.ownrlstnme,a.ownrfrstnme), owner2:nm(a.ownr2lstnme,a.ownr2frstnme),
+          situs:a.address||null, legal:a.legaldesc||null,
+          land_use:a.landuse_description||null, use_code:a.lusecode||null,
+          vacant: a.vacorimprov ? /^VAC/i.test(a.vacorimprov) : null,
+          year_built:a.yearbuilt||null, eff_year:a.effyearblt||null,
+          heated_sf:a.heatedarea||null, total_sf:a.totalarea||null, finished_sf:a.finarea||null,
+          beds:a.bedrooms||null, baths:((a.fullbath||0)+0.5*(a.halfbath||0))||null,
+          grade:a.grade||null, bldg_type:a.bldgtype||null, stories:a.storyheight||null,
+          ext_wall:a.extwall||null, foundation:a.foundation||null, res_units:a.resunits||null,
+          last_sale_price:a.saleprice||null, last_sale_date:asDate(a.saledate),
+          sale_validity:validity||null,
+          // blank = arm's length; Z = builder sale (exactly the new-build resales we comp against).
+          sale_is_market: validity==='' || validity.toUpperCase()==='Z',
+          sale_validity_note:(a.naldesc||'').trim()||null,
+          deed_type:a.typeofdeed||null, grantor:a.grantor||null,
+          deed:(a.deed_book&&a.deed_page)?`${a.deed_book}/${a.deed_page}`:null,
+          land_value:a.totlandval||null, building_value:a.totalbldgval||null,
+          total_value:a.totalvalue||null, market_value:a.totmarkval||null,
+          legal_acres:a.legalacres||null, neighborhood:a.neighbordesc||null,
+          source:'Mecklenburg County CAMA'
+        };
+      } else if(camaR.status==='rejected'){ out.errors.push('cama: '+camaR.reason.message); }
+      else { out.notes.push('No CAMA record for PID '+pid+' — newly created lot? Enter structure size by hand.'); }
+
+      const site = {};
+      // 4b) footprints: full footprint area, not clipped — a building straddling the line is rare and
+      // the demo estimate wants the whole structure anyway.
+      if(fpR.status==='fulfilled' && fpR.value){
+        const feats = fpR.value.features || [];
+        let sf = 0; feats.forEach(f=>{ const a = shoelaceSqft(f.geometry); if(a) sf += a; });
+        site.footprint_count = feats.length;
+        site.footprint_sf = feats.length ? Math.round(sf) : 0;
+      } else if(fpR.status==='rejected'){ out.errors.push('footprints: '+fpR.reason.message); }
+
+      // 4c) canopy clipped to the parcel via the county geometry service
+      if(canopyR.status==='fulfilled' && canopyR.value){
+        const feats = (canopyR.value.features||[]).filter(f=>f.geometry&&f.geometry.rings);
+        if(!feats.length){ site.canopy_sf = 0; site.canopy_pct = 0; }
+        else {
+          try{
+            const clipped = await ajPost(GEOMSVC+'/intersect', {
+              sr:String(SR), f:'json',
+              geometries:JSON.stringify({geometryType:'esriGeometryPolygon', geometries:feats.map(f=>({rings:f.geometry.rings}))}),
+              geometry:JSON.stringify({geometryType:'esriGeometryPolygon', geometry:{rings:[ring]}})
+            });
+            const polys = (clipped.geometries||[]).filter(g=>g&&g.rings&&g.rings.length);
+            if(polys.length){
+              const areas = await ajPost(GEOMSVC+'/areasAndLengths', {
+                sr:String(SR), f:'json', calculationType:'planar',
+                polygons:JSON.stringify(polys), areaUnit:JSON.stringify({areaUnit:'esriSquareFeet'})
+              });
+              const total = (areas.areas||[]).reduce((t,v)=>t+Math.abs(v||0),0);
+              site.canopy_sf = Math.round(total);
+            } else site.canopy_sf = 0;
+          }catch(e){ out.errors.push('canopy_clip: '+e.message); }
+        }
+        if(site.canopy_sf!=null && out.parcel.area_sf) site.canopy_pct = Math.round(site.canopy_sf/out.parcel.area_sf*100);
+      } else if(canopyR.status==='rejected'){ out.errors.push('canopy: '+canopyR.reason.message); }
+
+      // 4d) slope from the elevation samples at the parcel corners
+      if(demR.status==='fulfilled' && demR.value){
+        const samples = (demR.value.samples||[])
+          .map(s=>({v:parseFloat(s.value), x:s.location&&s.location.x, y:s.location&&s.location.y}))
+          .filter(s=>isFinite(s.v));
+        if(samples.length>=2){
+          let lo=samples[0], hi=samples[0];
+          samples.forEach(s=>{ if(s.v<lo.v)lo=s; if(s.v>hi.v)hi=s; });
+          const fall = hi.v-lo.v;
+          const run = Math.hypot((hi.x-lo.x)||0,(hi.y-lo.y)||0);
+          const pct = run>0 ? fall/run*100 : null;
+          site.elev_min_ft = +lo.v.toFixed(1); site.elev_max_ft = +hi.v.toFixed(1);
+          site.fall_ft = +fall.toFixed(1);
+          site.run_ft = Math.round(run);
+          site.slope_pct = pct!=null ? +pct.toFixed(1) : null;
+          site.slope_class = pct!=null ? band(pct, SLOPE_BANDS) : null;
+          site.samples = samples.length;
+        }
+      } else if(demR.status==='rejected'){ out.errors.push('elevation: '+demR.reason.message); }
+
+      if(site.canopy_pct!=null) site.canopy_class = band(site.canopy_pct, CANOPY_BANDS);
+      if(Object.keys(site).length){
+        site.note = 'Slope is corner-to-corner across the whole parcel, not the pad. Canopy is the 2025 county layer clipped to the lot. Both are screening estimates — confirm on site.';
+        out.site = site;
+      }
     }
 
     out.note_easements = 'No private-easement layer here - verify easements on the recorded plat. (Storm-water easements are a separate Open Data layer if needed.)';
