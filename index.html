@@ -510,7 +510,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="hdr-sub">Tide &amp; Timber Ventures, LLC &mdash; Charlotte / Carolinas Market</div>
     </div>
   </div>
-  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.12 &middot; Sep 2026</div></div>
+  <div class="hdr-right"><button class="hdr-tool" onclick="downloadDealJSON()" title="Save deal to file (JSON)" aria-label="Save deal">&#128190;</button><button class="hdr-tool" onclick="$('deal-file-input').click()" title="Load deal from file" aria-label="Load deal">&#128194;</button><input type="file" id="deal-file-input" accept=".json,application/json" style="display:none" onchange="loadDealFile(this)"><div class="hdr-badge" onclick="openReleaseNotes()" title="What&rsquo;s new in this version">V7.16 &middot; Sep 2026</div></div>
 </div>
 
 <div class="step-nav">
@@ -778,7 +778,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="card">
         <div class="card-title"><span class="dot"></span>Existing Structure</div>
         <div class="fr2">
-          <div class="field"><label>Structure Size (sq ft)</label><input type="number" id="demo-sqft" value="0" oninput="calcLF()" placeholder="0 = vacant"><p class="note">$8–$10/sf. Enter 0 if vacant.</p></div>
+          <div class="field"><label>Structure Size (sq ft)</label><input type="number" id="demo-sqft" value="0" oninput="markManual(this);calcLF()" placeholder="0 = vacant"><p class="note">$8–$10/sf. Enter 0 if vacant.</p></div>
           <div class="field"><label>Demo Rate ($/sf)</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="demo-rate" value="9" oninput="calcLF()"></div></div>
         </div>
       </div>
@@ -812,7 +812,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
       <div class="card">
         <div class="card-title"><span class="dot"></span>Clearing, Grading &amp; Site Work</div>
         <div class="field"><label>Clearing Type</label>
-          <select id="clearing" onchange="calcLF()">
+          <select id="clearing" onchange="markManual(this);calcLF()">
             <option value="0">None / Already Clear ($0)</option>
             <option value="3000">Light — minimal vegetation ($3,000)</option>
             <option value="6500" selected>Medium — standard lot ($6,500)</option>
@@ -825,7 +825,7 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
           <div class="field"><label>Cost / Load</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="dirt-rate" value="500" oninput="calcLF()"></div></div>
         </div>
         <div class="fr2">
-          <div class="field"><label>Grading</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="grading" value="2500" oninput="calcLF()"></div></div>
+          <div class="field"><label>Grading</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="grading" value="2500" oninput="markManual(this);calcLF()"></div></div>
           <div class="field"><label>Site Prep / Driveway</label><div class="input-wrap"><span class="pfx">$</span><input type="number" id="site-prep" value="750" oninput="calcLF()"></div></div>
         </div>
         <div class="fr2">
@@ -1067,7 +1067,9 @@ body[data-step="4"] .page,body[data-step="5"] .page,body[data-step="6"] .page,bo
     <p class="note" style="margin-bottom:10px">Enter comparable sales to derive your ARV $/sf. <b>Adj $/SF</b> = (Sold + Adjustments) &divide; Sq Ft &mdash; use a negative adjustment (e.g. <code>-40,000</code>) to dock a superior comp. Suggested ARV multiplies the blended $/sf by the selected plan&rsquo;s Sq Ft. Apply median/avg to Base ARV below.</p>
     <div id="comps-summary" class="comps-summary"></div>
     <div style="overflow-x:auto"><table class="comps-table" id="comps-table"></table></div>
+    <div id="county-comps-msg" style="display:none;margin-top:10px;border:1px solid rgba(94,128,149,0.35);border-radius:8px;padding:10px 12px;background:rgba(94,128,149,0.08);font-size:12.5px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-ghost" id="county-comps-btn" onclick="pullCountyComps()" title="Recent new-construction sales from Mecklenburg County records">&#128225; Pull new-build comps (Meck)</button>
       <button class="btn btn-ghost" onclick="addComp()">+ Add comp</button>
       <button class="btn btn-ghost" onclick="applyCompsArv('median')">Apply median &rarr; Base ARV</button>
       <button class="btn btn-ghost" onclick="applyCompsArv('avg')">Apply avg &rarr; Base ARV</button>
@@ -1488,6 +1490,79 @@ function renderComps(){
     }
   }
 }
+// v7.14: pull recent NEW-BUILD sales from Mecklenburg County records into the comps table.
+// Needs the PID from the Step 1 GIS auto-fill, since every county layer keys on it.
+// Rows land in the same COMPS model the manual table uses, so everything downstream
+// (blended $/sf, Apply median, the PDF and the Excel export) works unchanged.
+async function pullCountyComps(){
+  const btn=$('county-comps-btn'), box=$('county-comps-msg');
+  const say=(html,border)=>{ if(!box)return; box.innerHTML=html; box.style.display=''; if(border)box.style.borderColor=border; };
+  const gis=(typeof window!=='undefined'&&window._lastGis)||null;
+  const pid=gis&&gis.pid;
+  if(!pid){ say('Run <b>\ud83d\udef0 Auto-fill from County GIS</b> on Step 1 first \u2014 the comp search keys off the county parcel id.','#f0a93c'); return; }
+  // Guard against a stale cache even if onAddrChange never fired (paste, autofill, restored deal).
+  if(gis.addrSig && gis.addrSig!==gisAddressSignature()){
+    window._lastGis=null;
+    say('The address changed since the last GIS lookup, so the cached parcel id belongs to a different property. Run <b>\ud83d\udef0 Auto-fill from County GIS</b> again first.','#f0a93c');
+    return;
+  }
+  const county=($('county-sel')||{}).value||'';
+  if(county&&!/mecklenburg/i.test(county)){ say('County records are wired for <b>Mecklenburg</b> only. For '+county+', pull comps manually or from DealMachine.','#f0a93c'); return; }
+  const sf=sfPerUnit>0?sfPerUnit:'';
+  if(btn){btn.disabled=true;btn.textContent='Pulling\u2026';}
+  say('Searching county sales records\u2026');
+  try{
+    const url='/api/comps?pid='+encodeURIComponent(pid)+'&radius=0.5&months=24'+(sf?('&sf='+sf):'');
+    const r=await fetch(url);
+    const d=await r.json();
+    if(d.error){ say('Comps lookup failed: '+d.error,'#ef5d57'); return; }
+    const rows=(d.comps||[]).filter(c=>c.tier==='solid'||c.tier==='context');
+    if(!rows.length){
+      say('No new-build sales found within 0.5 mi in the last 24 months.'
+        +((d.notes||[]).length?('<div style="color:var(--text-dim);margin-top:4px">'+d.notes.join(' \u00b7 ')+'</div>'):''),'#f0a93c');
+      return;
+    }
+    // Newest first within the nearest set, then keep it to a readable dozen.
+    rows.sort((a,b)=>(a.distance_mi??99)-(b.distance_mi??99));
+    const take=rows.slice(0,12);
+    take.forEach(c=>{
+      COMPS.push({addr:(c.address||c.pid)+(c.builder_sale?' (builder sale)':''),
+        sqft:c.heated_sf?String(Math.round(c.heated_sf)):'',
+        sold:c.sale_price?String(Math.round(c.sale_price)):'',
+        adj:'', date:c.sale_date||'',
+        dist:c.distance_mi!=null?(c.distance_mi+' mi'):'',
+        mom:'',
+        notes:[c.year_built?('built '+c.year_built):'',c.beds?(c.beds+'bd'):'',c.grade||'',c.tier==='solid'?'solid':'context'].filter(Boolean).join(' \u00b7 '),
+        url:''});
+    });
+    renderComps(); if(typeof renderShortlist==='function')renderShortlist();
+    const S=d.summary&&d.summary.solid, N=d.summary&&d.summary.new_build;
+    const money=n=>'$'+Math.round(n).toLocaleString();
+    let h='<b>'+take.length+' new-build comps added</b> from Mecklenburg County records \u00b7 '
+      +(d.notes&&d.notes[0]?d.notes[0]:'');
+    if(N&&N.count)h+='<div style="margin-top:4px">Built '+(d.params.minYear)+'+: <b>'+N.count+'</b> comps, median <b>$'+N.median_psf+'/sf</b> (range $'+N.min_psf+'\u2013$'+N.max_psf+') \u00b7 highest sold '+money(N.highest_sold)+'</div>';
+    if(S&&S.count)h+='<div>Solid (built '+(d.params.solidYear)+'+): <b>'+S.count+'</b> comps, median <b>$'+S.median_psf+'/sf</b></div>';
+    if(d.summary&&d.summary.size_matched&&d.summary.size_matched.in_band!=null)
+      h+='<div style="margin-top:4px">Size-matched to the plan: <b>'+d.summary.size_matched.in_band+'</b> comps within \u00b120% of '+Math.round(d.params.subjectSf||0).toLocaleString()+' sf'+(d.summary.size_matched.spread?(' \u00b7 $/sf spread '+d.summary.size_matched.spread+'\u00d7'):'')+'</div>';
+    if(d.confidence){
+      const col=d.confidence.level==='high'?'#46c08a':d.confidence.level==='medium'?'#f0a93c':'#ef5d57';
+      h+='<div style="margin-top:6px;padding:6px 8px;border-left:3px solid '+col+';background:rgba(255,255,255,0.03)">'
+        +'<b style="color:'+col+'">Confidence: '+d.confidence.level.toUpperCase()+'</b>'
+        +'<div style="color:var(--text-dim);font-size:11px;margin-top:2px">'+d.confidence.reason+'</div></div>';
+    }
+    if(d.arv)h+='<div style="margin-top:6px">Suggested ARV for '+Math.round(d.arv.subject_sf).toLocaleString()+' sf: <b>'+money(d.arv.arv)+'</b> = <b>$'+d.arv.retail_psf+'/sf</b>'
+      +' <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;margin-left:6px" onclick="applyCountyArv('+d.arv.retail_psf+')">Apply \u2192 Base ARV</button>'
+      +'<div style="color:var(--text-dim);font-size:11px;margin-top:2px">'+(d.arv.basis||'')+'</div>'
+      +'<div style="color:var(--text-dim);font-size:11px;margin-top:2px">'+d.arv.note+'</div></div>';
+    (d.flags||[]).forEach(f=>{h+='<div style="color:#f0a93c;margin-top:4px">\u26a0 '+f+'</div>';});
+    h+='<div style="color:var(--text-dim);font-size:11px;margin-top:6px">County deed records only \u2014 no MLS status, concessions or photos. Recording lags closing by 1\u20133 weeks. Check each row before you lean on it.</div>';
+    say(h);
+  }catch(e){ say('Comps lookup failed: '+e.message,'#ef5d57'); }
+  finally{ if(btn){btn.disabled=false;btn.innerHTML='\ud83d\udce1 Pull new-build comps (Meck)';} }
+}
+function applyCountyArv(psf){
+  const f=$('arv-b'); if(f&&psf>0){ f.value=Math.round(psf); if(typeof calcScenarios==='function')calcScenarios(); }
+}
 function applyCompsArv(stat){
   const st=compStats(), v=stat==='median'?st.median:st.avg;
   if(!(v>0)){alert('Add at least one comp with Sq Ft and Sold price first.');return;}
@@ -1611,6 +1686,26 @@ function onAddrChange(){
   if(det&&!$('county-sel').value){$('county-sel').value=det;onCountyChange();}
   updateLinks();
   validateAddress();
+  invalidateGisIfAddressMoved();
+}
+// The cached GIS result carries the PID that the comps pull keys off. If the analyst edits the
+// address after a lookup, that PID belongs to the PREVIOUS property — pulling comps then would
+// silently price the wrong parcel. Drop the cache as soon as the typed address stops matching
+// what the lookup actually resolved.
+function gisAddressSignature(){
+  return [($('addr-street')||{}).value,($('addr-city')||{}).value,($('addr-zip')||{}).value]
+    .map(v=>(v||'').trim().toLowerCase()).join('|');
+}
+function invalidateGisIfAddressMoved(){
+  try{
+    const g=window._lastGis;
+    if(!g||!g.addrSig) return;
+    if(gisAddressSignature()===g.addrSig) return;
+    window._lastGis=null;
+    const box=$('gis-result'); if(box){box.style.display='none';}
+    setGisStatus('Address changed \u2014 run the County GIS auto-fill again before pulling comps.');
+    const msg=$('county-comps-msg'); if(msg){msg.style.display='none';}
+  }catch(_){ }
 }
 
 function validateAddress(){
@@ -1804,16 +1899,49 @@ function applyGisData(d){
   const filled=[];
   if(d.zoning&&d.zoning.value&&setGisZoning(d.zoning.value))filled.push('zoning '+d.zoning.value);
   if(d.parcel&&d.parcel.geometry&&d.parcel.geometry.rings&&loadParcelPolygon(d.parcel.geometry.rings,d.parcel.edges))filled.push('lot polygon + area'+(d.parcel.edges&&d.parcel.edges.front_index!=null?' + front edge':''));
+  const lf=applyCountyDefaults(d);
+  if(lf.length)filled.push('lot factor \u2014 '+lf.join(', '));
   setGisStatus(filled.length?('Filled: '+filled.join(', ')+'. Review & adjust below.'):'Lookup complete.');
-  try{window._lastGis={ts:Date.now(),
+  try{window._lastGis={ts:Date.now(),addrSig:gisAddressSignature(),
     pid:d.parcel&&d.parcel.pid||null,nc_pin:d.parcel&&d.parcel.nc_pin||null,
     matched:d.parcel&&d.parcel.matched_address||null,
     area_sf:d.parcel&&d.parcel.area_sf||null,area_ac:d.parcel&&d.parcel.area_ac||null,
     zoning:d.zoning&&d.zoning.value||null,zclass:d.zoning&&d.zoning.class||null,
     watershed:d.watershed&&d.watershed.pco_district||null,bua:d.watershed&&d.watershed.bua_rule||null,
     swim:d.swim_buffer?{i:!!d.swim_buffer.intersects,t:(d.swim_buffer.types||[]).slice(0,3)}:null,
-    historic:d.historic?{i:!!d.historic.in_district,n:d.historic.name||null}:null};}catch(_){ }
+    historic:d.historic?{i:!!d.historic.in_district,n:d.historic.name||null}:null,
+    cama:d.cama||null,site:d.site||null};}catch(_){ }
   renderGisResult(d);
+}
+// v7.13: turn the county's own site facts into lot-factor starting points. Each field is only
+// written while it still holds its shipped default, so anything the user typed survives a re-lookup.
+const CANOPY_CLEARING={cleared:'0',light:'3000',medium:'6500',heavy:'10000',extreme:'15000'};
+const SLOPE_GRADING={flat:2500,moderate:7500,severe:15000};
+function applyCountyDefaults(d){
+  const filled=[];
+  // An analyst's own figure can coincide with a default, so never infer intent from the value —
+  // markManual() flags any human edit and restoreDeal() flags every field of a saved deal.
+  const untouched=id=>!!$(id) && !isManual(id);
+  const cama=d.cama||null, site=d.site||null;
+  // Teardown square footage: the assessor's heated area is the number the demo bid keys off.
+  // Fall back to the mapped building footprint when there's no CAMA record (new lots have none).
+  if(untouched('demo-sqft')){
+    let sf=null,src='';
+    if(cama&&cama.vacant===true){sf=0;src='county says vacant';}
+    else if(cama&&cama.heated_sf>0){sf=Math.round(cama.heated_sf);src='assessor heated area';}
+    else if(site&&site.footprint_sf>0){sf=Math.round(site.footprint_sf);src='mapped footprint';}
+    if(sf!=null){$('demo-sqft').value=sf;filled.push('demo '+sf.toLocaleString()+' sf ('+src+')');}
+  }
+  if(site&&site.canopy_class&&untouched('clearing')){
+    const v=CANOPY_CLEARING[site.canopy_class];
+    if(v!=null){$('clearing').value=v;filled.push('clearing '+site.canopy_class+' ('+site.canopy_pct+'% canopy)');}
+  }
+  if(site&&site.slope_class&&untouched('grading')){
+    const v=SLOPE_GRADING[site.slope_class];
+    if(v!=null){$('grading').value=v;filled.push('grading '+site.slope_class+' ('+site.slope_pct+'% slope)');}
+  }
+  if(filled.length){try{calcLF();}catch(_){ }}
+  return filled;
 }
 function renderGisResult(d){
   const box=$('gis-result');if(!box)return;
@@ -1829,6 +1957,22 @@ function renderGisResult(d){
   if(w.bua_rule)h+=row('BUA rule',w.bua_rule,amber);
   if(b&&typeof b.intersects==='boolean')h+=row('SWIM buffer',b.intersects?('\u26a0 Intersects'+(b.types&&b.types.length?' ('+b.types.join(', ')+')':'')):'\u2713 None on parcel',b.intersects?red:green);
   if(d.historic)h+=row('Historic district',d.historic.in_district?('\u26a0 '+(d.historic.name||'Yes')):'\u2713 No',d.historic.in_district?amber:'');
+  const cm=d.cama,st=d.site;
+  if(cm){
+    h+='<div style="font-weight:bold;color:'+teal+';margin:8px 0 4px">\ud83c\udfe0 Assessor record</div>';
+    if(cm.owner)h+=row('Owner',cm.owner+(cm.owner2?' & '+cm.owner2:''));
+    if(cm.land_use)h+=row('Land use',cm.land_use+(cm.vacant?' \u00b7 VACANT':''));
+    if(cm.year_built)h+=row('Existing structure',cm.year_built+(cm.heated_sf?' \u00b7 '+Math.round(cm.heated_sf).toLocaleString()+' sf heated':'')+(cm.beds?' \u00b7 '+cm.beds+'bd/'+cm.baths+'ba':'')+(cm.grade?' \u00b7 '+cm.grade:''));
+    if(cm.total_value)h+=row('Tax value','$'+Math.round(cm.total_value).toLocaleString()+(cm.land_value?' (land $'+Math.round(cm.land_value).toLocaleString()+')':''));
+    if(cm.last_sale_date)h+=row('Last sale',(cm.last_sale_price?'$'+Math.round(cm.last_sale_price).toLocaleString():'price not recorded')+' \u00b7 '+cm.last_sale_date+(cm.sale_is_market?'':' \u00b7 \u26a0 not arm\u2019s length'+(cm.sale_validity_note?' ('+cm.sale_validity_note.toLowerCase()+')':'')),cm.sale_is_market?'':amber);
+  }
+  if(st){
+    h+='<div style="font-weight:bold;color:'+teal+';margin:8px 0 4px">\u26f0 Site conditions</div>';
+    if(st.footprint_sf!=null)h+=row('Building footprint',st.footprint_sf?(st.footprint_sf.toLocaleString()+' sf'+(st.footprint_count>1?' in '+st.footprint_count+' structures':'')):'None mapped \u2014 vacant lot');
+    if(st.canopy_pct!=null)h+=row('Tree canopy',st.canopy_pct+'% of lot ('+st.canopy_sf.toLocaleString()+' sf) \u00b7 '+st.canopy_class,st.canopy_pct>55?amber:'');
+    if(st.slope_pct!=null)h+=row('Slope',st.fall_ft+' ft fall over '+st.run_ft+' ft \u00b7 '+st.slope_pct+'% \u00b7 '+st.slope_class,st.slope_pct>12?amber:'');
+    if(st.note)h+='<div style="font-size:11px;color:'+dim+';padding:3px 0">'+st.note+'</div>';
+  }
   h+=row('Easements','Verify on recorded plat',dim);
   if(d.errors&&d.errors.length)h+=row('Errors',d.errors.join('; '),red);
   h+='<div style="font-size:11px;color:'+dim+';margin-top:6px">Zoning &amp; lot loaded into the form above \u2014 override anything off-benchmark. Parcel shown is the current GIS shape; for a subdivision, draw the intended sublot.</div>';
@@ -4666,8 +4810,31 @@ checkResumeBanner();
 // To publish a new version: add an entry to the TOP of RELEASE_NOTES and keep
 // its `v` in sync with the header badge. The modal shows the top 3 entries and
 // auto-opens once per user when the version changes (badge click reopens it).
-const APP_VERSION='7.12', RELNOTES_KEY='ttv-analyzer-last-seen-version';
+const APP_VERSION='7.16', RELNOTES_KEY='ttv-analyzer-last-seen-version';
 const RELEASE_NOTES=[
+ {v:'7.16',date:'Sep 2026',name:'Comps now match the pocket, not just the radius',items:[
+   'Comps are picked from the subject\u2019s own assessor neighbourhood first, then by plan size, and only fall back to \u201ceverything within half a mile\u201d when nothing closer exists. The county\u2019s neighbourhood code is its own market-area boundary, so it captures pockets a radius blurs \u2014 which is what threw the NoDa and Keswick estimates off.',
+   'The panel now says which tier it used and how many comps were in it.',
+   'Backtest against Pat\u2019s historical underwritings: median miss fell from 10.3% (flat median, v7.14) to 7.7% (size matching, v7.15) to 6.3% now, and deals landing within 5% of her number rose from 31% to 45%.',
+   'The confidence badge got both broader and more honest. HIGH now covers about three quarters of deals at a 5.0% median miss; LOW is reserved for genuinely thin evidence, where the median miss is 20% and you should pick comps by hand.',
+   'Same-street matching was tested and did NOT beat the neighbourhood code, so it is deliberately not used.']},
+ {v:'7.15',date:'Sep 2026',name:'Comps are size-matched, and now tell you when to trust them',items:[
+   'Comps are matched to the selected plan\u2019s square footage (\u00b120% first, widening only when the pocket is thin) instead of taking a flat median of every new build nearby. Bigger homes sell for less per square foot, so the old flat median was biased on any specific plan.',
+   'New Confidence badge \u2014 HIGH, MEDIUM or LOW \u2014 on the comps panel, with the reason spelled out.',
+   'Both changes come from a backtest against 92 of Pat\u2019s historical underwritings (Sep 2026). Size matching cut the median miss against her number from 10.3% to 7.1%. Where the tool reports HIGH confidence (10+ size-matched comps and a tight spread), the median miss is 2.5% and roughly two thirds of deals land within 5% of her figure.',
+   'That HIGH case is only about a quarter of deals. On the rest the tool is a starting point, not an answer \u2014 which is exactly what the badge is there to say.']},
+ {v:'7.14',date:'Sep 2026',name:'New-build comps straight from county records',items:[
+   'New \ud83d\udce1 Pull new-build comps button on the Sales Comps card: recent NEW-CONSTRUCTION sales within half a mile, pulled from Mecklenburg County deed and assessor records, dropped straight into the comps table.',
+   'It follows the Deal Analyst SOP: built 2020+ for context and 2025+ as solid comps, both the $/sf and the absolute-sold-price reads, and the suggested ARV is capped at the highest sold comp so the $/sf math can never run past a real sale.',
+   'Only arm\u2019s-length and builder sales are kept. The assessor\u2019s validity codes filter out foreclosures, family transfers, multi-parcel conveyances and bargain transfers automatically.',
+   'The panel calls out thin evidence (fewer than two solid comps), a luxury-tier comp above $1M, and a wide $/sf spread \u2014 the things the SOP says to surface rather than bury.',
+   'Run the Step 1 GIS auto-fill first; the search keys off the county parcel id. County deed records only \u2014 no MLS status, concessions or photos, and recording lags closing by 1\u20133 weeks. Mecklenburg only for now.']},
+ {v:'7.13',date:'Sep 2026',name:'County GIS fills in the site \u2014 and the lot factor',items:[
+   'The \ud83d\udef0 auto-fill now also pulls Mecklenburg County\u2019s assessor record: owner, land use, year built, heated square footage, beds/baths, quality grade, tax value, and the last sale with a flag when it wasn\u2019t an arm\u2019s-length deal.',
+   'New Site conditions block: mapped building footprint (your teardown square footage), tree canopy as a % of the lot, and real slope \u2014 elevation sampled at the parcel corners from the county\u2019s 3-ft LiDAR surface.',
+   'Those three facts now pre-fill the Lot Factor step: demo square footage from the assessor, clearing tier from canopy %, grading from the slope band. Anything you have already typed is left alone \u2014 the auto-fill only writes a field that still holds its default.',
+   'Everything is a screening estimate and says so. Slope is corner-to-corner across the whole parcel, not the building pad; canopy is the 2025 county layer. Confirm both on site.',
+   'Mecklenburg only, like the rest of the GIS auto-fill. Other counties still link out.']},
  {v:'7.12',date:'Sep 2026',name:'Math aligned with the corrected UW template',items:[
    'Sale costs default to 6% of ARV (5% realtor + 1% closing) instead of 5%.',
    'Survey defaults to $2,000 when a duet, townhome or triplex plan is selected ($1,000 otherwise). A figure you typed yourself is left alone.',
