@@ -1500,6 +1500,12 @@ async function pullCountyComps(){
   const gis=(typeof window!=='undefined'&&window._lastGis)||null;
   const pid=gis&&gis.pid;
   if(!pid){ say('Run <b>\ud83d\udef0 Auto-fill from County GIS</b> on Step 1 first \u2014 the comp search keys off the county parcel id.','#f0a93c'); return; }
+  // Guard against a stale cache even if onAddrChange never fired (paste, autofill, restored deal).
+  if(gis.addrSig && gis.addrSig!==gisAddressSignature()){
+    window._lastGis=null;
+    say('The address changed since the last GIS lookup, so the cached parcel id belongs to a different property. Run <b>\ud83d\udef0 Auto-fill from County GIS</b> again first.','#f0a93c');
+    return;
+  }
   const county=($('county-sel')||{}).value||'';
   if(county&&!/mecklenburg/i.test(county)){ say('County records are wired for <b>Mecklenburg</b> only. For '+county+', pull comps manually or from DealMachine.','#f0a93c'); return; }
   const sf=sfPerUnit>0?sfPerUnit:'';
@@ -1680,6 +1686,26 @@ function onAddrChange(){
   if(det&&!$('county-sel').value){$('county-sel').value=det;onCountyChange();}
   updateLinks();
   validateAddress();
+  invalidateGisIfAddressMoved();
+}
+// The cached GIS result carries the PID that the comps pull keys off. If the analyst edits the
+// address after a lookup, that PID belongs to the PREVIOUS property — pulling comps then would
+// silently price the wrong parcel. Drop the cache as soon as the typed address stops matching
+// what the lookup actually resolved.
+function gisAddressSignature(){
+  return [($('addr-street')||{}).value,($('addr-city')||{}).value,($('addr-zip')||{}).value]
+    .map(v=>(v||'').trim().toLowerCase()).join('|');
+}
+function invalidateGisIfAddressMoved(){
+  try{
+    const g=window._lastGis;
+    if(!g||!g.addrSig) return;
+    if(gisAddressSignature()===g.addrSig) return;
+    window._lastGis=null;
+    const box=$('gis-result'); if(box){box.style.display='none';}
+    setGisStatus('Address changed \u2014 run the County GIS auto-fill again before pulling comps.');
+    const msg=$('county-comps-msg'); if(msg){msg.style.display='none';}
+  }catch(_){ }
 }
 
 function validateAddress(){
@@ -1876,7 +1902,7 @@ function applyGisData(d){
   const lf=applyCountyDefaults(d);
   if(lf.length)filled.push('lot factor \u2014 '+lf.join(', '));
   setGisStatus(filled.length?('Filled: '+filled.join(', ')+'. Review & adjust below.'):'Lookup complete.');
-  try{window._lastGis={ts:Date.now(),
+  try{window._lastGis={ts:Date.now(),addrSig:gisAddressSignature(),
     pid:d.parcel&&d.parcel.pid||null,nc_pin:d.parcel&&d.parcel.nc_pin||null,
     matched:d.parcel&&d.parcel.matched_address||null,
     area_sf:d.parcel&&d.parcel.area_sf||null,area_ac:d.parcel&&d.parcel.area_ac||null,

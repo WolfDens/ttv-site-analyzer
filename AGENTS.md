@@ -148,6 +148,10 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   that drops Z — builder sales are the new-build resales TTV is actually pricing.
 - **The ARV is capped at the highest sold comp.** The SOP is explicit that $/sf math must never run
   past a real nearby sale. Flag removal of the cap or of the `capped` flag it sets.
+- **Comps are clipped to the true `radius`.** The ArcGIS query takes a rectangle, so the envelope's
+  corners reach `radius × √2`; rows are filtered on the computed great-circle distance before any
+  tier is built, and the count dropped is reported in `notes`. Flag a change that drops the filter
+  and lets a 0.7 mi sale drive an ARV labelled "within 0.5 mi".
 - **Comp selection is a CASCADE, neighbourhood first (v7.16).** In order: same assessor
   neighbourhood + size band → same neighbourhood → size band (`SIZE_BAND`, ±20%) → widened band
   (`SIZE_BAND_WIDE`) → the whole pocket. Each tier needs `MIN_IN_BAND` comps to fire. This is
@@ -163,13 +167,25 @@ Flag anything that violates these. They encode invariants a generic reviewer wil
   levels tied to measured tiers. Do not loosen these constants without re-running the backtest
   (method and data in `research/05_comps-backtest.md`).
 - **Two tiers, both reported:** built `minYear`+ (default 2020) for context, `solidYear`+ (default
-  2025) as solid comps. The ARV prefers solid when there are at least two.
+  2025) as solid comps. **Selection runs over the full new-build pool; recency is reported, not
+  enforced** (`summary.matching.solid_in_set` / `solid_share`, plus a flag when none of the
+  chosen comps are solid). This rule changed on 2026-09-22 after it was measured: a Codex P1 on
+  PR #18 correctly spotted that the code no longer matched the old "prefer solid" wording, but
+  running the ladder over solid-only first backtests at **25.4% within 5% / 10.0% median error**
+  versus **44.8% / 6.3%** for the full pool, and loses 37-17 head to head on the deals where the
+  two differ. Restricting to 2025+ starves the neighbourhood tier. A same-pocket 2023 sale beats
+  a half-mile-away 2025 one. Don't reinstate a hard recency preference without new evidence.
 - **`xcoord` holds latitude and `ycoord` holds longitude** in the CAMA layer. The field names are
   backwards in the source data; don't 'fix' the distance maths.
 - Comps land in the same `COMPS` model the manual table uses, so the blended $/sf, the PDF and the
   Excel export keep working unchanged. Flag a parallel comps model.
 
 ### Lot-factor auto-fill (v7.13)
+- **A cached GIS result must not outlive its address.** `window._lastGis` carries the PID the comps
+  pull keys off. `onAddrChange()` drops the cache as soon as the typed address stops matching
+  `_lastGis.addrSig`, and `pullCountyComps()` re-checks before using the PID. Without this an
+  analyst who edits the address after a lookup silently prices the previous parcel. Flag any new
+  consumer of `_lastGis` that doesn't verify the signature.
 - **Never infer "untouched" from a field's value.** An analyst can legitimately type a number that
   equals a shipped default (a real $2,000 survey quote, a real $2,500 grading allowance), and the
   value-based check silently overwrote it — a Codex P1 on PR #17. Auto-fill gates on the explicit

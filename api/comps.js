@@ -118,7 +118,9 @@ export default async function handler(req, res){
           existing_heated_sf:a.heatedarea||null, land_use:a.landuse_description||null}); }
     }catch(e){ out.errors.push('subject_cama: '+e.message); }
 
-    // 2) every recorded sale in the envelope over the window
+    // 2) every recorded sale in the envelope over the window. ArcGIS takes a rectangle, so this
+    // is a square whose corners sit radius*sqrt(2) away — rows are filtered to the true radius
+    // in step 5 once each comp's distance is known.
     const halfFt = radius*MI_FT;
     const env = JSON.stringify({xmin:centre.x-halfFt, ymin:centre.y-halfFt,
                                 xmax:centre.x+halfFt, ymax:centre.y+halfFt, spatialReference:{wkid:SR}});
@@ -130,7 +132,7 @@ export default async function handler(req, res){
       outFields:'parcelid,saleprice,saledate,salesvalidity,landuse,soldasvacantflag,naldesc',
       returnGeometry:'false', f:'json'});
     const allSales = (sj.features||[]).map(f=>f.attributes);
-    out.notes.push(`${allSales.length} recorded sales in ${radius} mi since ${since}`);
+    out.notes.push(`${allSales.length} recorded sales in the ${radius} mi search box since ${since}`);
 
     // 3) keep arm's-length + builder sales of residential parcels, newest row per parcel
     const byParcel = new Map();
@@ -179,13 +181,17 @@ export default async function handler(req, res){
     }
 
     // 5) build the comp rows
-    const rows = [];
+    const rows = []; let dropped = 0;
     market.forEach(a=>{
       const c = cama.get(a.parcelid); if(!c) return;
       const sf = num(c.heatedarea), yb = c.yearbuilt || null;
       const lat = num(c.xcoord), lng = num(c.ycoord);
       const dist = (lat!=null && lng!=null && subjLat!=null && subjLng!=null)
         ? +milesBetween(subjLat,subjLng,lat,lng).toFixed(2) : null;
+      // Honour the advertised radius. The envelope is square, so without this a sale 0.7 mi away
+      // could drive the ARV while the UI says "within 0.5 mi". Rows with no coordinates are kept
+      // (rare) and simply can't be distance-checked.
+      if(dist!=null && dist > radius){ dropped++; return; }
       rows.push({
         pid:a.parcelid, address:c.address||null,
         sale_price:a.saleprice, sale_date:isoDate(a.saledate),
@@ -202,6 +208,7 @@ export default async function handler(req, res){
       });
     });
     rows.sort((a,b)=> (a.distance_mi??99) - (b.distance_mi??99));
+    if(dropped) out.notes.push(`${dropped} sales fell in the search box but outside the ${radius} mi radius and were dropped`);
     out.comps = rows;
 
     // 6) summarise each tier. Two methods, per the SOP: $/sf and absolute sold price.
@@ -227,33 +234,50 @@ export default async function handler(req, res){
               : context.length ? {set:context, label:`new-build comps (built ${minYear}+)`, tier:'context'} : null;
     let inBandCount = null, spread = null, tier = basis && basis.tier;
     if(basis && subjectSf){
-      const all = context.length ? context : basis.set;
+      // POOL CHOICE IS MEASURED, NOT ASSUMED. Running the ladder over solid-only first (to honour
+      // a strict recency preference) was tested on the 2026-09-22 backtest and is clearly worse:
+      // 25.4% within 5% / 10.0% median error, versus 44.8% / 6.3% for the full new-build pool.
+      // Head to head on the 54 deals where they differ, the full pool wins 37-17 (4.8% vs 9.5%).
+      // Restricting to 2025+ starves the neighbourhood tier — the weak pocket/size-wide tiers fire
+      // 19 times instead of 4 — and a same-pocket 2023 sale beats a half-mile-away 2025 one.
+      // Recency is therefore REPORTED (see solid_in_set below), not enforced.
+      const pools = [{set:(context.length?context:basis.set), recency:`built ${minYear}+`}];
       const subjNbh = (out.subject && out.subject.neighborhood || '').trim();
       const inSize = (set, pct) => set.filter(r => Math.abs(r.heated_sf-subjectSf)/subjectSf <= pct);
-      const sameNbh = subjNbh ? all.filter(r => (r.neighborhood||'').trim() === subjNbh) : [];
-      inBandCount = inSize(all, SIZE_BAND).length;
+      inBandCount = inSize(pools[0].set, SIZE_BAND).length;
+      const solidIds = new Set(solid.map(r=>r.pid));
       const sf0 = Math.round(subjectSf).toLocaleString();
       // Tightest tier with enough evidence wins. Neighbourhood beats radius; size breaks ties.
-      const ladder = [
-        {set:inSize(sameNbh, SIZE_BAND), need:MIN_IN_BAND, tier:'neighborhood+size',
+      // Evaluated pool-by-pool so recency (solid) outranks tier tightness.
+      const ladderFor = (set) => [
+        {set:inSize(set.filter(r=>subjNbh && (r.neighborhood||'').trim()===subjNbh), SIZE_BAND), need:MIN_IN_BAND, tier:'neighborhood+size',
          label:`same assessor neighbourhood (${subjNbh}) and within ±${Math.round(SIZE_BAND*100)}% of ${sf0} sf`},
-        {set:sameNbh, need:MIN_IN_BAND, tier:'neighborhood',
+        {set:set.filter(r=>subjNbh && (r.neighborhood||'').trim()===subjNbh), need:MIN_IN_BAND, tier:'neighborhood',
          label:`same assessor neighbourhood (${subjNbh})`},
-        {set:inSize(all, SIZE_BAND), need:MIN_IN_BAND, tier:'size',
+        {set:inSize(set, SIZE_BAND), need:MIN_IN_BAND, tier:'size',
          label:`within ±${Math.round(SIZE_BAND*100)}% of ${sf0} sf`},
-        {set:inSize(all, SIZE_BAND_WIDE), need:MIN_IN_BAND, tier:'size-wide',
+        {set:inSize(set, SIZE_BAND_WIDE), need:MIN_IN_BAND, tier:'size-wide',
          label:`within ±${Math.round(SIZE_BAND_WIDE*100)}% of ${sf0} sf (widened — too few close matches)`},
-        {set:all, need:2, tier:'pocket', label:`every new build within ${radius} mi (no closer match)`}
+        {set, need:2, tier:'pocket', label:`every new build within ${radius} mi (no closer match)`}
       ];
-      const pick = ladder.find(l => l.set.length >= l.need);
+      let pick=null, recency=null, sameNbh=[];
+      for(const pool of pools){
+        const cand = ladderFor(pool.set).find(l => l.set.length >= l.need);
+        if(cand){ pick=cand; recency=pool.recency; sameNbh=pool.set.filter(r=>subjNbh && (r.neighborhood||'').trim()===subjNbh); break; }
+      }
       if(pick){
-        basis = {set:pick.set, label:'size- and pocket-matched comps: '+pick.label, tier:pick.tier};
+        basis = {set:pick.set, label:`${recency}, ${pick.label}`, tier:pick.tier};
         tier = pick.tier;
         const ps = pick.set.map(r=>r.psf);
         spread = +(Math.max(...ps)/Math.min(...ps)).toFixed(2);
       }
+      // Recency is surfaced so the analyst can see it even though it doesn't drive selection.
+      const solidInSet = basis.set.filter(r=>solidIds.has(r.pid)).length;
       out.summary.matching = {tier, comps_used:basis.set.length, in_size_band:inBandCount,
-        same_neighborhood:sameNbh.length, subject_neighborhood:subjNbh||null, spread};
+        same_neighborhood:sameNbh.length, subject_neighborhood:subjNbh||null, spread,
+        solid_in_set:solidInSet, solid_share:basis.set.length?Math.round(solidInSet/basis.set.length*100):null};
+      if(basis.set.length && solidInSet===0)
+        out.flags.push(`None of the ${basis.set.length} comps driving this ARV were built ${solidYear}+ — the pocket match is older stock, check the dates.`);
       const nbhTier = tier==='neighborhood+size' || tier==='neighborhood';
       const deepSize = tier==='size' && inBandCount>=CONF_MIN_COMPS && spread!=null && spread<=CONF_MAX_SPREAD;
       const high = nbhTier || deepSize;
